@@ -161,7 +161,7 @@ class IMU(object):
 
     @staticmethod
     def _on_imu_event(weak_self, event):
-        self = weak_self
+        self = weak_self()
         if not self:
             return
         self.accelerometer = event.accelerometer
@@ -241,11 +241,11 @@ class SemanticCamera(object):
         # self to avoid circular reference.
         weak_self = weakref.ref(self)
         self.sensor.listen(
-            lambda image: SemanticCamera._parse_semantic_image(weak_self, event))
+            lambda image: SemanticCamera._parse_semantic_image(weak_self, image))
 
     @staticmethod
     def _parse_semantic_image(weak_self, image):
-        self = weak_self
+        self = weak_self()
         np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
         # Reshap to BGRA format
         np_img = np.reshape(np_img, (image.height, image.width, -1))
@@ -282,6 +282,17 @@ def main():
         # Create a World obj with a built-in map
         world = World(client.load_world(
             config_args['world']['map']), config_args)
+        
+        # Launch autopilot using traffic manager
+        tm = client.get_trafficmanager()
+        tm_port = tm.get_port()
+        tm.auto_lane_change(world.ego_veh, config_args['autopilot']['auto_lane_change'])
+        tm.ignore_lights_percentage(world.ego_veh, config_args['autopilot']['ignore_lights_percentage'])
+        tm.vehicle_percentage_speed_difference(world.ego_veh, config_args['autopilot']['vehicle_percentage_speed_difference'])
+        world.ego_veh.set_autopilot(True, tm_port)
+
+        for idx in range(int(config_args['sim_duration']/config_args['world']['delta_seconds'])):
+            world.carla_world.tick()
 
     finally:
         if world is not None:
