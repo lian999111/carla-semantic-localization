@@ -124,6 +124,7 @@ class World(object):
         """ Allow carla engine to run asynchronously and freely """
         settings = self.carla_world.get_settings()
         settings.synchronous_mode = False
+        settings.fixed_delta_seconds = 0.0
         self.carla_world.apply_settings(settings)
 
     def destroy(self):
