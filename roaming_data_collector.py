@@ -128,7 +128,7 @@ class World(object):
         self.carla_world.apply_settings(settings)
 
     def destroy(self):
-        """ Destroy actors in carla world """
+        """ Destroy spawned actors in carla world """
         if self.ego_veh is not None:
             print("Destroying the ego vehicle.")
             self.ego_veh.destroy()
