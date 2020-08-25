@@ -271,6 +271,7 @@ def main():
         'r'), help='configuration yaml file for carla env setup')
     args = argparser.parse_args()
 
+    # Read configurations from yaml file to config_args
     with args.config as config_file:
         config_args = yaml.safe_load(config_file)
 
@@ -291,7 +292,8 @@ def main():
         tm.vehicle_percentage_speed_difference(world.ego_veh, config_args['autopilot']['vehicle_percentage_speed_difference'])
         world.ego_veh.set_autopilot(True, tm_port)
 
-        for idx in range(int(config_args['sim_duration']/config_args['world']['delta_seconds'])):
+        n_ticks = int(config_args['sim_duration']/config_args['world']['delta_seconds'])
+        for idx in range(n_ticks):
             world.carla_world.tick()
 
     finally:
