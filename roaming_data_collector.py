@@ -129,15 +129,19 @@ class World(object):
     def destroy(self):
         """ Destroy actors in carla world """
         if self.ego_veh is not None:
+            print("Destroying the ego vehicle.")
             self.ego_veh.destroy()
             self.ego_veh = None
         if self.imu is not None:
+            print("Destroying IMU sensor.")
             self.imu.destroy()
             self.imu = None
         if self.gnss is not None:
+            print("Destroying gnss sensor.")
             self.gnss.destroy()
             self.gnss = None
         if self.semantic_camera is not None:
+            print("Destroying semantic camera sensor.")
             self.semantic_camera.destroy()
             self.semantic_camera = None
 
@@ -346,6 +350,8 @@ def main():
 
         n_ticks = int(config_args['sim_duration'] /
                       config_args['world']['delta_seconds'])
+        
+        # Simulation loop
         for _ in range(n_ticks):
             world.carla_world.tick()
 
