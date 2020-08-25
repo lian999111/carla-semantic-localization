@@ -1,0 +1,38 @@
+## Engine config
+engine:
+  no_rendering: False
+  sync_mode: True
+  delta_seconds: 0.1
+
+## Simulation environment
+env:
+  # Built-in map
+  map: Town03
+
+  # Carla weathers
+  # 0 - Default
+  # 1 - ClearNoon
+  # 2 - CloudyNoon
+  # 3 - WetNoon
+  # 4 - WetCloudyNoon
+  # 5 - MidRainyNoon
+  # 6 - HardRainNoon
+  # 7 - SoftRainNoon
+  # 8 - ClearSunset
+  # 9 - CloudySunset
+  # 10 - WetSunset
+  # 11 - WetCloudySunset
+  # 12 - MidRainSunset
+  # 13 - HardRainSunset
+  # 14 - SoftRainSunset
+  weather: 1
+
+## Autopilot
+
+## Sensors
+sensor:
+  # Semantic segmentation image
+  res_x: 800  # px
+  res_y: 600  # px
+  fov: 60     # deg
+
