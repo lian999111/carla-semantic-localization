@@ -36,3 +36,5 @@ sensor:
   res_y: 600  # px
   fov: 60     # deg
 
+## Setups
+recording: False
