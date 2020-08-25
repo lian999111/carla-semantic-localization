@@ -16,7 +16,6 @@ except IndexError:
 import argparse
 import yaml
 import carla
-import queue
 import re
 import weakref
 import random
