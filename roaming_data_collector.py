@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 
 
 def find_weather_presets():
-    """Method to find weather presets"""
+    """ Method to find weather presets """
     rgx = re.compile('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)')
     def name(x): return ' '.join(m.group(0) for m in rgx.finditer(x))
     presets = [x for x in dir(carla.WeatherParameters)
@@ -61,6 +61,10 @@ class World(object):
         self.gnss = None
         self.semantic_camera = None
 
+        # Start simuation
+        self.restart(config_args)
+
+    def restart(self, config_args, spawn_point=None):
         # Set up carla engine using config
         settings = self.carla_world.get_settings()
         settings.no_rendering_mode = config_args['world']['no_rendering']
@@ -68,10 +72,6 @@ class World(object):
         settings.fixed_delta_seconds = config_args['world']['delta_seconds']
         self.carla_world.apply_settings(settings)
 
-        # Start simuation
-        self.restart(config_args)
-
-    def restart(self, config_args, spawn_point=None):
         # Spawn the ego vehicle as a cool mustang
         ego_veh_bp = self.carla_world.get_blueprint_library().find('vehicle.mustang.mustang')
         print("Spawning the ego vehicle.")
@@ -112,8 +112,15 @@ class World(object):
 
         self.carla_world.tick()
 
+    def allow_free_run(self):
+        """ Allows carla engine to run asynchronously and freely """
+        settings = self.carla_world.get_settings()
+        settings.synchronous_mode = False
+        self.carla_world.apply_settings(settings)
+
     def destroy(self):
         pass
+        # TODO: destroy actors in world
 
 
 # %% ================= IMU Sensor =================
@@ -123,7 +130,7 @@ class IMU(object):
     """ Class for IMU sensor"""
 
     def __init__(self, parent_actor, imu_config_args):
-        """Constructor method"""
+        """ Constructor method """
         self.sensor = None
         self._parent = parent_actor
         self.accelerometer = None
@@ -161,12 +168,12 @@ class IMU(object):
 
     @staticmethod
     def _on_imu_event(weak_self, event):
+        """ IMU method """
         self = weak_self()
         if not self:
             return
         self.accelerometer = event.accelerometer
         self.gyro = event.gyroscope
-
 
 # %% ================= GNSS Sensor =================
 
@@ -175,7 +182,7 @@ class GNSS(object):
     """ Class for GNSS sensor"""
 
     def __init__(self, parent_actor, gnss_config_args):
-        """Constructor method"""
+        """ Constructor method """
         self.sensor = None
         self._parent = parent_actor
         self.lat = 0.0
@@ -207,7 +214,7 @@ class GNSS(object):
 
     @staticmethod
     def _on_gnss_event(weak_self, event):
-        """GNSS method"""
+        """ GNSS method """
         self = weak_self()
         if not self:
             return
@@ -218,9 +225,10 @@ class GNSS(object):
 
 
 class SemanticCamera(object):
-    """ Class for semantic camera"""
+    """ Class for semantic camera """
 
     def __init__(self, parent_actor, ss_cam_config_args):
+        """ Constructor method"""
         self.sensor = None
         self._parent = parent_actor
         self.lane_img = None
@@ -245,6 +253,7 @@ class SemanticCamera(object):
 
     @staticmethod
     def _parse_semantic_image(weak_self, image):
+        """ Parse semantic image raw data on its arrival """
         self = weak_self()
         np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
         # Reshap to BGRA format
@@ -283,22 +292,27 @@ def main():
         # Create a World obj with a built-in map
         world = World(client.load_world(
             config_args['world']['map']), config_args)
-        
+
         # Launch autopilot using traffic manager
         tm = client.get_trafficmanager()
         tm_port = tm.get_port()
-        tm.auto_lane_change(world.ego_veh, config_args['autopilot']['auto_lane_change'])
-        tm.ignore_lights_percentage(world.ego_veh, config_args['autopilot']['ignore_lights_percentage'])
-        tm.vehicle_percentage_speed_difference(world.ego_veh, config_args['autopilot']['vehicle_percentage_speed_difference'])
+        tm.auto_lane_change(
+            world.ego_veh, config_args['autopilot']['auto_lane_change'])
+        tm.ignore_lights_percentage(
+            world.ego_veh, config_args['autopilot']['ignore_lights_percentage'])
+        tm.vehicle_percentage_speed_difference(
+            world.ego_veh, config_args['autopilot']['vehicle_percentage_speed_difference'])
         world.ego_veh.set_autopilot(True, tm_port)
 
-        n_ticks = int(config_args['sim_duration']/config_args['world']['delta_seconds'])
+        n_ticks = int(config_args['sim_duration'] /
+                      config_args['world']['delta_seconds'])
         for idx in range(n_ticks):
             world.carla_world.tick()
 
     finally:
         if world is not None:
             world.destroy()
+            world.allow_free_run()
 
 
 # %%
