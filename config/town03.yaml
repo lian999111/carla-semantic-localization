@@ -10,23 +10,23 @@ world:
   # Built-in map
   map: Town03
 
-  # Carla weathers
-  # 0 - Default
-  # 1 - ClearNoon
+  # Carla weathers (in alphabetic order)
+  # 0 - ClearNoon
+  # 1 - ClearSunset
   # 2 - CloudyNoon
-  # 3 - WetNoon
-  # 4 - WetCloudyNoon
-  # 5 - MidRainyNoon
-  # 6 - HardRainNoon
-  # 7 - SoftRainNoon
-  # 8 - ClearSunset
-  # 9 - CloudySunset
-  # 10 - WetSunset
-  # 11 - WetCloudySunset
-  # 12 - MidRainSunset
-  # 13 - HardRainSunset
-  # 14 - SoftRainSunset
-  weather: 1
+  # 3 - CloudySunset
+  # 4 - Default
+  # 5 - HardRainNoon
+  # 6 - HardRainSunset
+  # 7 - MidRainSunset
+  # 8 - MidRainyNoon
+  # 9 - SoftRainNoon
+  # 10 - SoftRainSunset
+  # 11 - WetCloudyNoon
+  # 12 - WetCloudySunset
+  # 13 - WetNoon
+  # 14 - WetSunset
+  weather: 4
 
 ## Autopilot
 

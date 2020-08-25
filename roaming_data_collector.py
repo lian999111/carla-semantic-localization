@@ -53,6 +53,7 @@ class World(object):
             sys.exit(1)
         self._weather_presets = find_weather_presets()
         self._weather_index = config_args['world']['weather']
+        self.carla_world.set_weather(self._weather_presets[self._weather_index][0])
         self.ego_veh = None
         self.gnss = None
         self.imu = None
