@@ -72,8 +72,8 @@ class World(object):
         settings.fixed_delta_seconds = config_args['world']['delta_seconds']
         self.carla_world.apply_settings(settings)
 
-        # Destroy potentially existing actors
-        self.destroy()
+        # # Destroy potentially existing actors
+        # self.destroy()
 
         # Spawn the ego vehicle as a cool mustang
         ego_veh_bp = self.carla_world.get_blueprint_library().find('vehicle.mustang.mustang')
@@ -112,11 +112,16 @@ class World(object):
         self.imu = IMU(self.ego_veh, config_args['sensor']['imu'])
         self.semantic_camera = SemanticCamera(
             self.ego_veh, config_args['sensor']['semantic_image'])
+        
+        # Tick the world to bring the actors into effect
+        self.carla_world.tick()
 
+    def step_forward(self):
+        """ Tick carla world to take simulation one step forward"""
         self.carla_world.tick()
 
     def allow_free_run(self):
-        """ Allows carla engine to run asynchronously and freely """
+        """ Allow carla engine to run asynchronously and freely """
         settings = self.carla_world.get_settings()
         settings.synchronous_mode = False
         self.carla_world.apply_settings(settings)
