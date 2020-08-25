@@ -18,6 +18,7 @@ import yaml
 import carla
 import queue
 import re
+import weakref
 import random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -53,10 +54,11 @@ class World(object):
             sys.exit(1)
         self._weather_presets = find_weather_presets()
         self._weather_index = config_args['world']['weather']
-        self.carla_world.set_weather(self._weather_presets[self._weather_index][0])
+        self.carla_world.set_weather(
+            self._weather_presets[self._weather_index][0])
         self.ego_veh = None
-        self.gnss = None
         self.imu = None
+        self.gnss = None
         self.semantic_camera = None
 
         # Set up carla engine using config
@@ -99,32 +101,164 @@ class World(object):
                 ego_veh_bp, spawn_point)
 
         # Point the spectator to the ego vehicle
-        self.spectator.set_transform(carla.Transform(spawn_point.location + carla.Location(z=30),
+        self.spectator.set_transform(carla.Transform(spawn_point.location + carla.Location(z=25),
                                                      carla.Rotation(pitch=-90)))
-        
+
         # Set up the sensors
+        self.gnss = GNSS(self.ego_veh, config_args['sensor']['gnss'])
+        self.imu = IMU(self.ego_veh, config_args['sensor']['imu'])
+        self.semantic_camera = SemanticCamera(
+            self.ego_veh, config_args['sensor']['semantic_image'])
 
         self.carla_world.tick()
 
     def destroy(self):
         pass
 
-# %% ================= Camera Manager =================
+
+# %% ================= IMU Sensor =================
+
+
+class IMU(object):
+    """ Class for IMU sensor"""
+
+    def __init__(self, parent_actor, imu_config_args):
+        """Constructor method"""
+        self.sensor = None
+        self._parent = parent_actor
+        self.accelerometer = None
+        self.gyro = None
+        world = self._parent.get_world()
+        imu_bp = world.get_blueprint_library().find('sensor.other.imu')
+
+        imu_bp.set_attribute('noise_accel_stddev_x',
+                             imu_config_args['noise_accel_stddev_x'])
+        imu_bp.set_attribute('noise_accel_stddev_y',
+                             imu_config_args['noise_accel_stddev_y'])
+        imu_bp.set_attribute('noise_accel_stddev_z',
+                             imu_config_args['noise_accel_stddev_z'])
+        imu_bp.set_attribute('noise_gyro_bias_x',
+                             imu_config_args['noise_gyro_bias_x'])
+        imu_bp.set_attribute('noise_gyro_bias_y',
+                             imu_config_args['noise_gyro_bias_y'])
+        imu_bp.set_attribute('noise_gyro_bias_z',
+                             imu_config_args['noise_gyro_bias_z'])
+        imu_bp.set_attribute('noise_gyro_stddev_x',
+                             imu_config_args['noise_gyro_stddev_x'])
+        imu_bp.set_attribute('noise_gyro_stddev_y',
+                             imu_config_args['noise_gyro_stddev_y'])
+        imu_bp.set_attribute('noise_gyro_stddev_z',
+                             imu_config_args['noise_gyro_stddev_z'])
+
+        print("Spawning IMU sensor.")
+        self.sensor = world.spawn_actor(imu_bp, carla.Transform(carla.Location(x=0.0, z=0.0)),
+                                        attach_to=self._parent)
+        # We need to pass the lambda a weak reference to
+        # self to avoid circular reference.
+        weak_self = weakref.ref(self)
+        self.sensor.listen(
+            lambda event: IMU._on_imu_event(weak_self, event))
+
+    @staticmethod
+    def _on_imu_event(weak_self, event):
+        self = weak_self
+        if not self:
+            return
+        self.accelerometer = event.accelerometer
+        self.gyro = event.gyroscope
+
+
+# %% ================= GNSS Sensor =================
 
 
 class GNSS(object):
     """ Class for GNSS sensor"""
 
-    def __init__(self, config_args):
-        pass
+    def __init__(self, parent_actor, gnss_config_args):
+        """Constructor method"""
+        self.sensor = None
+        self._parent = parent_actor
+        self.lat = 0.0
+        self.lon = 0.0
+        world = self._parent.get_world()
+        gnss_bp = world.get_blueprint_library().find('sensor.other.gnss')
 
-# %% ================= Camera Manager =================
+        gnss_bp.set_attribute(
+            'noise_alt_bias', gnss_config_args['noise_alt_bias'])
+        gnss_bp.set_attribute('noise_alt_stddev',
+                              gnss_config_args['noise_alt_stddev'])
+        gnss_bp.set_attribute(
+            'noise_lat_bias', gnss_config_args['noise_lat_bias'])
+        gnss_bp.set_attribute('noise_lat_stddev',
+                              gnss_config_args['noise_lat_stddev'])
+        gnss_bp.set_attribute(
+            'noise_lon_bias', gnss_config_args['noise_lon_bias'])
+        gnss_bp.set_attribute('noise_lon_stddev',
+                              gnss_config_args['noise_lon_stddev'])
+
+        print("Spawning GNSS sensor.")
+        self.sensor = world.spawn_actor(gnss_bp, carla.Transform(carla.Location(x=0.0, z=0.0)),
+                                        attach_to=self._parent)
+        # We need to pass the lambda a weak reference to
+        # self to avoid circular reference.
+        weak_self = weakref.ref(self)
+        self.sensor.listen(
+            lambda event: GNSS._on_gnss_event(weak_self, event))
+
+    @staticmethod
+    def _on_gnss_event(weak_self, event):
+        """GNSS method"""
+        self = weak_self()
+        if not self:
+            return
+        self.lat = event.latitude
+        self.lon = event.longitude
+
+# %% ================= Semantic Camera =================
 
 
-class CameraManager(object):
+class SemanticCamera(object):
     """ Class for semantic camera"""
 
-    def __init__(self, config_args):
+    def __init__(self, parent_actor, ss_cam_config_args):
+        self.sensor = None
+        self._parent = parent_actor
+        self.lane_img = None
+        self.pole_img = None
+        world = self._parent.get_world()
+
+        ss_cam_bp = world.get_blueprint_library().find(
+            'sensor.camera.semantic_segmentation')
+        ss_cam_bp.set_attribute('image_size_x', ss_cam_config_args['res_x'])
+        ss_cam_bp.set_attribute('image_size_y', ss_cam_config_args['res_y'])
+        ss_cam_bp.set_attribute('fov', ss_cam_config_args['fov'])
+
+        print("Spawning semantic camera sensor.")
+        self.sensor = world.spawn_actor(ss_cam_bp, carla.Transform(carla.Location(x=0.6, z=1.5)),
+                                        attach_to=self._parent)
+
+        # We need to pass the lambda a weak reference to
+        # self to avoid circular reference.
+        weak_self = weakref.ref(self)
+        self.sensor.listen(
+            lambda image: SemanticCamera._parse_semantic_image(weak_self, event))
+
+    @staticmethod
+    def _parse_semantic_image(weak_self, image):
+        self = weak_self
+        np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
+        # Reshap to BGRA format
+        np_img = np.reshape(np_img, (image.height, image.width, -1))
+        self.lane_img = (np_img[:, :, 2] == 6) | (np_img[:, :, 2] == 8)
+        self.pole_img = np_img[:, :, 2] == 5
+
+# %% ================= Ground Truth  =================
+
+
+class GroundTruth(object):
+    """ Class for ground truth extraction """
+
+    def __init(self, config_args):
         pass
 
 
