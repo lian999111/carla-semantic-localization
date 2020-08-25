@@ -1,11 +1,12 @@
-## Engine config
-engine:
+## World
+world:
+  # Rendering must be on for semantic segmentation
   no_rendering: False
+
+  # Synchronous mode and the simulation time step (must be <= 0.1 sec for simulation fidelity)
   sync_mode: True
   delta_seconds: 0.1
 
-## Simulation environment
-env:
   # Built-in map
   map: Town03
 
@@ -37,4 +38,5 @@ sensor:
   fov: 60     # deg
 
 ## Setups
+sim_duration: 20  # sec
 recording: False
