@@ -72,6 +72,9 @@ class World(object):
         settings.fixed_delta_seconds = config_args['world']['delta_seconds']
         self.carla_world.apply_settings(settings)
 
+        # Destroy potentially existing actors
+        self.destroy()
+
         # Spawn the ego vehicle as a cool mustang
         ego_veh_bp = self.carla_world.get_blueprint_library().find('vehicle.mustang.mustang')
         print("Spawning the ego vehicle.")
@@ -119,8 +122,19 @@ class World(object):
         self.carla_world.apply_settings(settings)
 
     def destroy(self):
-        pass
-        # TODO: destroy actors in world
+        """ Destroy actors in carla world """
+        if self.ego_veh is not None:
+            self.ego_veh.destroy()
+            self.ego_veh = None
+        if self.imu is not None:
+            self.imu.destroy()
+            self.imu = None
+        if self.gnss is not None:
+            self.gnss.destroy()
+            self.gnss = None
+        if self.semantic_camera is not None:
+            self.semantic_camera.destroy()
+            self.semantic_camera = None
 
 
 # %% ================= IMU Sensor =================
@@ -175,6 +189,13 @@ class IMU(object):
         self.accelerometer = event.accelerometer
         self.gyro = event.gyroscope
 
+    def destroy(self):
+        """ Destroy IMU actor """
+        if self.sensor is not None:
+            self.sensor.destroy()
+            self.sensor = None
+
+
 # %% ================= GNSS Sensor =================
 
 
@@ -221,6 +242,12 @@ class GNSS(object):
         self.lat = event.latitude
         self.lon = event.longitude
 
+    def destroy(self):
+        """ Destroy GNSS actor """
+        if self.sensor is not None:
+            self.sensor.destroy()
+            self.sensor = None
+
 # %% ================= Semantic Camera =================
 
 
@@ -255,11 +282,19 @@ class SemanticCamera(object):
     def _parse_semantic_image(weak_self, image):
         """ Parse semantic image raw data on its arrival """
         self = weak_self()
+        if not self:
+            return
         np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
         # Reshap to BGRA format
         np_img = np.reshape(np_img, (image.height, image.width, -1))
         self.lane_img = (np_img[:, :, 2] == 6) | (np_img[:, :, 2] == 8)
         self.pole_img = np_img[:, :, 2] == 5
+    
+    def destroy(self):
+        """ Destroy semantic camera actor """
+        if self.sensor is not None:
+            self.sensor.destroy()
+            self.sensor = None
 
 # %% ================= Ground Truth  =================
 
@@ -306,11 +341,12 @@ def main():
 
         n_ticks = int(config_args['sim_duration'] /
                       config_args['world']['delta_seconds'])
-        for idx in range(n_ticks):
+        for _ in range(n_ticks):
             world.carla_world.tick()
 
     finally:
         if world is not None:
+            world.ego_veh.set_autopilot(False, tm_port)
             world.destroy()
             world.allow_free_run()
 
