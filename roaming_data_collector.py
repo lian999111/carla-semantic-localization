@@ -308,6 +308,7 @@ class SemanticCamera(object):
             return
         np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
         # Reshap to BGRA format
+        # Semantic info is stored only in the R channel
         np_img = np.reshape(np_img, (image.height, image.width, -1))
         # Lane lines and sidewalks are considered
         self.lane_img = (np_img[:, :, 2] == 6) | (np_img[:, :, 2] == 8)
