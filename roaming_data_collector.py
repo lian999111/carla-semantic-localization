@@ -33,6 +33,57 @@ def find_weather_presets():
                if re.match('[A-Z].+', x)]
     return [(getattr(carla.WeatherParameters, x), name(x)) for x in presets]
 
+# %% ================= Geo2Location =================
+
+
+class Geo2Location(object):
+    """
+    Helper class for homogeneous transform from geolocation used by gnss to Cartisian location.
+    This transform is not provided by Carla, but it can be solved using 4 chosen points.
+    """
+
+    def __init__(self, map):
+        """ Constructor method """
+        self._map = map
+        # Pick 4 points of carla.Location
+        loc1 = carla.Location(0, 0, 0)
+        loc2 = carla.Location(1, 0, 0)
+        loc3 = carla.Location(0, 1, 0)
+        loc4 = carla.Location(0, 0, 1)
+        # Get the corresponding carla.GeoLocation points using carla's transform_to_geolocation()
+        geoloc1 = self._map.transform_to_geolocation(loc1)
+        geoloc2 = self._map.transform_to_geolocation(loc2)
+        geoloc3 = self._map.transform_to_geolocation(loc3)
+        geoloc4 = self._map.transform_to_geolocation(loc4)
+        # Solve the transform from geolocation to location (geolocation_to_location)
+        l = np.array([[loc1.x, loc2.x, loc3.x, loc4.x],
+                      [loc1.y, loc2.y, loc3.y, loc4.y],
+                      [loc1.z, loc2.z, loc3.z, loc4.z],
+                      [1, 1, 1, 1]], dtype=np.float)
+        g = np.array([[geoloc1.latitude, geoloc2.latitude, geoloc3.latitude, geoloc4.latitude],
+                      [geoloc1.longitude, geoloc2.longitude,
+                          geoloc3.longitude, geoloc4.longitude],
+                      [geoloc1.altitude, geoloc2.altitude,
+                          geoloc3.altitude, geoloc4.altitude],
+                      [1, 1, 1, 1]], dtype=np.float)
+        # Tform = (G*L^-1)^-1
+        self._tform = np.linalg.inv(g.dot(np.linalg.inv(l)))
+
+    def transform(self, geolocation):
+        """ 
+        Transform from carla.GeoLocation to carla.Location.
+        Numerical error may exist. Experiments show error is about under 1 cm in Town03.
+        """
+        geoloc = np.array(
+            [geolocation.latitude, geolocation.longitude, geolocation.altitude, 1])
+        loc = self._tform.dot(geoloc.T)
+        return carla.Location(loc[0], loc[1], loc[2])
+
+    def get_matrix(self):
+        """ Get the 4-by-4 transform matrix """
+        return self._tform
+
+
 # %% ================= World =================
 
 
@@ -171,6 +222,7 @@ class IMU(object):
         self._parent = parent_actor
         self.accelerometer = None
         self.gyro = None
+
         world = self._parent.get_world()
         imu_bp = world.get_blueprint_library().find('sensor.other.imu')
 
@@ -230,6 +282,12 @@ class GNSS(object):
         self._parent = parent_actor
         self.lat = 0.0
         self.lon = 0.0
+        self.alt = 0.0
+        self.x = 0.0
+        self.y = 0.0
+        self.z = 0.0
+        self.transform = None
+
         world = self._parent.get_world()
         gnss_bp = world.get_blueprint_library().find('sensor.other.gnss')
 
@@ -263,6 +321,15 @@ class GNSS(object):
             return
         self.lat = event.latitude
         self.lon = event.longitude
+        self.alt = event.altitude
+
+        # Get transform from geolocation to location
+        location = self._geo2location.transform(
+            carla.GeoLocation(self.lat, self.lon, self.alt))
+        self.x = location.x
+        self.y = location.y
+        self.z = location.z
+        self.transform = event.transform
 
     def destroy(self):
         """ Destroy GNSS actor """
@@ -282,8 +349,8 @@ class SemanticCamera(object):
         self._parent = parent_actor
         self.lane_img = None
         self.pole_img = None
-        world = self._parent.get_world()
 
+        world = self._parent.get_world()
         ss_cam_bp = world.get_blueprint_library().find(
             'sensor.camera.semantic_segmentation')
         ss_cam_bp.set_attribute('image_size_x', ss_cam_config_args['res_x'])
