@@ -39,9 +39,10 @@ def find_weather_presets():
 class World(object):
     """ Class representing the surrounding environment """
 
-    def __init__(self, carla_world, config_args):
+    def __init__(self, carla_world, traffic_manager, config_args):
         """ Constructor """
         self.carla_world = carla_world
+        self.tm = traffic_manager
         self.spectator = carla_world.get_spectator()
         try:
             self.map = self.carla_world.get_map()
@@ -111,9 +112,20 @@ class World(object):
         self.imu = IMU(self.ego_veh, config_args['sensor']['imu'])
         self.semantic_camera = SemanticCamera(
             self.ego_veh, config_args['sensor']['semantic_image'])
-        
+
         # Tick the world to bring the actors into effect
         self.carla_world.tick()
+
+    def set_ego_autopilot(self, active, autopilot_config_args=None):
+        """ Set traffic manager and register ego vehicle to it"""
+        if autopilot_config_args is not None:
+            self.tm.auto_lane_change(
+                self.ego_veh, autopilot_config_args['auto_lane_change'])
+            self.tm.ignore_lights_percentage(
+                self.ego_veh, autopilot_config_args['ignore_lights_percentage'])
+            self.tm.vehicle_percentage_speed_difference(
+                self.ego_veh, autopilot_config_args['vehicle_percentage_speed_difference'])
+        self.ego_veh.set_autopilot(active, self.tm.get_port())
 
     def step_forward(self):
         """ Tick carla world to take simulation one step forward"""
@@ -335,29 +347,21 @@ def main():
         client.set_timeout(5.0)
         # Create a World obj with a built-in map
         world = World(client.load_world(
-            config_args['world']['map']), config_args)
+            config_args['world']['map']), client.get_trafficmanager(), config_args)
 
-        # Launch autopilot using traffic manager
-        tm = client.get_trafficmanager()
-        tm_port = tm.get_port()
-        tm.auto_lane_change(
-            world.ego_veh, config_args['autopilot']['auto_lane_change'])
-        tm.ignore_lights_percentage(
-            world.ego_veh, config_args['autopilot']['ignore_lights_percentage'])
-        tm.vehicle_percentage_speed_difference(
-            world.ego_veh, config_args['autopilot']['vehicle_percentage_speed_difference'])
-        world.ego_veh.set_autopilot(True, tm_port)
+        # Launch autopilot for ego vehicle
+        world.set_ego_autopilot(True, config_args['autopilot'])
 
         n_ticks = int(config_args['sim_duration'] /
                       config_args['world']['delta_seconds'])
-        
+
         # Simulation loop
         for _ in range(n_ticks):
             world.carla_world.tick()
 
     finally:
         if world is not None:
-            world.ego_veh.set_autopilot(False, tm_port)
+            world.set_ego_autopilot(False)
             world.destroy()
             world.allow_free_run()
 
