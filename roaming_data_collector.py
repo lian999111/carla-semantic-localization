@@ -91,8 +91,11 @@ class Geo2Location(object):
 class World(object):
     """ Class representing the surrounding environment """
 
-    def __init__(self, carla_world, traffic_manager, config_args):
-        """ Constructor """
+    def __init__(self, carla_world, traffic_manager, config_args, spawn_point=None):
+        """ 
+        Constructor method. 
+        If spawn_point not given, choose random spawn point recommended by carla.
+        """
         self.carla_world = carla_world
         self.tm = traffic_manager
         self.spectator = carla_world.get_spectator()
@@ -115,7 +118,7 @@ class World(object):
         self.virtual_odom = None
 
         # Start simuation
-        self.restart(config_args)
+        self.restart(config_args, spawn_point)
         # Tick the world to bring the actors into effect
         self.step_forward()
 
