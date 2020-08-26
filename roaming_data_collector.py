@@ -43,9 +43,9 @@ class Geo2Location(object):
     This transform is not provided by Carla, but it can be solved using 4 chosen points.
     """
 
-    def __init__(self, map):
+    def __init__(self, carla_map):
         """ Constructor method """
-        self._map = map
+        self._map = carla_map
         # Pick 4 points of carla.Location
         loc1 = carla.Location(0, 0, 0)
         loc2 = carla.Location(1, 0, 0)
@@ -441,9 +441,9 @@ class VirtualOdometry():
 class GroundTruth(object):
     """ Class for ground truth extraction """
 
-    def __init(self, map, ego_veh, actor_list, config_args):
+    def __init(self, carla_map, ego_veh, actor_list, config_args):
         """ Constructor method """
-        self.map = map
+        self.map = carla_map
         self.ego_veh = ego_veh
         self.actor_list = actor_list
         self.landmarks = None
