@@ -165,7 +165,7 @@ class World(object):
         self.imu = IMU(self.ego_veh, config_args['sensor']['imu'])
         self.semantic_camera = SemanticCamera(
             self.ego_veh, config_args['sensor']['semantic_image'])
-        self.virtual_odom = SimulatedOdometry(
+        self.virtual_odom = VirtualOdometry(
             self.ego_veh, config_args['sensor']['virtual_odom'])
 
     def set_ego_autopilot(self, active, autopilot_config_args=None):
@@ -389,8 +389,11 @@ class SemanticCamera(CarlaSensor):
 # %% ================= Simulated Odometry =================
 
 
-class SimulatedOdometry():
-    """ Class for virtual velocity and yaw rate measurement """
+class VirtualOdometry():
+    """ 
+    Class for virtual velocity and yaw rate measurement.
+    This is done by adding noise to ego vehilce's velocities in Carla.
+    """
 
     def __init__(self, parent_actor, virtual_odom_config):
         """ Constructor method """
