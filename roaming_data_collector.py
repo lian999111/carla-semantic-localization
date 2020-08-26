@@ -17,7 +17,6 @@ import argparse
 import yaml
 import carla
 import re
-import weakref
 import random
 import numpy as np
 import matplotlib.pyplot as plt
