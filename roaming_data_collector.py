@@ -19,6 +19,7 @@ import carla
 import re
 import random
 import numpy as np
+from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
 import queue
 
@@ -114,6 +115,9 @@ class World(object):
 
         # Start simuation
         self.restart(config_args)
+        self.virtual_odom = SimulatedOdometry(self.ego_veh)
+        # Tick the world to bring the actors into effect
+        self.step_forward()
 
     def restart(self, config_args, spawn_point=None):
         # Set up carla engine using config
@@ -162,9 +166,6 @@ class World(object):
         self.semantic_camera = SemanticCamera(
             self.ego_veh, config_args['sensor']['semantic_image'])
 
-        # Tick the world to bring the actors into effect
-        self.step_forward()
-
     def set_ego_autopilot(self, active, autopilot_config_args=None):
         """ Set traffic manager and register ego vehicle to it"""
         if autopilot_config_args is not None:
@@ -182,6 +183,7 @@ class World(object):
         self.imu.update()
         self.gnss.update()
         self.semantic_camera.update()
+        self.virtual_odom.update()
 
     def allow_free_run(self):
         """ Allow carla engine to run asynchronously and freely """
@@ -382,11 +384,37 @@ class SemanticCamera(CarlaSensor):
         # Pole-like objects
         self.pole_img = np_img[:, :, 2] == 5
 
-    def destroy(self):
-        """ Destroy semantic camera actor """
-        if self.sensor is not None:
-            self.sensor.destroy()
-            self.sensor = None
+# %% ================= Simulated Odometry =================
+
+
+class SimulatedOdometry():
+    """ Class for virtual velocity and yaw rate measurement """
+
+    def __init__(self, parent_actor):
+        """ Constructor method """
+        self._parent = parent_actor
+        self.vel_x = 0.0
+        self.vel_y = 0.0
+        self.yaw_rate = 0.0
+
+    def update(self):
+        """ Update virtual odometry """
+        vel = self._parent.get_velocity()
+        # Carla uses SAE coordinate system (z towards down)
+        # Ref: https://carla.readthedocs.io/en/latest/python_api/#carlarotation
+        # Convert to ISO coordinate system when building up the vector
+        vel_vec = np.array([vel.x, -vel.y, -vel.z]).T
+
+        rotation = self._parent.get_transform().rotation
+        # Also convert to ISO coordinate system when creating rotation matrix
+        tform_ego2world = Rotation.from_euler(
+            'zyx', [-rotation.yaw, -rotation.pitch, rotation.roll], degrees=True).as_matrix().T
+
+        ego_vel = tform_ego2world.dot(vel_vec)
+        self.vel_x = ego_vel[0]
+        self.vel_y = ego_vel[1]
+        self.yaw_rate = -self._parent.get_angular_velocity().z
+
 
 # %% ================= Ground Truth  =================
 
@@ -394,8 +422,27 @@ class SemanticCamera(CarlaSensor):
 class GroundTruth(object):
     """ Class for ground truth extraction """
 
-    def __init(self, config_args):
-        pass
+    def __init(self, map, ego_veh, actor_list, config_args):
+        """ Constructor method """
+        self.map = map
+        self.ego_veh = ego_veh
+        self.actor_list = actor_list
+        self.landmarks = None
+
+        self.ego_veh_location = None
+        self.waypoint = None
+        self.left_waypoint = None
+        self.right_waypoint = None
+
+        self.left_marking_param = []
+        self.next_left_marking_param = []
+        self.right_marking_param = []
+        self.next_right_marking_param = []
+
+        self.left_marking_type = None
+        self.next_left_marking_type = None
+        self.right_marking_type = None
+        self.next_right_marking_type = None
 
 
 # %%
@@ -429,10 +476,9 @@ def main():
         # Simulation loop
         for _ in range(n_ticks):
             world.step_forward()
-            print(world.gnss.timestamp)
-            print("EGO: {}, {}".format(world.ego_veh.get_location().x,
-                                       world.ego_veh.get_location().y))
-            print("GNSS: {}, {}".format(world.gnss.x, world.gnss.y))
+            print('vx: {}'.format(world.virtual_odom.vel_x))
+            print('vy: {}'.format(world.virtual_odom.vel_y))
+            print('w: {}'.format(world.virtual_odom.yaw_rate))
 
     finally:
         if world is not None:
