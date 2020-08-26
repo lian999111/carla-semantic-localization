@@ -363,6 +363,7 @@ def main():
         if world is not None:
             world.set_ego_autopilot(False)
             world.destroy()
+            # Allow carla engine to run freely so it doesn't just hang there
             world.allow_free_run()
 
 
