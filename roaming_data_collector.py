@@ -21,6 +21,7 @@ import weakref
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+import queue
 
 # %% ================= Global function =================
 
@@ -123,13 +124,11 @@ class World(object):
         settings.fixed_delta_seconds = config_args['world']['delta_seconds']
         self.carla_world.apply_settings(settings)
 
-        # # Destroy potentially existing actors
-        # self.destroy()
-
         # Spawn the ego vehicle as a cool mustang
         ego_veh_bp = self.carla_world.get_blueprint_library().find('vehicle.mustang.mustang')
         print("Spawning the ego vehicle.")
         if self.ego_veh is not None:
+            # Destroy previously spawned actors
             self.destroy()
             if spawn_point is None:
                 spawn_point = self.ego_veh.get_transform()
@@ -165,7 +164,7 @@ class World(object):
             self.ego_veh, config_args['sensor']['semantic_image'])
 
         # Tick the world to bring the actors into effect
-        self.carla_world.tick()
+        self.step_forward()
 
     def set_ego_autopilot(self, active, autopilot_config_args=None):
         """ Set traffic manager and register ego vehicle to it"""
@@ -181,6 +180,9 @@ class World(object):
     def step_forward(self):
         """ Tick carla world to take simulation one step forward"""
         self.carla_world.tick()
+        self.imu.update()
+        self.gnss.update()
+        self.semantic_camera.update()
 
     def allow_free_run(self):
         """ Allow carla engine to run asynchronously and freely """
@@ -210,16 +212,44 @@ class World(object):
 
 # TODO: Simulate odometry and yaw rate
 
+
+# %% ================= Sensor Base =================
+
+
+class Sensor(object):
+    """ Base class for sensors """
+
+    def __init__(self, parent_actor):
+        """ Constructor method """
+        self.sensor = None
+        self.timestamp = 0.0
+        self._parent = parent_actor
+        # The callback method in listen() to retrieve data used widely in official tutorials has a data race problem.
+        # The callback will likely not finish before data get accessed from the main loop, causing inconsistent data.
+        # Here the queue is expected to be used in listen() instead. The callback simply puts the sensor data into the queue,
+        # then the data can be obtained in update() using get() which blocks and make sure synchronization.
+        self._queue = queue.Queue()
+
+    def update(self):
+        """ Wait for sensro event to be put in queue and update data """
+        raise NotImplementedError()
+
+    def destroy(self):
+        """ Destroy sensor actor """
+        if self.sensor is not None:
+            self.sensor.destroy()
+            self.sensor = None
+
+
 # %% ================= IMU Sensor =================
 
 
-class IMU(object):
+class IMU(Sensor):
     """ Class for IMU sensor"""
 
     def __init__(self, parent_actor, imu_config_args):
         """ Constructor method """
-        self.sensor = None
-        self._parent = parent_actor
+        super().__init__(parent_actor)
         self.accelerometer = None
         self.gyro = None
 
@@ -248,38 +278,27 @@ class IMU(object):
         print("Spawning IMU sensor.")
         self.sensor = world.spawn_actor(imu_bp, carla.Transform(carla.Location(x=0.0, z=0.0)),
                                         attach_to=self._parent)
-        # We need to pass the lambda a weak reference to
-        # self to avoid circular reference.
-        weak_self = weakref.ref(self)
-        self.sensor.listen(
-            lambda event: IMU._on_imu_event(weak_self, event))
 
-    @staticmethod
-    def _on_imu_event(weak_self, event):
-        """ IMU method """
-        self = weak_self()
-        if not self:
-            return
+        self.sensor.listen(lambda event: self._queue.put(event))
+
+    def update(self):
+        """ Wait for IMU measurement and update data """
+        # get() blocks the script so synchronization is guaranteed
+        event = self._queue.get()
+        self.timestamp = event.timestamp
         self.accelerometer = event.accelerometer
         self.gyro = event.gyroscope
-
-    def destroy(self):
-        """ Destroy IMU actor """
-        if self.sensor is not None:
-            self.sensor.destroy()
-            self.sensor = None
 
 
 # %% ================= GNSS Sensor =================
 
 
-class GNSS(object):
+class GNSS(Sensor):
     """ Class for GNSS sensor"""
 
     def __init__(self, parent_actor, gnss_config_args):
         """ Constructor method """
-        self.sensor = None
-        self._parent = parent_actor
+        super().__init__(parent_actor)
         self.lat = 0.0
         self.lon = 0.0
         self.alt = 0.0
@@ -305,19 +324,16 @@ class GNSS(object):
 
         print("Spawning GNSS sensor.")
         self.sensor = world.spawn_actor(gnss_bp, carla.Transform(carla.Location(x=0.0, z=0.0)),
-                                        attach_to=self._parent)
-        # We need to pass the lambda a weak reference to
-        # self to avoid circular reference.
-        weak_self = weakref.ref(self)
-        self.sensor.listen(
-            lambda event: GNSS._on_gnss_event(weak_self, event))
+                                        attach_to=self._parent, attachment_type=carla.AttachmentType.Rigid)
+        self._geo2location = Geo2Location(world.get_map())
 
-    @staticmethod
-    def _on_gnss_event(weak_self, event):
-        """ GNSS method """
-        self = weak_self()
-        if not self:
-            return
+        self.sensor.listen(lambda event: self._queue.put(event))
+
+    def update(self):
+        """ Wait for GNSS measurement and update data """
+        # get() blocks the script so synchronization is guaranteed
+        event = self._queue.get()
+        self.timestamp = event.timestamp
         self.lat = event.latitude
         self.lon = event.longitude
         self.alt = event.altitude
@@ -329,22 +345,15 @@ class GNSS(object):
         self.y = location.y
         self.z = location.z
 
-    def destroy(self):
-        """ Destroy GNSS actor """
-        if self.sensor is not None:
-            self.sensor.destroy()
-            self.sensor = None
-
 # %% ================= Semantic Camera =================
 
 
-class SemanticCamera(object):
+class SemanticCamera(Sensor):
     """ Class for semantic camera """
 
     def __init__(self, parent_actor, ss_cam_config_args):
         """ Constructor method"""
-        self.sensor = None
-        self._parent = parent_actor
+        super().__init__(parent_actor)
         self.lane_img = None
         self.pole_img = None
 
@@ -359,18 +368,12 @@ class SemanticCamera(object):
         self.sensor = world.spawn_actor(ss_cam_bp, carla.Transform(carla.Location(x=0.6, z=1.5)),
                                         attach_to=self._parent)
 
-        # We need to pass the lambda a weak reference to
-        # self to avoid circular reference.
-        weak_self = weakref.ref(self)
-        self.sensor.listen(
-            lambda image: SemanticCamera._parse_semantic_image(weak_self, image))
+        self.sensor.listen(lambda image: self._queue.put(image))
 
-    @staticmethod
-    def _parse_semantic_image(weak_self, image):
-        """ Parse semantic image raw data on its arrival """
-        self = weak_self()
-        if not self:
-            return
+    def update(self):
+        """ Wait for semantic image and update data """
+        image = self._queue.get()
+        self.timestamp = image.timestamp
         np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
         # Reshap to BGRA format
         # Semantic info is stored only in the R channel
@@ -427,6 +430,10 @@ def main():
         # Simulation loop
         for _ in range(n_ticks):
             world.step_forward()
+            print(world.gnss.timestamp)
+            print("EGO: {}, {}".format(world.ego_veh.get_location().x,
+                                       world.ego_veh.get_location().y))
+            print("GNSS: {}, {}".format(world.gnss.x, world.gnss.y))
 
     finally:
         if world is not None:
