@@ -61,7 +61,7 @@ sensor:
     res_y: '600'  # px
     fov: '60'     # deg
   virtual_odom:
-    noise_vx_bias: 10.0    # (m/s) Mean in the noise model for vx
+    noise_vx_bias: 0.0    # (m/s) Mean in the noise model for vx
     noise_vy_bias: 0.0    # (m/s) Mean in the noise model for vx
     noise_yaw_rate_bias: 0.0    # (deg) Mean in the noise model for yaw rate
     noise_vx_stddev: 0.0    # (m/s) Standard deviation in the noise model for vx
