@@ -215,8 +215,8 @@ class World(object):
 # %% ================= Sensor Base =================
 
 
-class Sensor(object):
-    """ Base class for sensors """
+class CarlaSensor(object):
+    """ Base class for sensors provided by carla """
 
     def __init__(self, parent_actor):
         """ Constructor method """
@@ -243,7 +243,7 @@ class Sensor(object):
 # %% ================= IMU Sensor =================
 
 
-class IMU(Sensor):
+class IMU(CarlaSensor):
     """ Class for IMU sensor"""
 
     def __init__(self, parent_actor, imu_config_args):
@@ -292,7 +292,7 @@ class IMU(Sensor):
 # %% ================= GNSS Sensor =================
 
 
-class GNSS(Sensor):
+class GNSS(CarlaSensor):
     """ Class for GNSS sensor"""
 
     def __init__(self, parent_actor, gnss_config_args):
@@ -347,7 +347,7 @@ class GNSS(Sensor):
 # %% ================= Semantic Camera =================
 
 
-class SemanticCamera(Sensor):
+class SemanticCamera(CarlaSensor):
     """ Class for semantic camera """
 
     def __init__(self, parent_actor, ss_cam_config_args):
