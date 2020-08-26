@@ -286,7 +286,6 @@ class GNSS(object):
         self.x = 0.0
         self.y = 0.0
         self.z = 0.0
-        self.transform = None
 
         world = self._parent.get_world()
         gnss_bp = world.get_blueprint_library().find('sensor.other.gnss')
@@ -329,7 +328,6 @@ class GNSS(object):
         self.x = location.x
         self.y = location.y
         self.z = location.z
-        self.transform = event.transform
 
     def destroy(self):
         """ Destroy GNSS actor """
@@ -428,7 +426,7 @@ def main():
 
         # Simulation loop
         for _ in range(n_ticks):
-            world.carla_world.tick()
+            world.step_forward()
 
     finally:
         if world is not None:
