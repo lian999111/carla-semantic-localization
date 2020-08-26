@@ -112,10 +112,10 @@ class World(object):
         self.imu = None
         self.gnss = None
         self.semantic_camera = None
+        self.virtual_odom = None
 
         # Start simuation
         self.restart(config_args)
-        self.virtual_odom = SimulatedOdometry(self.ego_veh)
         # Tick the world to bring the actors into effect
         self.step_forward()
 
@@ -160,11 +160,13 @@ class World(object):
         self.spectator.set_transform(carla.Transform(spawn_point.location + carla.Location(z=25),
                                                      carla.Rotation(pitch=-90)))
 
-        # Set up the sensors
+        # Spawn the sensors
         self.gnss = GNSS(self.ego_veh, config_args['sensor']['gnss'])
         self.imu = IMU(self.ego_veh, config_args['sensor']['imu'])
         self.semantic_camera = SemanticCamera(
             self.ego_veh, config_args['sensor']['semantic_image'])
+        self.virtual_odom = SimulatedOdometry(
+            self.ego_veh, config_args['sensor']['virtual_odom'])
 
     def set_ego_autopilot(self, active, autopilot_config_args=None):
         """ Set traffic manager and register ego vehicle to it"""
@@ -390,12 +392,19 @@ class SemanticCamera(CarlaSensor):
 class SimulatedOdometry():
     """ Class for virtual velocity and yaw rate measurement """
 
-    def __init__(self, parent_actor):
+    def __init__(self, parent_actor, virtual_odom_config):
         """ Constructor method """
         self._parent = parent_actor
-        self.vel_x = 0.0
-        self.vel_y = 0.0
-        self.yaw_rate = 0.0
+        self._noise_vx_bias = virtual_odom_config['noise_vx_bias']
+        self._noise_vy_bias = virtual_odom_config['noise_vy_bias']
+        self._noise_yaw_rate_bias = virtual_odom_config['noise_yaw_rate_bias']
+        self._noise_vx_stddev = virtual_odom_config['noise_vx_stddev']
+        self._noise_vy_stddev = virtual_odom_config['noise_vy_stddev']
+        self._noise_yaw_rate_stddev = virtual_odom_config['noise_yaw_rate_stddev']
+
+        self.vx = 0.0    # m/s
+        self.vy = 0.0    # m/s
+        self.yaw_rate = 0.0  # deg/s
 
     def update(self):
         """ Update virtual odometry """
@@ -411,9 +420,16 @@ class SimulatedOdometry():
             'zyx', [-rotation.yaw, -rotation.pitch, rotation.roll], degrees=True).as_matrix().T
 
         ego_vel = tform_ego2world.dot(vel_vec)
-        self.vel_x = ego_vel[0]
-        self.vel_y = ego_vel[1]
+        self.vx = ego_vel[0]
+        self.vy = ego_vel[1]
         self.yaw_rate = -self._parent.get_angular_velocity().z
+        self._add_noise()
+
+    def _add_noise(self):
+        self.vx += np.random.normal(self._noise_vx_bias, self._noise_vx_stddev)
+        self.vy += np.random.normal(self._noise_vy_bias, self._noise_vy_stddev)
+        self.yaw_rate += np.random.normal(self._noise_yaw_rate_bias,
+                                          self._noise_yaw_rate_stddev)
 
 
 # %% ================= Ground Truth  =================
@@ -476,8 +492,8 @@ def main():
         # Simulation loop
         for _ in range(n_ticks):
             world.step_forward()
-            print('vx: {}'.format(world.virtual_odom.vel_x))
-            print('vy: {}'.format(world.virtual_odom.vel_y))
+            print('vx: {}'.format(world.virtual_odom.vx))
+            print('vy: {}'.format(world.virtual_odom.vy))
             print('w: {}'.format(world.virtual_odom.yaw_rate))
 
     finally:
