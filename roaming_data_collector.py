@@ -157,6 +157,7 @@ class World(object):
             self.semantic_camera.destroy()
             self.semantic_camera = None
 
+# TODO: Simulate odometry and yaw rate
 
 # %% ================= IMU Sensor =================
 
@@ -308,9 +309,11 @@ class SemanticCamera(object):
         np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
         # Reshap to BGRA format
         np_img = np.reshape(np_img, (image.height, image.width, -1))
+        # Lane lines and sidewalks are considered
         self.lane_img = (np_img[:, :, 2] == 6) | (np_img[:, :, 2] == 8)
+        # Pole-like objects
         self.pole_img = np_img[:, :, 2] == 5
-    
+
     def destroy(self):
         """ Destroy semantic camera actor """
         if self.sensor is not None:
