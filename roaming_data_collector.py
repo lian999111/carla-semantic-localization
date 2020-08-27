@@ -216,9 +216,6 @@ class World(object):
             self.semantic_camera.destroy()
             self.semantic_camera = None
 
-# TODO: Simulate odometry and yaw rate
-
-
 # %% ================= Sensor Base =================
 
 
