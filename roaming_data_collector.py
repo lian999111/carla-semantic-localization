@@ -396,7 +396,7 @@ class SemanticCamera(CarlaSensor):
 # %% ================= Simulated Odometry =================
 
 
-class VirtualOdometry():
+class VirtualOdometry(object):
     """ 
     Class for virtual velocity and yaw rate measurement.
     This is done by adding noise to ego vehilce's velocities in Carla.
