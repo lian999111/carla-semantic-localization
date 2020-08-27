@@ -162,8 +162,7 @@ class World(object):
                 ego_veh_bp, spawn_point)
 
         # Point the spectator to the ego vehicle
-        self.spectator.set_transform(carla.Transform(spawn_point.location + carla.Location(z=25),
-                                                     carla.Rotation(pitch=-90)))
+        self.see_ego_veh()
 
         # Spawn the sensors
         self.gnss = GNSS(self.ego_veh, config_args['sensor']['gnss'])
@@ -197,10 +196,13 @@ class World(object):
         self.virtual_odom.update()
         self.ground_truth.update()
     
-    def see_ego_veh(self):
+    def see_ego_veh(self, following_dist=5, height=5, tilt_ang=-30):
         """ Aim the spectator down to the ego vehicle """
-        self.spectator.set_transform(carla.Transform(self.ego_veh.get_transform().location + carla.Location(z=20),
-                                                     carla.Rotation(pitch=-90)))
+        spect_location = carla.Location(x=-following_dist)
+        self.ego_veh.get_transform().transform(spect_location)  # it modifies passed-in location
+        ego_rotation = self.ego_veh.get_transform().rotation
+        self.spectator.set_transform(carla.Transform(spect_location + carla.Location(z=height),
+                                                     carla.Rotation(pitch=tilt_ang, yaw=ego_rotation.yaw)))
 
 
     def allow_free_run(self):
