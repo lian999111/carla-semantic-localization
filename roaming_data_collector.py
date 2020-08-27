@@ -189,13 +189,19 @@ class World(object):
         self.ego_veh.set_autopilot(active, self.tm.get_port())
 
     def step_forward(self):
-        """ Tick carla world to take simulation one step forward"""
+        """ Tick carla world to take simulation one step forward """
         self.carla_world.tick()
         self.imu.update()
         self.gnss.update()
         self.semantic_camera.update()
         self.virtual_odom.update()
         self.ground_truth.update()
+    
+    def see_ego_veh(self):
+        """ Aim the spectator down to the ego vehicle """
+        self.spectator.set_transform(carla.Transform(self.ego_veh.get_transform().location + carla.Location(z=20),
+                                                     carla.Rotation(pitch=-90)))
+
 
     def allow_free_run(self):
         """ Allow carla engine to run asynchronously and freely """
@@ -621,6 +627,7 @@ def main():
         # Simulation loop
         for _ in range(n_ticks):
             world.step_forward()
+            world.see_ego_veh()
             # print('vx: {}'.format(world.virtual_odom.vx))
             # print('vy: {}'.format(world.virtual_odom.vy))
             # print('w: {}'.format(world.virtual_odom.yaw_rate))
