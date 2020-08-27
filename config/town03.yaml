@@ -34,6 +34,15 @@ autopilot:
   ignore_lights_percentage: 100
   vehicle_percentage_speed_difference: 0    # When set to negative, vehicles move beyond the speed limit
 
+## Ego Vehicle
+ego_veh:
+  # Carla uses center of gravity as the model's origin
+  # The following is roughly measured from Carla's Mustang model
+  # Carla's Mustang:
+  #   CG to rear axle: 1.4
+  #   CG to front bumper: 2.4   
+  raxle_to_fbumper: 3.8    # (m) Distance from rear axle to front bumper
+
 
 ## Sensors
 sensor:
@@ -69,5 +78,5 @@ sensor:
     noise_yaw_rate_stddev: 0.0    # (deg) Standard deviation in the noise model for yaw_rate
 
 ## Setups
-sim_duration: 30  # sec
+sim_duration: 180  # sec
 recording: False
