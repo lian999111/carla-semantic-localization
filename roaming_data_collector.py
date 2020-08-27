@@ -117,6 +117,8 @@ class World(object):
         self.semantic_camera = None
         self.virtual_odom = None
 
+        self.ground_truth = None
+
         # Start simuation
         self.restart(config_args, spawn_point)
         # Tick the world to bring the actors into effect
@@ -171,6 +173,10 @@ class World(object):
         self.virtual_odom = VirtualOdometry(
             self.ego_veh, config_args['sensor']['virtual_odom'])
 
+        # Ground truth extractor
+        self.ground_truth = GroundTruthExtractor(
+            self.map, self.ego_veh, actor_list=None)
+
     def set_ego_autopilot(self, active, autopilot_config_args=None):
         """ Set traffic manager and register ego vehicle to it"""
         if autopilot_config_args is not None:
@@ -189,6 +195,7 @@ class World(object):
         self.gnss.update()
         self.semantic_camera.update()
         self.virtual_odom.update()
+        self.ground_truth.update()
 
     def allow_free_run(self):
         """ Allow carla engine to run asynchronously and freely """
@@ -438,30 +445,142 @@ class VirtualOdometry():
 # %% ================= Ground Truth  =================
 
 
-class GroundTruth(object):
+class GroundTruthExtractor(object):
     """ Class for ground truth extraction """
 
-    def __init(self, carla_map, ego_veh, actor_list, config_args):
+    def __init__(self, carla_map, ego_veh, actor_list, config_args=None):
         """ Constructor method """
         self.map = carla_map
         self.ego_veh = ego_veh
         self.actor_list = actor_list
-        self.landmarks = None
+        # Ignore landmarks now since carla built-in maps don't have them defined
+        # self.landmarks = None
 
-        self.ego_veh_location = None
+        self.ego_veh_tform = ego_veh.get_transform()
+
         self.waypoint = None
         self.left_waypoint = None
         self.right_waypoint = None
-
-        self.left_marking_param = []
-        self.next_left_marking_param = []
-        self.right_marking_param = []
-        self.next_right_marking_param = []
-
         self.left_marking_type = None
         self.next_left_marking_type = None
         self.right_marking_type = None
         self.next_right_marking_type = None
+
+        # c0 and c1 of lane markings
+        self.left_marking_param = [0, 0]
+        self.next_left_marking_param = [0, 0]
+        self.right_marking_param = [0, 0]
+        self.next_right_marking_param = [0, 0]
+
+    def update(self):
+        """ Update ground truth at the current tick """
+        self.ego_veh_tform = self.ego_veh.get_transform()
+        self.waypoint = self.map.get_waypoint(self.ego_veh_tform.location)
+        # TODO: handle waypoint to far from ego location (off road)
+        if self.waypoint.lane_type == carla.LaneType.Driving:
+            self.left_marking_type = self.waypoint.left_lane_marking.type
+            self.right_marking_type = self.waypoint.right_lane_marking.type
+            self._get_useful_next_lanes()
+            # TODO: lane marking parameters
+        else:
+            self.left_marking_type = None
+            self.right_marking_type = None
+            self.left_waypoint = None
+            self.right_waypoint = None
+            self.next_left_marking_type = None
+            self.next_right_marking_type = None
+
+    def _get_useful_next_lanes(self):
+        """
+        Get next left and right lanes with visible lane boundaries.
+        Many transition lanes often without visible lane boundaries (e.g. Shoulder) are defined in OpenDrive.
+        This method tries to find the lanes corresponding to visible lane boundaries (e.g. curb) but may not 
+        be directly adjacent to current lane.
+        """
+        left_waypt = self._find_next_visible_lane_marking(to_left=True)
+        right_waypt = self._find_next_visible_lane_marking(to_left=False)
+
+        # Updatee next left lane
+        if left_waypt is not None:
+            self.left_waypoint = left_waypt
+            if self.waypoint.lane_id * left_waypt.lane_id >= 0:
+                self.next_left_marking_type = left_waypt.left_lane_marking.type
+            else:
+                self.next_left_marking_type = left_waypt.right_lane_marking.type
+        else:
+            self.left_waypoint = None
+            self.next_left_marking_type = None
+
+        # Update next right lane
+        if right_waypt is not None:
+            self.right_waypoint = right_waypt
+            if self.waypoint.lane_id * right_waypt.lane_id >= 0:
+                self.next_right_marking_type = right_waypt.right_lane_marking.type
+            else:
+                self.next_right_marking_type = right_waypt.left_lane_marking.type
+        else:
+            self.right_waypoint = None
+            self.next_right_marking_type = None
+
+    def _find_next_visible_lane_marking(self, to_left=True):
+        """
+        Helper method for finding the waypoint with the visible next lane marking.
+        """
+        curr_lane_id = self.waypoint.lane_id
+        if to_left:
+            curr_next_waypt = self.waypoint.get_left_lane()
+        else:
+            curr_next_waypt = self.waypoint.get_right_lane()
+
+        # Search until visible lane marking found
+        while True:
+            # Return if next waypoint doesn't exist
+            if curr_next_waypt is None:
+                return curr_next_waypt
+
+            # Do not search across non-drivable space (e.g. across a middle island)
+            # If so, set left lane as None
+            # Not sure if this strategy is realistic
+            # if (curr_next_waypt.lane_type != carla.LaneType.Driving
+            #         and curr_next_waypt.lane_type != carla.LaneType.Shoulder
+            #         and curr_next_waypt.lane_type != carla.LaneType.Bidirectional
+            #         and curr_next_waypt.lane_type != carla.LaneType.Parking):
+            #     curr_next_waypt = None
+            #     break
+            if (curr_next_waypt.lane_type == carla.LaneType.Median
+                    and curr_next_waypt.lane_type == carla.LaneType.Sidewalk
+                    and curr_next_waypt.lane_type == carla.LaneType.Rail):
+                curr_next_waypt = None
+                break
+
+            # Check if two lanes have same direction
+            if curr_lane_id * curr_next_waypt.lane_id < 0:
+                # Start searching using the opposite direction next time since the direction of the lane has changed
+                to_left = not to_left
+
+            curr_lane_id = curr_next_waypt.lane_id
+
+            if to_left:
+                # Check the left lane marking
+                if curr_next_waypt.left_lane_marking.type != carla.LaneMarkingType.NONE:
+                    # Found
+                    break
+                else:
+                    # Lane marking not visible. Go to the next one.
+                    curr_next_waypt = curr_next_waypt.get_left_lane()
+            else:
+                # Check the right lane marking
+                if curr_next_waypt.right_lane_marking.type != carla.LaneMarkingType.NONE:
+                    # Found
+                    break
+                else:
+                    # Lane marking not visible. Go to the next one.
+                    curr_next_waypt = curr_next_waypt.get_right_lane()
+        return curr_next_waypt
+
+    def _get_poles(self):
+        # TODO: use semantic lidar or just actors?
+        pass
 
 
 # %%
@@ -495,9 +614,14 @@ def main():
         # Simulation loop
         for _ in range(n_ticks):
             world.step_forward()
-            print('vx: {}'.format(world.virtual_odom.vx))
-            print('vy: {}'.format(world.virtual_odom.vy))
-            print('w: {}'.format(world.virtual_odom.yaw_rate))
+            # print('vx: {}'.format(world.virtual_odom.vx))
+            # print('vy: {}'.format(world.virtual_odom.vy))
+            # print('w: {}'.format(world.virtual_odom.yaw_rate))
+            print('{}   {}   {}   {}'.format(
+                world.ground_truth.next_left_marking_type,
+                world.ground_truth.left_marking_type,
+                world.ground_truth.right_marking_type,
+                world.ground_truth.next_right_marking_type))
 
     finally:
         if world is not None:
