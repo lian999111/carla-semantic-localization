@@ -175,7 +175,7 @@ class World(object):
 
         # Ground truth extractor
         self.ground_truth = GroundTruthExtractor(
-            self.map, self.ego_veh, actor_list=None)
+            self.map, self.ego_veh, actor_list=None, config_args=config_args)
 
     def set_ego_autopilot(self, active, autopilot_config_args=None):
         """ Set traffic manager and register ego vehicle to it"""
@@ -450,14 +450,20 @@ class GroundTruthExtractor(object):
 
     def __init__(self, carla_map, ego_veh, actor_list, config_args=None):
         """ Constructor method """
-        self.map = carla_map
+        # Ego vehicle
+        self.raxle_to_fbumper = config_args['ego_veh']['raxle_to_fbumper']
         self.ego_veh = ego_veh
+        self.ego_veh_tform = ego_veh.get_transform()
+        self.fbumper_location = self.ego_veh_tform.transform(
+            carla.Location(x=self.raxle_to_fbumper - 1.4))  # -1.4: cg to rear axle only valid for carla's mustang
+
+        # Simulation environment
+        self.map = carla_map
         self.actor_list = actor_list
         # Ignore landmarks now since carla built-in maps don't have them defined
         # self.landmarks = None
 
-        self.ego_veh_tform = ego_veh.get_transform()
-
+        # Lanes
         self.waypoint = None
         self.left_waypoint = None
         self.right_waypoint = None
@@ -465,7 +471,6 @@ class GroundTruthExtractor(object):
         self.next_left_marking_type = None
         self.right_marking_type = None
         self.next_right_marking_type = None
-
         # c0 and c1 of lane markings
         self.left_marking_param = [0, 0]
         self.next_left_marking_param = [0, 0]
@@ -475,7 +480,9 @@ class GroundTruthExtractor(object):
     def update(self):
         """ Update ground truth at the current tick """
         self.ego_veh_tform = self.ego_veh.get_transform()
-        self.waypoint = self.map.get_waypoint(self.ego_veh_tform.location)
+        self.fbumper_location = self.ego_veh_tform.transform(
+            carla.Location(x=self.raxle_to_fbumper - 1.4))
+        self.waypoint = self.map.get_waypoint(self.fbumper_location)
         # TODO: handle waypoint to far from ego location (off road)
         if self.waypoint.lane_type == carla.LaneType.Driving:
             self.left_marking_type = self.waypoint.left_lane_marking.type
