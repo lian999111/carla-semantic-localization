@@ -502,11 +502,17 @@ class GroundTruthExtractor(object):
     def update(self):
         """ Update ground truth at the current tick """
         self.ego_veh_tform = self.ego_veh.get_transform()
-        self.fbumper_location = self.ego_veh_tform.transform(
-            carla.Location(x=self.raxle_to_fbumper - 1.4))
+        # carla.Location.transform() returns just a carla.Vector3D object
+        self.fbumper_location = carla.Location(self.ego_veh_tform.transform(
+            carla.Location(x=self.raxle_to_fbumper - 1.4)))
+        # Find a waypoint on the nearest lane
         self.waypoint = self.map.get_waypoint(self.fbumper_location)
+
         # TODO: handle waypoint to far from ego location (off road)
-        if self.waypoint.lane_type == carla.LaneType.Driving:
+        if self.fbumper_location.distance(self.waypoint.transform.location) >= self.waypoint.lane_width/2:
+            self.waypoint = None
+
+        if (self.waypoint is not None) and (self.waypoint.lane_type == carla.LaneType.Driving):
             # Left and right lane markings of ego lane
             self.left_marking_type = self.waypoint.left_lane_marking.type
             self.right_marking_type = self.waypoint.right_lane_marking.type
