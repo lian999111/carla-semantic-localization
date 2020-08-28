@@ -47,6 +47,7 @@ ego_veh:
 ## Sensors
 sensor:
   # Ref: https://carla.readthedocs.io/en/0.9.9/ref_sensors/
+  # Parameters for carla APIs have to be strings
   gnss:
     noise_alt_bias: '0.0'    # Mean parameter in the noise model for altitude.
     noise_alt_stddev: '0.0'  # Standard deviation parameter in the noise model for altitude.
@@ -69,6 +70,8 @@ sensor:
     res_x: '800'  # px
     res_y: '600'  # px
     fov: '60'     # deg
+  # This is not a carla implementation
+  # Use float instead
   virtual_odom:
     noise_vx_bias: 0.0    # (m/s) Mean in the noise model for vx
     noise_vy_bias: 0.0    # (m/s) Mean in the noise model for vx
@@ -78,5 +81,5 @@ sensor:
     noise_yaw_rate_stddev: 0.0    # (deg) Standard deviation in the noise model for yaw_rate
 
 ## Setups
-sim_duration: 180  # sec
+sim_duration: 600  # sec
 recording: False
