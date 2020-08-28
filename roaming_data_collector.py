@@ -188,7 +188,11 @@ class World(object):
         self.ego_veh.set_autopilot(active, self.tm.get_port())
 
     def force_lane_change(self, to_left):
-        """ Force ego vehicle to change the lane no matter what """
+        """ 
+        Force ego vehicle to change the lane regardless collision with other vehicles. 
+        However, it only allows lane changes in the possible direction. 
+        Performing a left lane change on the left-most lane is not possible.
+        """
         # carla uses true for right
         self.tm.force_lane_change(self.ego_veh, not to_left)
 
