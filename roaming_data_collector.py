@@ -36,7 +36,7 @@ def find_weather_presets():
 
 # %% ================= Geo2Location =================
 
-
+# TODO: Replace this with pyproj?
 class Geo2Location(object):
     """
     Helper class for homogeneous transform from geolocation used by gnss to Cartisian location.
@@ -177,7 +177,7 @@ class World(object):
             self.map, self.ego_veh, actor_list=None, config_args=config_args)
 
     def set_ego_autopilot(self, active, autopilot_config_args=None):
-        """ Set traffic manager and register ego vehicle to it"""
+        """ Set traffic manager and register ego vehicle to it """
         if autopilot_config_args is not None:
             self.tm.auto_lane_change(
                 self.ego_veh, autopilot_config_args['auto_lane_change'])
@@ -450,6 +450,8 @@ class VirtualOdometry(object):
                                           self._noise_yaw_rate_stddev)
 
 
+# TODO: stop sign measurement
+
 # %% ================= Ground Truth  =================
 
 
@@ -553,6 +555,7 @@ class GroundTruthExtractor(object):
             if curr_next_waypt is None:
                 return curr_next_waypt
 
+            # TODO: Remove the following?
             # Do not search across non-drivable space (e.g. across a middle island)
             # If so, set left lane as None
             # Not sure if this strategy is realistic
