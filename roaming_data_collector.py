@@ -504,9 +504,25 @@ class GroundTruthExtractor(object):
         self.waypoint = self.map.get_waypoint(self.fbumper_location)
         # TODO: handle waypoint to far from ego location (off road)
         if self.waypoint.lane_type == carla.LaneType.Driving:
+            # Left and right lane markings of ego lane
             self.left_marking_type = self.waypoint.left_lane_marking.type
             self.right_marking_type = self.waypoint.right_lane_marking.type
-            self._get_useful_next_lanes()
+
+            # Find next lane markings unless a curb is aleady by the ego lane
+            # Next left
+            if self.left_marking_type != carla.LaneMarkingType.Curb:
+                self._get_next_left_lane_marking()
+            else:
+                self.left_waypoint = None
+                self.next_left_marking_type = None
+            
+            # Next right
+            if self.right_marking_type != carla.LaneMarkingType.Curb:
+                self._get_next_right_lane_marking()
+            else:
+                self.right_waypoint = None
+                self.next_right_marking_type = None
+
             # TODO: lane marking parameters
         else:
             self.left_marking_type = None
@@ -516,15 +532,14 @@ class GroundTruthExtractor(object):
             self.next_left_marking_type = None
             self.next_right_marking_type = None
 
-    def _get_useful_next_lanes(self):
+    def _get_next_left_lane_marking(self):
         """
-        Get next left and right lanes with visible lane boundaries.
+        Get next left visible lane marking.
         Many transition lanes often without visible lane boundaries (e.g. Shoulder) are defined in OpenDrive.
         This method tries to find the lanes corresponding to visible lane boundaries (e.g. curb) but may not 
         be directly adjacent to current lane.
         """
         left_waypt = self._find_next_visible_lane_marking(to_left=True)
-        right_waypt = self._find_next_visible_lane_marking(to_left=False)
 
         # Updatee next left lane
         if left_waypt is not None:
@@ -536,6 +551,15 @@ class GroundTruthExtractor(object):
         else:
             self.left_waypoint = None
             self.next_left_marking_type = None
+
+    def _get_next_right_lane_marking(self, find_next_left=True, find_next_right=True):
+        """
+        Get next right visible lane marking.
+        Many transition lanes often without visible lane boundaries (e.g. Shoulder) are defined in OpenDrive.
+        This method tries to find the lanes corresponding to visible lane boundaries (e.g. curb) but may not 
+        be directly adjacent to current lane.
+        """
+        right_waypt = self._find_next_visible_lane_marking(to_left=False)
 
         # Update next right lane
         if right_waypt is not None:
@@ -646,6 +670,11 @@ def main():
             # print('vx: {}'.format(world.virtual_odom.vx))
             # print('vy: {}'.format(world.virtual_odom.vy))
             # print('w: {}'.format(world.virtual_odom.yaw_rate))
+            print(world.ground_truth.waypoint.is_junction)
+            print('{}   {}   {}'.format(
+                world.ground_truth.left_waypoint.lane_width if world.ground_truth.left_waypoint is not None else None,
+                world.ground_truth.waypoint.lane_width if world.ground_truth.waypoint is not None else None,
+                world.ground_truth.right_waypoint.lane_width if world.ground_truth.right_waypoint is not None else None))
             print('{}   {}   {}   {}'.format(
                 world.ground_truth.next_left_marking_type,
                 world.ground_truth.left_marking_type,
