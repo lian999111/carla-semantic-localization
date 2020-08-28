@@ -136,22 +136,29 @@ class World(object):
 
         # Spawn the ego vehicle as a cool mustang
         ego_veh_bp = self.carla_world.get_blueprint_library().find('vehicle.mustang.mustang')
-        print("Spawning the ego vehicle.")
+        
         if self.ego_veh is not None:
+            if spawn_point is None:
+                print("Respawning ego vehicle.")
+                spawn_point = self.ego_veh.get_transform()
+            else:
+                print("Respawning ego vehicle with assigned point.")
             # Destroy previously spawned actors
             self.destroy()
-            if spawn_point is None:
-                spawn_point = self.ego_veh.get_transform()
-                spawn_point.location.z += 2.0
-                spawn_point.rotation.roll = 0.0
-                spawn_point.rotation.pitch = 0.0
-                self.ego_veh = self.carla_world.try_spawn_actor(
-                    ego_veh_bp, spawn_point)
-            else:
-                self.ego_veh = self.carla_world.try_spawn_actor(
-                    ego_veh_bp, spawn_point)
-                if self.ego_veh is None:
-                    print('Chosen spawn transform failed.')
+            spawn_point.location.z += 2.0
+            spawn_point.rotation.roll = 0.0
+            spawn_point.rotation.pitch = 0.0
+            self.ego_veh = self.carla_world.try_spawn_actor(
+                ego_veh_bp, spawn_point)
+        else:
+            print("Trying to spawn ego vehicle with assigned point.")
+            spawn_point.location.z += 2.0
+            spawn_point.rotation.roll = 0.0
+            spawn_point.rotation.pitch = 0.0
+            self.ego_veh = self.carla_world.try_spawn_actor(
+                ego_veh_bp, spawn_point)
+            if self.ego_veh is None:
+                print('Chosen spawn transform failed.')
 
         while self.ego_veh is None:
             if not self.map.get_spawn_points():
@@ -658,12 +665,13 @@ def main():
 
     # Initialize world
     world = None
+    spawn_point = carla.Transform(carla.Location(-88.5, 93.5, 0))
     try:
         client = carla.Client('localhost', 2000)
         client.set_timeout(5.0)
         # Create a World obj with a built-in map
         world = World(client.load_world(
-            config_args['world']['map']), client.get_trafficmanager(), config_args)
+            config_args['world']['map']), client.get_trafficmanager(), config_args, spawn_point=spawn_point)
 
         # Launch autopilot for ego vehicle
         world.set_ego_autopilot(True, config_args['autopilot'])
