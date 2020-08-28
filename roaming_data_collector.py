@@ -192,6 +192,7 @@ class World(object):
         Force ego vehicle to change the lane regardless collision with other vehicles. 
         However, it only allows lane changes in the possible direction. 
         Performing a left lane change on the left-most lane is not possible.
+        Carla's traffic manager doesn't seem to make car change to a left turn lane in built-in town (tested in Town03)
         """
         # carla uses true for right
         self.tm.force_lane_change(self.ego_veh, not to_left)
