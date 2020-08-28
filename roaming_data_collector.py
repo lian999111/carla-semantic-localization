@@ -37,6 +37,8 @@ def find_weather_presets():
 # %% ================= Geo2Location =================
 
 # TODO: Replace this with pyproj?
+
+
 class Geo2Location(object):
     """
     Helper class for homogeneous transform from geolocation used by gnss to Cartisian location.
@@ -205,15 +207,15 @@ class World(object):
         self.semantic_camera.update()
         self.virtual_odom.update()
         self.ground_truth.update()
-    
+
     def see_ego_veh(self, following_dist=5, height=5, tilt_ang=-30):
         """ Aim the spectator down to the ego vehicle """
         spect_location = carla.Location(x=-following_dist)
-        self.ego_veh.get_transform().transform(spect_location)  # it modifies passed-in location
+        self.ego_veh.get_transform().transform(
+            spect_location)  # it modifies passed-in location
         ego_rotation = self.ego_veh.get_transform().rotation
         self.spectator.set_transform(carla.Transform(spect_location + carla.Location(z=height),
                                                      carla.Rotation(pitch=tilt_ang, yaw=ego_rotation.yaw)))
-
 
     def allow_free_run(self):
         """ Allow carla engine to run asynchronously and freely """
@@ -516,7 +518,7 @@ class GroundTruthExtractor(object):
             else:
                 self.left_waypoint = None
                 self.next_left_marking_type = None
-            
+
             # Next right
             if self.right_marking_type != carla.LaneMarkingType.Curb:
                 self._get_next_right_lane_marking()
@@ -682,7 +684,7 @@ def main():
                 world.ground_truth.right_marking_type,
                 world.ground_truth.next_right_marking_type))
 
-            if idx%int(5/config_args['world']['delta_seconds']) == 0:
+            if idx % int(5/config_args['world']['delta_seconds']) == 0:
                 world.force_lane_change(to_left=to_left)
                 to_left = not to_left
 
