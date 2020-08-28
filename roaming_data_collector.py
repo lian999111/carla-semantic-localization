@@ -512,10 +512,9 @@ class GroundTruthExtractor(object):
         # carla.Location.transform() returns just a carla.Vector3D object
         self.fbumper_location = carla.Location(self.ego_veh_tform.transform(
             carla.Location(x=self.raxle_to_fbumper - 1.4)))
-        # Find a waypoint on the nearest lane
-        self.waypoint = self.map.get_waypoint(self.fbumper_location)
+        # Find a waypoint on the nearest lane (any lane type except NONE)
+        self.waypoint = self.map.get_waypoint(self.fbumper_location, lane_type=carla.LaneType.Any)
 
-        # TODO: handle waypoint to far from ego location (off road)
         if self.fbumper_location.distance(self.waypoint.transform.location) >= self.waypoint.lane_width/2:
             self.waypoint = None
 
@@ -687,7 +686,7 @@ def main():
             # print('vx: {}'.format(world.virtual_odom.vx))
             # print('vy: {}'.format(world.virtual_odom.vy))
             # print('w: {}'.format(world.virtual_odom.yaw_rate))
-            print(world.ground_truth.waypoint.is_junction)
+            print('{}'.format(world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint is not None else None))
             print('{}   {}   {}'.format(
                 world.ground_truth.left_waypoint.lane_width if world.ground_truth.left_waypoint is not None else None,
                 world.ground_truth.waypoint.lane_width if world.ground_truth.waypoint is not None else None,
