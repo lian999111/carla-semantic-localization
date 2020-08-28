@@ -187,6 +187,11 @@ class World(object):
                 self.ego_veh, autopilot_config_args['vehicle_percentage_speed_difference'])
         self.ego_veh.set_autopilot(active, self.tm.get_port())
 
+    def force_lane_change(self, to_left):
+        """ Force ego vehicle to change the lane no matter what """
+        # carla uses true for right
+        self.tm.force_lane_change(self.ego_veh, not to_left)
+
     def step_forward(self):
         """ Tick carla world to take simulation one step forward """
         self.carla_world.tick()
@@ -630,7 +635,8 @@ def main():
                       config_args['world']['delta_seconds'])
 
         # Simulation loop
-        for _ in range(n_ticks):
+        to_left = True
+        for idx in range(n_ticks):
             world.step_forward()
             world.see_ego_veh()
             # print('vx: {}'.format(world.virtual_odom.vx))
@@ -641,6 +647,10 @@ def main():
                 world.ground_truth.left_marking_type,
                 world.ground_truth.right_marking_type,
                 world.ground_truth.next_right_marking_type))
+
+            if idx%int(5/config_args['world']['delta_seconds']) == 0:
+                world.force_lane_change(to_left=to_left)
+                to_left = not to_left
 
     finally:
         if world is not None:
