@@ -19,10 +19,10 @@ import carla
 import re
 import random
 import numpy as np
-from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
 import queue
 from groundtruth import GroundTruthExtractor
+from carlatform import CarlaW2ETform
 
 # %% ================= Global function =================
 
@@ -440,17 +440,9 @@ class VirtualOdometry(object):
     def update(self):
         """ Update virtual odometry """
         vel = self._parent.get_velocity()
-        # Carla uses SAE coordinate system (z towards down)
-        # Ref: https://carla.readthedocs.io/en/latest/python_api/#carlarotation
-        # Convert to ISO coordinate system when building up the vector
-        vel_vec = np.array([vel.x, -vel.y, -vel.z]).T
+        tform_w2e = CarlaW2ETform(self._parent.get_transform())
+        ego_vel = tform_w2e.rotm_world_to_ego(vel) # get an np homogeneous vector
 
-        rotation = self._parent.get_transform().rotation
-        # Also convert to ISO coordinate system when creating rotation matrix
-        rotm_ego2world = Rotation.from_euler(
-            'zyx', [-rotation.yaw, -rotation.pitch, rotation.roll], degrees=True).as_matrix().T
-
-        ego_vel = rotm_ego2world.dot(vel_vec)
         self.vx = ego_vel[0]
         self.vy = ego_vel[1]
         self.yaw_rate = -self._parent.get_angular_velocity().z
@@ -501,20 +493,20 @@ def main():
         for idx in range(n_ticks):
             world.step_forward()
             world.see_ego_veh()
-            # print('vx: {}'.format(world.virtual_odom.vx))
-            # print('vy: {}'.format(world.virtual_odom.vy))
-            # print('w: {}'.format(world.virtual_odom.yaw_rate))
-            print('{}'.format(
-                world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint is not None else None))
-            print('{}   {}   {}'.format(
-                world.ground_truth.waypoint_next_left_marking.lane_width if world.ground_truth.waypoint_next_left_marking is not None else None,
-                world.ground_truth.waypoint.lane_width if world.ground_truth.waypoint is not None else None,
-                world.ground_truth.waypoint_next_right_marking.lane_width if world.ground_truth.waypoint_next_right_marking is not None else None))
-            print('{}   {}   {}   {}'.format(
-                world.ground_truth.next_left_marking.type if world.ground_truth.next_left_marking is not None else None,
-                world.ground_truth.left_marking.type if world.ground_truth.left_marking is not None else None,
-                world.ground_truth.right_marking.type if world.ground_truth.right_marking is not None else None,
-                world.ground_truth.next_right_marking.type if world.ground_truth.next_right_marking is not None else None))
+            print('vx: {:3.2f}'.format(world.virtual_odom.vx))
+            print('vy: {:3.2f}'.format(world.virtual_odom.vy))
+            print('w: {:3.2f}'.format(world.virtual_odom.yaw_rate))
+            # print('{}'.format(
+            #     world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint is not None else None))
+            # print('{}   {}   {}'.format(
+            #     world.ground_truth.waypoint_next_left_marking.lane_width if world.ground_truth.waypoint_next_left_marking is not None else None,
+            #     world.ground_truth.waypoint.lane_width if world.ground_truth.waypoint is not None else None,
+            #     world.ground_truth.waypoint_next_right_marking.lane_width if world.ground_truth.waypoint_next_right_marking is not None else None))
+            # print('{}   {}   {}   {}'.format(
+            #     world.ground_truth.next_left_marking.type if world.ground_truth.next_left_marking is not None else None,
+            #     world.ground_truth.left_marking.type if world.ground_truth.left_marking is not None else None,
+            #     world.ground_truth.right_marking.type if world.ground_truth.right_marking is not None else None,
+            #     world.ground_truth.next_right_marking.type if world.ground_truth.next_right_marking is not None else None))
 
             if idx % int(5/config_args['world']['delta_seconds']) == 0:
                 world.force_lane_change(to_left=to_left)
