@@ -32,7 +32,14 @@ class CarlaW2ETform:
         self._tform_w2e = None
 
     def rotm_world_to_ego(self, vector3D: carla.Vector3D):
-        """ Rotationally transform the given carla.Vector3D in ego frame to world frame """
+        """ 
+        Rotationally transform the given carla.Vector3D in ego frame to world frame.
+        Note the return np 3D vector already follows ISO coordinate system. 
+        Input:
+            vector3D: a carla.Vector3D which follows carla's coordinate system (SAE system).
+        Output:
+            np.array representing a 3D coordinate in the ISO coordinate system.
+        """
         if self._rotm_w2e is None:
             self._init_rotm_w2e()
         # Need to convert from SAE to ISO coordiante
@@ -40,11 +47,19 @@ class CarlaW2ETform:
         return self._rotm_w2e.dot(np_vec)
 
     def tform_world_to_ego(self, vector3D: carla.Vector3D):
+        """ 
+        Homogeneous transform the given carla.Vector3D in ego frame to world frame.
+        Note the return np 3D vector already follows ISO coordinate system.
+        Input:
+            vector3D: a carla.Vector3D which follows carla's coordinate system (SAE system).
+        Output:
+            np.array representing a 3D coordinate in the ISO coordinate system.
+        """
         if self._tform_w2e is None:
             self._init_tform_w2e()
         # Need to convert from SAE to ISO coordiante
         np_homo_vec = np.array([vector3D.x, -vector3D.y, -vector3D.z, 1]).T
-        return self._tform_w2e.dot(np_homo_vec)
+        return self._tform_w2e.dot(np_homo_vec)[0:3]
         
 
     def _init_rotm_w2e(self):
@@ -66,4 +81,4 @@ class CarlaW2ETform:
         trvec = np.array([self._ego_veh_transform.location.x,
                           -self._ego_veh_transform.location.y, 
                           -self._ego_veh_transform.location.z]).T
-        self._tform_w2e[0:3, 3] = - self._rotm_w2e.T.dot(trvec)
+        self._tform_w2e[0:3, 3] = - self._rotm_w2e.dot(trvec)
