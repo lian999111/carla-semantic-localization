@@ -447,10 +447,10 @@ class VirtualOdometry(object):
 
         rotation = self._parent.get_transform().rotation
         # Also convert to ISO coordinate system when creating rotation matrix
-        tform_ego2world = Rotation.from_euler(
+        rotm_ego2world = Rotation.from_euler(
             'zyx', [-rotation.yaw, -rotation.pitch, rotation.roll], degrees=True).as_matrix().T
 
-        ego_vel = tform_ego2world.dot(vel_vec)
+        ego_vel = rotm_ego2world.dot(vel_vec)
         self.vx = ego_vel[0]
         self.vy = ego_vel[1]
         self.yaw_rate = -self._parent.get_angular_velocity().z
