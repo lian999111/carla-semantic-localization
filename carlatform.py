@@ -17,6 +17,8 @@ import carla
 import numpy as np
 from scipy.spatial.transform import Rotation
 
+# Carla provides only a transform API from ego to world frame.
+# This class complement the transfromation abilities from world to ego frame.
 
 class CarlaW2ETform:
     """ Helper class to perform world-to-ego transformation for Carla """
