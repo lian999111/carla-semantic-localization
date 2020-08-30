@@ -504,16 +504,17 @@ def main():
             # print('vx: {}'.format(world.virtual_odom.vx))
             # print('vy: {}'.format(world.virtual_odom.vy))
             # print('w: {}'.format(world.virtual_odom.yaw_rate))
-            print('{}'.format(world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint is not None else None))
+            print('{}'.format(
+                world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint is not None else None))
             print('{}   {}   {}'.format(
                 world.ground_truth.waypoint_next_left_marking.lane_width if world.ground_truth.waypoint_next_left_marking is not None else None,
                 world.ground_truth.waypoint.lane_width if world.ground_truth.waypoint is not None else None,
                 world.ground_truth.waypoint_next_right_marking.lane_width if world.ground_truth.waypoint_next_right_marking is not None else None))
             print('{}   {}   {}   {}'.format(
-                world.ground_truth.next_left_marking_type,
-                world.ground_truth.left_marking_type,
-                world.ground_truth.right_marking_type,
-                world.ground_truth.next_right_marking_type))
+                world.ground_truth.next_left_marking.type if world.ground_truth.next_left_marking is not None else None,
+                world.ground_truth.left_marking.type if world.ground_truth.left_marking is not None else None,
+                world.ground_truth.right_marking.type if world.ground_truth.right_marking is not None else None,
+                world.ground_truth.next_right_marking.type if world.ground_truth.next_right_marking is not None else None))
 
             if idx % int(5/config_args['world']['delta_seconds']) == 0:
                 world.force_lane_change(to_left=to_left)
