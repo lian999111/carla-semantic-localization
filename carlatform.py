@@ -20,6 +20,11 @@ from scipy.spatial.transform import Rotation
 # Carla provides only a transform API from ego to world frame.
 # This class complement the transfromation abilities from world to ego frame.
 
+# Note:
+# Carla uses z-down coordinate system (left-handed) while we use z-up coordinate system (right-handed).
+# This class automatically convert given carla.Transform and carla.Location so the transformation results
+# will be in the "ego z-up coordinate system".
+
 class CarlaW2ETform:
     """ Helper class to perform world-to-ego transformation for Carla """
 
@@ -34,30 +39,30 @@ class CarlaW2ETform:
     def rotm_world_to_ego(self, vector3D: carla.Vector3D):
         """ 
         Rotationally transform the given carla.Vector3D in ego frame to world frame.
-        Note the return np 3D vector already follows ISO coordinate system. 
+        Note the return np 3D vector already follows z-up coordinate system. 
         Input:
-            vector3D: a carla.Vector3D which follows carla's coordinate system (SAE system).
+            vector3D: a carla.Vector3D which follows carla's coordinate system (z-down system).
         Output:
-            np.array representing a 3D coordinate in the ISO coordinate system.
+            np.array representing a 3D coordinate in the z-up coordinate system.
         """
         if self._rotm_w2e is None:
             self._init_rotm_w2e()
-        # Need to convert from SAE to ISO coordiante
+        # Need to convert from z-down to z-up coordiante
         np_vec = np.array([vector3D.x, -vector3D.y, -vector3D.z]).T
         return self._rotm_w2e.dot(np_vec)
 
     def tform_world_to_ego(self, vector3D: carla.Vector3D):
         """ 
         Homogeneous transform the given carla.Vector3D in ego frame to world frame.
-        Note the return np 3D vector already follows ISO coordinate system.
+        Note the return np 3D vector already follows z-up coordinate system.
         Input:
-            vector3D: a carla.Vector3D which follows carla's coordinate system (SAE system).
+            vector3D: a carla.Vector3D which follows carla's coordinate system (z-down system).
         Output:
-            np.array representing a 3D coordinate in the ISO coordinate system.
+            np.array representing a 3D coordinate in the z-up coordinate system.
         """
         if self._tform_w2e is None:
             self._init_tform_w2e()
-        # Need to convert from SAE to ISO coordiante
+        # Need to convert from z-down to z-up coordiante
         np_homo_vec = np.array([vector3D.x, -vector3D.y, -vector3D.z, 1]).T
         return self._tform_w2e.dot(np_homo_vec)[0:3]
         
@@ -65,9 +70,9 @@ class CarlaW2ETform:
     def _init_rotm_w2e(self):
         """ Helper method to create rotation matrix _rotm_e2w """
         rotation = self._ego_veh_transform.rotation
-        # Carla uses SAE coordinate system (z towards down)
+        # Carla uses z-down coordinate system (z towards down)
         # Ref: https://carla.readthedocs.io/en/latest/python_api/#carlarotation
-        # Convert to ISO coordinate system when building up the rotation matrix
+        # Convert to z-up coordinate system when building up the rotation matrix
         self._rotm_w2e = Rotation.from_euler(
             'zyx', [-rotation.yaw, -rotation.pitch, rotation.roll], degrees=True).as_matrix().T
 
@@ -82,3 +87,5 @@ class CarlaW2ETform:
                           -self._ego_veh_transform.location.y, 
                           -self._ego_veh_transform.location.z]).T
         self._tform_w2e[0:3, 3] = - self._rotm_w2e.dot(trvec)
+
+# %%

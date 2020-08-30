@@ -327,7 +327,11 @@ class IMU(CarlaSensor):
 
 
 class GNSS(CarlaSensor):
-    """ Class for GNSS sensor"""
+    """ 
+    Class for GNSS sensor
+    Carla uses z-down coordinate system (left-handed) while we use z-up coordinate system (right-handed).
+    This class automatically converts the GNSS measurements into z-up coordinate system for x, y, z to match the convention.
+    """
 
     def __init__(self, parent_actor, gnss_config_args):
         """ Constructor method """
@@ -376,9 +380,11 @@ class GNSS(CarlaSensor):
         # Get transform from geolocation to location
         location = self._geo2location.transform(
             carla.GeoLocation(self.lat, self.lon, self.alt))
+
+        # y and z must be flipped to match the z-up convention we use.
         self.x = location.x
-        self.y = location.y
-        self.z = location.z
+        self.y = - location.y
+        self.z = - location.z
 
 # %% ================= Semantic Camera =================
 
