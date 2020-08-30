@@ -88,11 +88,11 @@ class GroundTruthExtractor(object):
         """ Update ground truth at the current tick """
         self.ego_veh_tform = self.ego_veh.get_transform()
 
-        # Update front bumper
+        # Update front bumper (carla.Vector3D in z-down frame)
         self._fbumper_location = self.ego_veh_tform.transform(
             carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))  # carla.Location.transform() returns just a carla.Vector3D object
         
-        # Update rear axle
+        # Update rear axle (np.array in z-up frame)
         raxle_location = self.ego_veh_tform.transform(
             carla.Location(x=-self.raxle_to_cg))
         self.raxle_gt_location = np.array([raxle_location.x,
