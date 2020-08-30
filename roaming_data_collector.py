@@ -506,9 +506,8 @@ def main():
         for idx in range(n_ticks):
             world.step_forward()
             world.see_ego_veh()
-            print('vx: {:3.2f}'.format(world.virtual_odom.vx))
-            print('vy: {:3.2f}'.format(world.virtual_odom.vy))
-            print('w: {:3.2f}'.format(world.virtual_odom.yaw_rate))
+            print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
+                world.virtual_odom.vx, world.virtual_odom.vy, world.virtual_odom.yaw_rate))
             # print('{}'.format(
             #     world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint is not None else None))
             # print('{}   {}   {}'.format(
