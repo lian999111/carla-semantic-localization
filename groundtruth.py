@@ -12,23 +12,42 @@ except IndexError:
 
 import carla
 from enum import Enum
+import numpy as np
+from carlatform import CarlaW2ETform
+
 
 class Direction(Enum):
     """ Enum for specifying lane searching direction """
     Left = 1
     Right = 2
 
+
 class GroundTruthExtractor(object):
     """ Class for ground truth extraction """
 
-    def __init__(self, carla_map, ego_veh, actor_list, config_args=None):
+    def __init__(self, ego_veh, carla_map, actor_list, config_args):
         """ Constructor method """
         # Ego vehicle
+        # Distance from rear axle to front bumper
         self.raxle_to_fbumper = config_args['ego_veh']['raxle_to_fbumper']
+        # Distance from rear axle to center of gravity
+        self.raxle_to_cg = config_args['ego_veh']['raxle_to_cg']
+
         self.ego_veh = ego_veh
         self.ego_veh_tform = ego_veh.get_transform()
-        self.fbumper_location = self.ego_veh_tform.transform(
-            carla.Location(x=self.raxle_to_fbumper - 1.4))  # -1.4: cg to rear axle only valid for carla's mustang
+        
+        # Front bumper location in Carla's coordinate system (z-down) as a carla.Vector3D object
+        # It in carla's z-down world frame so querying waypoints using carla's APIs is more straightforward
+        self._fbumper_location = self.ego_veh_tform.transform(
+            carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))
+        
+        # Rear axle in Carla's coordinate system (z-down) as a carla.Vector3D object
+        raxle_location = self.ego_veh_tform.transform(
+            carla.Location(x=-self.raxle_to_cg))
+        # Rear axle in our coordinate system (z-up) as a numpy array
+        self.raxle_gt_location = np.array([raxle_location.x,
+                                           -raxle_location.y,
+                                           -raxle_location.z])
 
         # Simulation environment
         self.map = carla_map
@@ -37,6 +56,8 @@ class GroundTruthExtractor(object):
         # self.landmarks = None
 
         # Lanes
+        # Search radius
+        self._radius = config_args['gt']['lane']['radius']
         # In some OpenDrive definitions, ego lane may have no visible lane boundaries.
         # Ground truth extractor then tries to get closest visible lane markings towards both sides and store the
         # corresponding waypoints into waypoint_left_marking and waypoint_right_marking. These 2 waypoints
@@ -61,17 +82,20 @@ class GroundTruthExtractor(object):
         """ Update ground truth at the current tick """
         self.ego_veh_tform = self.ego_veh.get_transform()
         # carla.Location.transform() returns just a carla.Vector3D object
-        self.fbumper_location = carla.Location(self.ego_veh_tform.transform(
+        self._fbumper_location = carla.Location(self.ego_veh_tform.transform(
             carla.Location(x=self.raxle_to_fbumper - 1.4)))
+        self._raxle_location = self.ego_veh_tform.transform(
+            carla.Location(x=-self.raxle_to_cg))
+
         # Find a waypoint on the nearest lane (any lane type except NONE)
         # So when ego vehicle is driving abnormally (e.g. on shoulder or parking), lane markings can still be obtained.
         # Some strange results may happen in extreme cases though (e.g. car drives on rail or sidewalk).
         self.waypoint = self.map.get_waypoint(
-            self.fbumper_location, lane_type=carla.LaneType.Any)
+            self._fbumper_location, lane_type=carla.LaneType.Any)
 
         # When the query point (front bumper) is farther from the obtained waypoint than its half lane width,
         # the ego vehicle is likely  to be off road, then no lane info is further extracted.
-        if self.fbumper_location.distance(self.waypoint.transform.location) >= self.waypoint.lane_width/2:
+        if self._fbumper_location.distance(self.waypoint.transform.location) >= self.waypoint.lane_width/2:
             self.waypoint = None
 
         if self.waypoint is not None:
