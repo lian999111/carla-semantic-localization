@@ -35,19 +35,25 @@ class GroundTruthExtractor(object):
 
         self.ego_veh = ego_veh
         self.ego_veh_tform = ego_veh.get_transform()
-        
+
         # Front bumper location in Carla's coordinate system (z-down) as a carla.Vector3D object
         # It in carla's z-down world frame so querying waypoints using carla's APIs is more straightforward
         self._fbumper_location = self.ego_veh_tform.transform(
             carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))
-        
+
         # Rear axle in Carla's coordinate system (z-down) as a carla.Vector3D object
         raxle_location = self.ego_veh_tform.transform(
             carla.Location(x=-self.raxle_to_cg))
-        # Rear axle in our coordinate system (z-up) as a numpy array
+        # Rear axle's location in our coordinate system (z-up) as a numpy array
+        # This is the ground truth of the rear axle's location
         self.raxle_gt_location = np.array([raxle_location.x,
                                            -raxle_location.y,
                                            -raxle_location.z])
+        # Rear axle's orientation in our coordinate system (z-up) as a numpy array (roll, pitch, yaw)
+        # This is the ground truth of the rear axle's orientation
+        self.raxle_gt_orientation = np.array([self.ego_veh_tform.rotation.roll,
+                                              -self.ego_veh_tform.rotation.pitch,
+                                              -self.ego_veh_tform.rotation.yaw])
 
         # Simulation environment
         self.map = carla_map
@@ -81,11 +87,20 @@ class GroundTruthExtractor(object):
     def update(self):
         """ Update ground truth at the current tick """
         self.ego_veh_tform = self.ego_veh.get_transform()
-        # carla.Location.transform() returns just a carla.Vector3D object
-        self._fbumper_location = carla.Location(self.ego_veh_tform.transform(
-            carla.Location(x=self.raxle_to_fbumper - 1.4)))
-        self._raxle_location = self.ego_veh_tform.transform(
+
+        # Update front bumper
+        self._fbumper_location = self.ego_veh_tform.transform(
+            carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))  # carla.Location.transform() returns just a carla.Vector3D object
+        
+        # Update rear axle
+        raxle_location = self.ego_veh_tform.transform(
             carla.Location(x=-self.raxle_to_cg))
+        self.raxle_gt_location = np.array([raxle_location.x,
+                                           -raxle_location.y,
+                                           -raxle_location.z])
+        self.raxle_gt_orientation = np.array([self.ego_veh_tform.rotation.roll,
+                                              -self.ego_veh_tform.rotation.pitch,
+                                              -self.ego_veh_tform.rotation.yaw])
 
         # Find a waypoint on the nearest lane (any lane type except NONE)
         # So when ego vehicle is driving abnormally (e.g. on shoulder or parking), lane markings can still be obtained.
