@@ -137,7 +137,7 @@ class World(object):
 
         # Spawn the ego vehicle as a cool mustang
         ego_veh_bp = self.carla_world.get_blueprint_library().find('vehicle.mustang.mustang')
-        
+
         if self.ego_veh is not None:
             if spawn_point is None:
                 print("Respawning ego vehicle.")
@@ -146,13 +146,6 @@ class World(object):
                 print("Respawning ego vehicle with assigned point.")
             # Destroy previously spawned actors
             self.destroy()
-            spawn_point.location.z += 2.0
-            spawn_point.rotation.roll = 0.0
-            spawn_point.rotation.pitch = 0.0
-            self.ego_veh = self.carla_world.try_spawn_actor(
-                ego_veh_bp, spawn_point)
-        else:
-            print("Trying to spawn ego vehicle with assigned point.")
             spawn_point.location.z += 2.0
             spawn_point.rotation.roll = 0.0
             spawn_point.rotation.pitch = 0.0
@@ -488,7 +481,8 @@ def main():
 
     # Initialize world
     world = None
-    spawn_point = carla.Transform(carla.Location(-88.5, 93.5, 0))
+    # spawn_point = carla.Transform(carla.Location(-88.5, 93.5, 0))
+    spawn_point = None
     try:
         client = carla.Client('localhost', 2000)
         client.set_timeout(5.0)
