@@ -307,7 +307,9 @@ class IMU(CarlaSensor):
                              imu_config_args['noise_gyro_stddev_z'])
 
         print("Spawning IMU sensor.")
-        self.sensor = world.spawn_actor(imu_bp, carla.Transform(carla.Location(x=0.0, z=0.0)),
+        self.sensor = world.spawn_actor(imu_bp,
+                                        carla.Transform(carla.Location(
+                                            x=imu_config_args['pos_x'], z=0.0)),
                                         attach_to=self._parent)
 
         self.sensor.listen(lambda event: self._queue.put(event))
@@ -354,8 +356,10 @@ class GNSS(CarlaSensor):
                               gnss_config_args['noise_lon_stddev'])
 
         print("Spawning GNSS sensor.")
-        self.sensor = world.spawn_actor(gnss_bp, carla.Transform(carla.Location(x=0.0, z=0.0)),
-                                        attach_to=self._parent, attachment_type=carla.AttachmentType.Rigid)
+        self.sensor = world.spawn_actor(gnss_bp,
+                                        carla.Transform(carla.Location(
+                                            x=gnss_config_args['pos_x'], z=0.0)),
+                                        attach_to=self._parent)
         self._geo2location = Geo2Location(world.get_map())
 
         self.sensor.listen(lambda event: self._queue.put(event))
@@ -396,7 +400,9 @@ class SemanticCamera(CarlaSensor):
         ss_cam_bp.set_attribute('fov', ss_cam_config_args['fov'])
 
         print("Spawning semantic camera sensor.")
-        self.sensor = world.spawn_actor(ss_cam_bp, carla.Transform(carla.Location(x=0.6, z=1.5)),
+        self.sensor = world.spawn_actor(ss_cam_bp,
+                                        carla.Transform(
+                                            carla.Location(x=0.6, z=1.5)),
                                         attach_to=self._parent)
 
         self.sensor.listen(lambda image: self._queue.put(image))
@@ -441,7 +447,8 @@ class VirtualOdometry(object):
         """ Update virtual odometry """
         vel = self._parent.get_velocity()
         tform_w2e = CarlaW2ETform(self._parent.get_transform())
-        ego_vel = tform_w2e.rotm_world_to_ego(vel) # get an np homogeneous vector
+        ego_vel = tform_w2e.rotm_world_to_ego(
+            vel)  # get an np homogeneous vector
 
         self.vx = ego_vel[0]
         self.vy = ego_vel[1]
