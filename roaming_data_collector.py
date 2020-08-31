@@ -178,7 +178,7 @@ class World(object):
 
         # Ground truth extractor
         self.ground_truth = GroundTruthExtractor(
-            self.map, self.ego_veh, actor_list=None, config_args=config_args)
+            self.ego_veh, self.map, actor_list=None, config_args=config_args)
 
     def set_ego_autopilot(self, active, autopilot_config_args=None):
         """ Set traffic manager and register ego vehicle to it """
