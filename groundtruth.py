@@ -42,7 +42,7 @@ class GroundTruthExtractor(object):
         # It in carla's z-down world frame so querying waypoints using carla's APIs is more straightforward
         self._fbumper_location = self.ego_veh_tform.transform(
             carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))
-        # TODO: implement this
+        # A flag indicating ego vehicle is in junction
         self.in_junction = False
 
         # Rear axle in Carla's coordinate system (z-down) as a carla.Vector3D object
@@ -112,6 +112,10 @@ class GroundTruthExtractor(object):
         # Some strange results may happen in extreme cases though (e.g. car drives on rail or sidewalk).
         self.waypoint = self.map.get_waypoint(
             self._fbumper_location, lane_type=carla.LaneType.Driving)
+
+        # Update in_junction flag if current waypoint is junction
+        self.in_junction = self.waypoint.is_junction
+            
 
         # When the query point (front bumper) is farther from the obtained waypoint than its half lane width,
         # the ego vehicle is likely  to be off road, then no lane info is further extracted.
