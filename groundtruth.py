@@ -20,6 +20,8 @@ class Direction(Enum):
     """ Enum for specifying lane searching direction """
     Left = 1
     Right = 2
+    Forward = 3
+    Backward = 4
 
 
 class GroundTruthExtractor(object):
@@ -40,6 +42,8 @@ class GroundTruthExtractor(object):
         # It in carla's z-down world frame so querying waypoints using carla's APIs is more straightforward
         self._fbumper_location = self.ego_veh_tform.transform(
             carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))
+        # TODO: implement this
+        self.in_junction = False
 
         # Rear axle in Carla's coordinate system (z-down) as a carla.Vector3D object
         raxle_location = self.ego_veh_tform.transform(
@@ -91,7 +95,7 @@ class GroundTruthExtractor(object):
         # Update front bumper (carla.Vector3D in z-down frame)
         self._fbumper_location = self.ego_veh_tform.transform(
             carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))  # carla.Location.transform() returns just a carla.Vector3D object
-        
+
         # Update rear axle (np.array in z-up frame)
         raxle_location = self.ego_veh_tform.transform(
             carla.Location(x=-self.raxle_to_cg))
@@ -102,37 +106,23 @@ class GroundTruthExtractor(object):
                                               -self.ego_veh_tform.rotation.pitch,
                                               -self.ego_veh_tform.rotation.yaw])
 
+        # TODO: modify comment to Drivee
         # Find a waypoint on the nearest lane (any lane type except NONE)
         # So when ego vehicle is driving abnormally (e.g. on shoulder or parking), lane markings can still be obtained.
         # Some strange results may happen in extreme cases though (e.g. car drives on rail or sidewalk).
         self.waypoint = self.map.get_waypoint(
-            self._fbumper_location, lane_type=carla.LaneType.Any)
+            self._fbumper_location, lane_type=carla.LaneType.Driving)
 
         # When the query point (front bumper) is farther from the obtained waypoint than its half lane width,
         # the ego vehicle is likely  to be off road, then no lane info is further extracted.
-        if self._fbumper_location.distance(self.waypoint.transform.location) >= self.waypoint.lane_width/2:
+        # make a carla.Location object
+        fbumper_loc = carla.Location(self._fbumper_location)
+        if fbumper_loc.distance(self.waypoint.transform.location) >= self.waypoint.lane_width/2:
             self.waypoint = None
 
         if self.waypoint is not None:
-            # Find left and right markings of ego lane
-            self._get_left_lane_marking()
-            self._get_right_lane_marking()
-
-            # Find next lane markings unless a curb is aleady by the ego lane
-            # Next left
-            if self.left_marking is not None and self.left_marking.type != carla.LaneMarkingType.Curb:
-                self._get_next_left_lane_marking()
-            else:
-                self.waypoint_next_left_marking = None
-                self.next_left_marking = None
-
-            # Next right
-            if self.right_marking is not None and self.right_marking.type != carla.LaneMarkingType.Curb:
-                self._get_next_right_lane_marking()
-            else:
-                self.waypoint_next_right_marking = None
-                self.next_right_marking = None
-
+            candidate_markings_in_ego, candidate_marking_types = self._find_candidate_markings()
+            
             # TODO: lane marking parameters
         else:
             self.waypoint_left_marking = None
@@ -143,6 +133,177 @@ class GroundTruthExtractor(object):
             self.right_marking = None
             self.next_left_marking = None
             self.next_right_marking = None
+
+    def _find_candidate_markings(self):
+        # TODO: """  """
+        fbumper_transform = carla.Transform(
+            self._fbumper_location, self.ego_veh.get_transform().rotation)
+        # Object for transforming a carla.Location in carla's world frame (z-down) into our ego vehicle's frame (z-up)
+        tform_w2e = CarlaW2ETform(fbumper_transform)
+        waypt_ego_frame = tform_w2e.tform_world_to_ego(
+            self.waypoint.transform.location)
+
+        # Container lists
+        # A list of points of each candidate marking
+        # Each candidate marking has a list of 3D points in ego vehicle's frame (z-up)
+        candidate_markings_in_ego = []
+        # A list of type of each candidate marking point
+        candidate_marking_types = []
+
+        # Left
+        # Initilization with current waypoint
+        left_marking_waypt = self.waypoint
+        cum_dist = waypt_ego_frame[1] + \
+            0.5 * left_marking_waypt.lane_width
+        # Search left till cumulative distance exceeds radius
+        while cum_dist < self._radius:
+            # Get left marking of current waypoint
+            left_marking = self._get_lane_marking(
+                left_marking_waypt, Direction.Left)
+            if left_marking.type != carla.LaneMarkingType.NONE:
+                # A candidate found
+                marking_pts, marking_types = self._get_marking_pts(
+                    left_marking_waypt, tform_w2e, Direction.Left)
+
+                candidate_markings_in_ego.append(marking_pts)
+                candidate_marking_types.append(marking_types)
+
+            # Stop when reaching a curb
+            if left_marking.type == carla.LaneMarkingType.Curb:
+                break
+            # Go to the next left lane
+            left_marking_waypt = self._get_next_lane(
+                left_marking_waypt, Direction.Left)
+            if left_marking_waypt is not None:
+                cum_dist += left_marking_waypt.lane_width
+            else:
+                # Stop when next lane waypoint is None
+                break
+
+        # Right
+        # Initilization with current waypoint
+        right_marking_waypt = self.waypoint
+        cum_dist = waypt_ego_frame[1] + \
+            0.5 * right_marking_waypt.lane_width
+        # Search right till cumulative distance exceeds radius
+        while cum_dist < self._radius:
+            # Get right marking of current waypoint
+            right_marking = self._get_lane_marking(
+                right_marking_waypt, Direction.Right)
+            if right_marking.type != carla.LaneMarkingType.NONE:
+                # A candidate found
+                marking_pts, marking_types = self._get_marking_pts(
+                    right_marking_waypt, tform_w2e, Direction.Right)
+
+                candidate_markings_in_ego.append(marking_pts)
+                candidate_marking_types.append(marking_types)
+
+            # Stop when reaching a curb
+            if right_marking.type == carla.LaneMarkingType.Curb:
+                break
+            # Go to the next right lane
+            right_marking_waypt = self._get_next_lane(
+                right_marking_waypt, Direction.Right)
+            if right_marking_waypt is not None:
+                cum_dist += right_marking_waypt.lane_width
+            else:
+                # Stop when next lane waypoint is None
+                break
+
+        return candidate_markings_in_ego, candidate_marking_types
+
+    def _get_marking_pts(self, waypoint: carla.Waypoint, world_to_ego: CarlaW2ETform, direction):
+        """ Get marking points along the lane in ego frame (z-up) for given waypoint and direction """
+
+        # Local helper functions
+        def get_lane_marking_pt_in_ego_frame(waypoint_of_interest):
+            """ Get the corresponding marking point in ego frame given a waypoint of interest """
+            if self._check_same_direction_as_ego_lane(waypoint_of_interest):
+                half_width = 0.5 * waypoint_of_interest.lane_width
+            else:
+                half_width = -0.5 * waypoint_of_interest.lane_width
+
+            if direction == Direction.Left:
+                lane_pt_in_world = waypoint_of_interest.transform.transform(
+                    carla.Location(y=-half_width))
+            else:
+                lane_pt_in_world = waypoint_of_interest.transform.transform(
+                    carla.Location(y=half_width))
+            return world_to_ego.tform_world_to_ego(lane_pt_in_world)
+
+        # Local helper functions
+        def get_next_waypoint(waypoint_of_interest, distance, direction):
+            """ 
+            Get the next waypoint of the waypont of interest.
+            The direction is with respect to the ego lane.
+            Returns None if not found.
+            """
+            next_waypt = None
+            if direction == Direction.Forward:
+                if self._check_same_direction_as_ego_lane(waypoint_of_interest):
+                    # next() returns a list with at most one element
+                    new_waypt = waypoint_of_interest.next(distance)
+                else:
+                    # previous() returns a list with at most one element
+                    new_waypt = waypoint_of_interest.previous(distance)
+                if len(new_waypt) != 0:
+                    next_waypt = new_waypt[0]
+            elif direction == Direction.Backward:
+                if self._check_same_direction_as_ego_lane(waypoint_of_interest):
+                    new_waypt = waypoint_of_interest.previous(distance)
+                else:
+                    new_waypt = waypoint_of_interest.next(distance)
+                if len(new_waypt) != 0:
+                    next_waypt = new_waypt[0]
+
+            return next_waypt
+
+        # Containers for lane marking points and their types
+        # Stored in ascending order (from back to forth)
+        lane_pts_in_ego = []    # a list 3D points in ego frame (z-up)
+        lane_types = []         # a list of marking type of each point
+        # Previous waypointes of the given waypoint
+        # carla's waypoint.previous_until_lane_start() has bugs with lane type like Border and Parking.
+        # The method simply stops the whole program without any warning or error when called with a waypoint of the types above.
+        # Here a for loop is used instead of previous_until_lane_start() for finding waypoints backwards.
+        # One advantage is we can just add the marking points with valid types.
+        for distance in reversed(range(1, 11)):
+            backward_waypt = get_next_waypoint(
+                waypoint, distance, Direction.Backward)
+            if backward_waypt is not None:
+                lane_type = self._get_lane_marking(
+                    backward_waypt, direction).type
+                # Add only points with visible marking types
+                if lane_type != carla.LaneMarkingType.NONE:
+                    lane_pts_in_ego.append(
+                        get_lane_marking_pt_in_ego_frame(backward_waypt))
+                    lane_types.append(lane_type)
+            else:
+                continue
+
+        # The given waypoint
+        lane_type = self._get_lane_marking(waypoint, direction).type
+        if lane_type != carla.LaneMarkingType.NONE:
+            lane_pts_in_ego.append(get_lane_marking_pt_in_ego_frame(waypoint))
+            lane_types.append(lane_type)
+
+        # Next waypointes of the given waypoint
+        # Here a for loop is used instead of next_until_lane_end() for finding waypoints forwards.
+        # One advantage is we can just add the marking points with valid types.
+        for distance in range(1, 11):
+            forward_waypt = get_next_waypoint(
+                waypoint, distance, Direction.Forward)
+            if forward_waypt is not None:
+                lane_type = self._get_lane_marking(
+                    forward_waypt, direction).type
+                if lane_type != carla.LaneMarkingType.NONE:
+                    lane_pts_in_ego.append(
+                        get_lane_marking_pt_in_ego_frame(forward_waypt))
+                    lane_types.append(lane_type)
+            else:
+                continue
+
+        return lane_pts_in_ego, lane_types
 
     def _get_left_lane_marking(self):
         """
@@ -163,7 +324,8 @@ class GroundTruthExtractor(object):
         """
         Get right visible lane marking.
         """
-        right_waypt = self._find_visible_lane_marking(direction=Direction.Right)
+        right_waypt = self._find_visible_lane_marking(
+            direction=Direction.Right)
 
         # Updatee right lane marking
         if right_waypt is not None:
@@ -215,7 +377,8 @@ class GroundTruthExtractor(object):
         This method tries to find the lanes corresponding to visible lane boundaries (e.g. curb) but may not 
         be directly adjacent to current lane.
         """
-        next_left_waypt = self._find_next_visible_lane_marking(direction=Direction.Left)
+        next_left_waypt = self._find_next_visible_lane_marking(
+            direction=Direction.Left)
 
         # Updatee next left lane marking
         if next_left_waypt is not None:
@@ -233,7 +396,8 @@ class GroundTruthExtractor(object):
         This method tries to find the lanes corresponding to visible lane boundaries (e.g. curb) but may not 
         be directly adjacent to current lane.
         """
-        next_right_waypt = self._find_next_visible_lane_marking(direction=Direction.Right)
+        next_right_waypt = self._find_next_visible_lane_marking(
+            direction=Direction.Right)
 
         # Update next right lane marking
         if next_right_waypt is not None:
@@ -300,7 +464,7 @@ class GroundTruthExtractor(object):
                 return waypoint_of_interest.get_left_lane()
 
     def _get_lane_marking(self, waypoint_of_interest, direction):
-        """ Get lane marking of given waypoint in the specified direction with respect to ego lane """
+        """ Get carla.LaneMarking object of given waypoint in the specified direction with respect to ego lane """
         if waypoint_of_interest is None:
             return None
         if direction == Direction.Left:
