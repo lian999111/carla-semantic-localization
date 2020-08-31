@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import queue
 from groundtruth import GroundTruthExtractor
 from carlatform import CarlaW2ETform
+from math import pi
 
 # %% ================= Global function =================
 
@@ -276,11 +277,14 @@ class CarlaSensor(object):
 
 
 class IMU(CarlaSensor):
-    """ Class for IMU sensor"""
+    """ 
+    Class for IMU sensor. Carla's IMU uses z-down coordinate system. 
+    """
 
     def __init__(self, parent_actor, imu_config_args):
         """ Constructor method """
         super().__init__(parent_actor)
+        # In z-down coordinate system
         self.accelerometer = None
         self.gyro = None
 
@@ -508,6 +512,7 @@ def main():
             world.see_ego_veh()
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
                 world.virtual_odom.vx, world.virtual_odom.vy, world.virtual_odom.yaw_rate))
+            print('gyro_z: {:3.2f}'.format(-world.imu.gyro.z * 180 / pi))
             # print('{}'.format(
             #     world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint is not None else None))
             # print('{}   {}   {}'.format(
