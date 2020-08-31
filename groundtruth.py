@@ -125,6 +125,9 @@ class GroundTruthExtractor(object):
             self.waypoint = None
 
         if self.waypoint is not None:
+            # Find candidate visible markings within the specified radius
+            # We get a list of 3D points of candidate markings in ego vehicle's frame (z-up)
+            # as well as a list containing the corresponding marking types.
             candidate_markings_in_ego, candidate_marking_types = self._find_candidate_markings()
             
             # TODO: lane marking parameters
