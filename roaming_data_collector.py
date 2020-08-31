@@ -119,7 +119,6 @@ class World(object):
         self.imu = None
         self.gnss = None
         self.semantic_camera = None
-        self.virtual_odom = None
 
         self.ground_truth = None
 
@@ -173,8 +172,6 @@ class World(object):
         self.imu = IMU(self.ego_veh, config_args['sensor']['imu'])
         self.semantic_camera = SemanticCamera(
             self.ego_veh, config_args['sensor']['semantic_image'])
-        self.virtual_odom = VirtualOdometry(
-            self.ego_veh, config_args['sensor']['virtual_odom'])
 
         # Ground truth extractor
         self.ground_truth = GroundTruthExtractor(
@@ -207,7 +204,6 @@ class World(object):
         self.imu.update()
         self.gnss.update()
         self.semantic_camera.update()
-        self.virtual_odom.update()
         self.ground_truth.update()
 
     def see_ego_veh(self, following_dist=5, height=5, tilt_ang=-30):
@@ -278,15 +274,28 @@ class CarlaSensor(object):
 
 class IMU(CarlaSensor):
     """ 
-    Class for IMU sensor. Carla's IMU uses z-down coordinate system. 
+    Class for IMU sensor. 
+    It uses ego vehicle's velocities to obtain virtual odometry internally.
+    While Carla uses z-down coordinate system, 
+    this wrapper class automatically convert to z-up coordinate system.
     """
 
     def __init__(self, parent_actor, imu_config_args):
         """ Constructor method """
         super().__init__(parent_actor)
-        # In z-down coordinate system
-        self.accelerometer = None
-        self.gyro = None
+        # In z-up coordinate system
+        # Accelerations
+        self.accel_x = 0.0      # m/s^2
+        self.accel_y = 0.0      # m/s^2
+        self.accel_z = 0.0      # m/s^2
+        # Angular velocities
+        self.gyro_x = 0.0       # rad/s
+        self.gyro_y = 0.0       # rad/s
+        self.gyro_z = 0.0       # rad/s
+
+        # Velocities (virtual odometry)
+        self.vx = 0.0           # m/s
+        self.vy = 0.0           # m/s
 
         world = self._parent.get_world()
         imu_bp = world.get_blueprint_library().find('sensor.other.imu')
@@ -310,6 +319,11 @@ class IMU(CarlaSensor):
         imu_bp.set_attribute('noise_gyro_stddev_z',
                              imu_config_args['noise_gyro_stddev_z'])
 
+        self._noise_vx_bias = imu_config_args['noise_vx_bias']
+        self._noise_vy_bias = imu_config_args['noise_vy_bias']
+        self._noise_vx_stddev = imu_config_args['noise_vx_stddev']
+        self._noise_vy_stddev = imu_config_args['noise_vy_stddev']
+
         print("Spawning IMU sensor.")
         self.sensor = world.spawn_actor(imu_bp,
                                         carla.Transform(carla.Location(
@@ -322,9 +336,28 @@ class IMU(CarlaSensor):
         """ Wait for IMU measurement and update data """
         # get() blocks the script so synchronization is guaranteed
         event = self._queue.get()
+
+        # Convert to z-up frame
         self.timestamp = event.timestamp
-        self.accelerometer = event.accelerometer
-        self.gyro = event.gyroscope
+        self.accel_x = event.accelerometer.x
+        self.accel_y = - event.accelerometer.y
+        self.accel_z = - event.accelerometer.z
+        self.gyro_x = event.gyroscope.x
+        self.gyro_y = - event.gyroscope.y
+        self.gyro_z = - event.gyroscope.z
+
+        # Velocities
+        vel = self._parent.get_velocity()
+        tform_w2e = CarlaW2ETform(self._parent.get_transform())
+        # Transform velocities from Carla world frame (z-down) to ego frame (z-up)
+        ego_vel = tform_w2e.rotm_world_to_ego(vel) # an np 3D vector
+        self.vx = ego_vel[0]
+        self.vy = ego_vel[1]
+        self._add_velocity_noise()
+
+    def _add_velocity_noise(self):
+        self.vx += np.random.normal(self._noise_vx_bias, self._noise_vx_stddev)
+        self.vy += np.random.normal(self._noise_vy_bias, self._noise_vy_stddev)
 
 
 # %% ================= GNSS Sensor =================
@@ -430,48 +463,6 @@ class SemanticCamera(CarlaSensor):
         # Pole-like objects
         self.pole_img = np_img[:, :, 2] == 5
 
-# %% ================= Simulated Odometry =================
-
-
-class VirtualOdometry(object):
-    """ 
-    Class for virtual velocity and yaw rate measurement.
-    This is done by adding noise to ego vehilce's velocities in Carla.
-    """
-
-    def __init__(self, parent_actor, virtual_odom_config):
-        """ Constructor method """
-        self._parent = parent_actor
-        self._noise_vx_bias = virtual_odom_config['noise_vx_bias']
-        self._noise_vy_bias = virtual_odom_config['noise_vy_bias']
-        self._noise_yaw_rate_bias = virtual_odom_config['noise_yaw_rate_bias']
-        self._noise_vx_stddev = virtual_odom_config['noise_vx_stddev']
-        self._noise_vy_stddev = virtual_odom_config['noise_vy_stddev']
-        self._noise_yaw_rate_stddev = virtual_odom_config['noise_yaw_rate_stddev']
-
-        self.vx = 0.0    # m/s
-        self.vy = 0.0    # m/s
-        self.yaw_rate = 0.0  # deg/s
-
-    def update(self):
-        """ Update virtual odometry """
-        vel = self._parent.get_velocity()
-        tform_w2e = CarlaW2ETform(self._parent.get_transform())
-        ego_vel = tform_w2e.rotm_world_to_ego(
-            vel)  # get an np homogeneous vector
-
-        self.vx = ego_vel[0]
-        self.vy = ego_vel[1]
-        self.yaw_rate = -self._parent.get_angular_velocity().z
-        self._add_noise()
-
-    def _add_noise(self):
-        self.vx += np.random.normal(self._noise_vx_bias, self._noise_vx_stddev)
-        self.vy += np.random.normal(self._noise_vy_bias, self._noise_vy_stddev)
-        self.yaw_rate += np.random.normal(self._noise_yaw_rate_bias,
-                                          self._noise_yaw_rate_stddev)
-
-
 # TODO: stop sign measurement
 
 
@@ -511,8 +502,8 @@ def main():
             world.step_forward()
             world.see_ego_veh()
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
-                world.virtual_odom.vx, world.virtual_odom.vy, world.virtual_odom.yaw_rate))
-            print('gyro_z: {:3.2f}'.format(-world.imu.gyro.z * 180 / pi))
+                world.imu.vx, world.imu.vy, world.imu.gyro_z * 180 / pi))
+            print('in junction: {}'.format(world.ground_truth.in_junction))
             # print('{}'.format(
             #     world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint is not None else None))
             # print('{}   {}   {}'.format(
