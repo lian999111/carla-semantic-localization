@@ -142,7 +142,10 @@ class GroundTruthExtractor(object):
             self.next_right_marking = None
 
     def _find_candidate_markings(self):
-        # TODO: """  """
+        """ 
+        Find candidate lane markings withing a radius at the current time step.
+        Return a list of 3D points of candidate markings and a list of their corresponding marking type.
+        """
         fbumper_transform = carla.Transform(
             self._fbumper_location, self.ego_veh.get_transform().rotation)
         # Object for transforming a carla.Location in carla's world frame (z-down) into our ego vehicle's frame (z-up)
