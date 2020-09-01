@@ -296,6 +296,10 @@ class IMU(CarlaSensor):
         # Velocities (virtual odometry)
         self.vx = 0.0           # m/s
         self.vy = 0.0           # m/s
+        # Virtual odometry uses velocities of ego vehicle's actor directly,
+        # which is found to lag behind Carla's IMU by 1 simulation step.
+        # To recover that, virtual odometry's velocities are added with acceleration times simulation step 
+        self._delta_seconds = imu_config_args['delta_seconds']
 
         world = self._parent.get_world()
         imu_bp = world.get_blueprint_library().find('sensor.other.imu')
@@ -351,8 +355,8 @@ class IMU(CarlaSensor):
         tform_w2e = CarlaW2ETform(self._parent.get_transform())
         # Transform velocities from Carla world frame (z-down) to ego frame (z-up)
         ego_vel = tform_w2e.rotm_world_to_ego(vel) # an np 3D vector
-        self.vx = ego_vel[0]
-        self.vy = ego_vel[1]
+        self.vx = ego_vel[0] + self._delta_seconds * self.accel_x
+        self.vy = ego_vel[1] + self._delta_seconds * self.accel_y
         self._add_velocity_noise()
 
     def _add_velocity_noise(self):
