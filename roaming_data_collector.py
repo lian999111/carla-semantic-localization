@@ -143,7 +143,7 @@ class World(object):
                 print("Respawning ego vehicle.")
                 spawn_point = self.ego_veh.get_transform()
             else:
-                print("Respawning ego vehicle with assigned point.")
+                print("Respawning ego vehicle at assigned point.")
             # Destroy previously spawned actors
             self.destroy()
             spawn_point.location.z += 2.0
@@ -153,11 +153,19 @@ class World(object):
                 ego_veh_bp, spawn_point)
             if self.ego_veh is None:
                 print('Chosen spawn transform failed.')
-
+        
+        else:
+            if spawn_point:
+                print("Spawning new ego vehicle at assigned point.")
+                spawn_point.location.z += 2.0
+                self.ego_veh = self.carla_world.try_spawn_actor(
+                    ego_veh_bp, spawn_point)
+        
         while self.ego_veh is None:
             if not self.map.get_spawn_points():
                 print('There are no spawn points available in your map/town.')
                 sys.exit(1)
+            print("Spawning new ego vehicle at a random point.")
             spawn_points = self.map.get_spawn_points()
             spawn_point = random.choice(
                 spawn_points) if spawn_points else carla.Transform()
