@@ -73,10 +73,6 @@ class GroundTruthExtractor(object):
         # corresponding waypoints into waypoint_left_marking and waypoint_right_marking. These 2 waypoints
         # are just for the convenience to extract closes left and right markings.
         self.waypoint = None
-        # self.waypoint_left_marking = None
-        # self.waypoint_right_marking = None
-        # self.waypoint_next_left_marking = None
-        # self.waypoint_next_right_marking = None
 
         self.left_marking = None
         self.next_left_marking = None
@@ -197,14 +193,14 @@ class GroundTruthExtractor(object):
 
 
         else:
-            # self.waypoint_left_marking = None
-            # self.waypoint_right_marking = None
-            # self.waypoint_next_left_marking = None
-            # self.waypoint_next_right_marking = None
             self.left_marking = None
             self.right_marking = None
             self.next_left_marking = None
             self.next_right_marking = None
+            self.left_marking_param = [0, 0]
+            self.next_left_marking_param = [0, 0]
+            self.right_marking_param = [0, 0]
+            self.next_right_marking_param = [0, 0]
 
     def _find_candidate_markings(self):
         """ 
@@ -382,143 +378,6 @@ class GroundTruthExtractor(object):
                 continue
 
         return lane_pts_in_ego, lane_markings
-
-    def _get_left_lane_marking(self):
-        """
-        Get left visible lane marking.
-        """
-        left_waypt = self._find_visible_lane_marking(direction=Direction.Left)
-
-        # Updatee left lane marking
-        if left_waypt is not None:
-            self.waypoint_left_marking = left_waypt
-            self.left_marking = self._get_lane_marking(
-                left_waypt, direction=Direction.Left)
-        else:
-            self.waypoint_left_marking = None
-            self.left_marking = None
-
-    def _get_right_lane_marking(self):
-        """
-        Get right visible lane marking.
-        """
-        right_waypt = self._find_visible_lane_marking(
-            direction=Direction.Right)
-
-        # Updatee right lane marking
-        if right_waypt is not None:
-            self.waypoint_right_marking = right_waypt
-            self.right_marking = self._get_lane_marking(
-                right_waypt, direction=Direction.Right)
-        else:
-            self.waypoint_right_marking = None
-            self.right_marking = None
-
-    def _find_visible_lane_marking(self, direction):
-        """
-        Helper method for finding the waypoint with visible lane marking.
-        """
-        # Use original ego waypoint if it already has visible marking
-        if direction == Direction.Left:
-            if self.waypoint.left_lane_marking.type != carla.LaneMarkingType.NONE:
-                return self.waypoint
-        else:
-            if self.waypoint.right_lane_marking.type != carla.LaneMarkingType.NONE:
-                return self.waypoint
-
-        # No visible marking in the direction of interest, start searching
-        curr_waypt = self.waypoint
-
-        # Search until visible lane marking found
-        while True:
-            curr_waypt = self._get_next_lane(curr_waypt, direction)
-
-            if curr_waypt is None:
-                return None
-
-            # Do not search across non-drivable space (e.g. across a middle island)
-            # If so, set left lane as None
-            # Not sure if this strategy is realistic
-            if (curr_waypt.lane_type == carla.LaneType.Median
-                    and curr_waypt.lane_type == carla.LaneType.Sidewalk
-                    and curr_waypt.lane_type == carla.LaneType.Rail):
-                return None
-
-            if self._get_lane_marking(curr_waypt, direction).type != carla.LaneMarkingType.NONE:
-                # Found
-                return curr_waypt
-
-    def _get_next_left_lane_marking(self):
-        """
-        Get next left visible lane marking.
-        Many transition lanes often without visible lane boundaries (e.g. Shoulder) are defined in OpenDrive.
-        This method tries to find the lanes corresponding to visible lane boundaries (e.g. curb) but may not 
-        be directly adjacent to current lane.
-        """
-        next_left_waypt = self._find_next_visible_lane_marking(
-            direction=Direction.Left)
-
-        # Updatee next left lane marking
-        if next_left_waypt is not None:
-            self.waypoint_next_left_marking = next_left_waypt
-            self.next_left_marking = self._get_lane_marking(
-                next_left_waypt, direction=Direction.Left)
-        else:
-            self.waypoint_next_left_marking = None
-            self.next_left_marking = None
-
-    def _get_next_right_lane_marking(self):
-        """
-        Get next right visible lane marking.
-        Many transition lanes often without visible lane boundaries (e.g. Shoulder) are defined in OpenDrive.
-        This method tries to find the lanes corresponding to visible lane boundaries (e.g. curb) but may not 
-        be directly adjacent to current lane.
-        """
-        next_right_waypt = self._find_next_visible_lane_marking(
-            direction=Direction.Right)
-
-        # Update next right lane marking
-        if next_right_waypt is not None:
-            self.waypoint_next_right_marking = next_right_waypt
-            self.next_right_marking = self._get_lane_marking(
-                next_right_waypt, direction=Direction.Right)
-        else:
-            self.waypoint_next_right_marking = None
-            self.next_right_marking = None
-
-    def _find_next_visible_lane_marking(self, direction):
-        """
-        Helper method for finding the waypoint with the visible next lane marking.
-        """
-        # Initialize curr_next_waypt with the waypoint in the corresponding direction
-        if direction == Direction.Left:
-            curr_next_waypt = self.waypoint_left_marking
-        else:
-            curr_next_waypt = self.waypoint_right_marking
-
-        # If the starting waypoint to search is aleady None, return None
-        if curr_next_waypt is None:
-            return None
-
-        # Search until visible lane marking found
-        while True:
-            # Go to the next lane
-            curr_next_waypt = self._get_next_lane(curr_next_waypt, direction)
-
-            if curr_next_waypt is None:
-                return None
-
-            # Do not search across non-drivable space (e.g. across a middle island)
-            # If so, set left lane as None
-            # Not sure if this strategy is realistic
-            if (curr_next_waypt.lane_type == carla.LaneType.Median
-                    or curr_next_waypt.lane_type == carla.LaneType.Sidewalk
-                    or curr_next_waypt.lane_type == carla.LaneType.Rail):
-                return None
-
-            if self._get_lane_marking(curr_next_waypt, direction).type != carla.LaneMarkingType.NONE:
-                # Found
-                return curr_next_waypt
 
     def _check_same_direction_as_ego_lane(self, waypoint_of_interest):
         """ Check if the direction of the waypoint of interest is the same as the ego lane """
