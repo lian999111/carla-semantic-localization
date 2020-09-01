@@ -5,7 +5,7 @@ world:
   
   # Synchronous mode and the simulation time step (must be <= 0.1 sec for simulation fidelity)
   sync_mode: True
-  delta_seconds: 0.1  # seconds per tick
+  delta_seconds: &delta_seconds 0.1  # seconds per tick
   
   # Built-in map
   map: Town03
@@ -68,20 +68,21 @@ sensor:
     noise_gyro_stddev_x: '0.0'   # Standard deviation parameter in the noise model for the gyroscope (X axis).
     noise_gyro_stddev_y: '0.0'   # Standard deviation parameter in the noise model for the gyroscope (Y axis).
     noise_gyro_stddev_z: '0.0'   # Standard deviation parameter in the noise model for the gyroscope (Z axis).
+    # For virtual odometry
+    # This is not a carla implementation so use float instead
+    noise_vx_bias: 0.0    # (m/s) Mean in the noise model for vx
+    noise_vy_bias: 0.0    # (m/s) Mean in the noise model for vx
+    noise_vx_stddev: 0.0    # (m/s) Standard deviation in the noise model for vx
+    noise_vy_stddev: 0.0    # (m/s) Standard deviation in the noise model for vy
+    # Virtual odometry uses velocities of ego vehicle's actor directly,
+    # which is found to lag behind Carla's IMU by 1 simulation step.
+    # To recover that, virtual odometry's velocities are added with acceleration times simulation step 
+    delta_seconds: *delta_seconds  # Simulation time step
   semantic_image:
     # Semantic segmentation image
     res_x: '800'  # px
     res_y: '600'  # px
     fov: '60'     # deg
-  # This is not a carla implementation
-  # Use float instead
-  virtual_odom:
-    noise_vx_bias: 0.0    # (m/s) Mean in the noise model for vx
-    noise_vy_bias: 0.0    # (m/s) Mean in the noise model for vx
-    noise_yaw_rate_bias: 0.0    # (deg) Mean in the noise model for yaw rate
-    noise_vx_stddev: 0.0    # (m/s) Standard deviation in the noise model for vx
-    noise_vy_stddev: 0.0    # (m/s) Standard deviation in the noise model for vy
-    noise_yaw_rate_stddev: 0.0    # (deg) Standard deviation in the noise model for yaw_rate
 
 ## Ground truth extraction
 gt:
