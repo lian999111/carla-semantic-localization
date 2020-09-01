@@ -73,10 +73,10 @@ class GroundTruthExtractor(object):
         # corresponding waypoints into waypoint_left_marking and waypoint_right_marking. These 2 waypoints
         # are just for the convenience to extract closes left and right markings.
         self.waypoint = None
-        self.waypoint_left_marking = None
-        self.waypoint_right_marking = None
-        self.waypoint_next_left_marking = None
-        self.waypoint_next_right_marking = None
+        # self.waypoint_left_marking = None
+        # self.waypoint_right_marking = None
+        # self.waypoint_next_left_marking = None
+        # self.waypoint_next_right_marking = None
 
         self.left_marking = None
         self.next_left_marking = None
@@ -115,7 +115,6 @@ class GroundTruthExtractor(object):
 
         # Update in_junction flag if current waypoint is junction
         self.in_junction = self.waypoint.is_junction
-            
 
         # When the query point (front bumper) is farther from the obtained waypoint than its half lane width,
         # the ego vehicle is likely  to be off road, then no lane info is further extracted.
@@ -126,16 +125,82 @@ class GroundTruthExtractor(object):
 
         if self.waypoint is not None:
             # Find candidate visible markings within the specified radius
-            # We get a list of 3D points of candidate markings in ego vehicle's frame (z-up)
+            # We get a list of 3D points of candidate markings in front bumper's frame (z-up)
             # as well as a list containing the corresponding marking types.
-            candidate_markings_in_ego, candidate_marking_types = self._find_candidate_markings()
+            candidate_markings_in_ego, candidate_markings = self._find_candidate_markings()
+            candidates = []
+            for idx, candidate in enumerate(candidate_markings_in_ego):
+                candidate_2D = np.array(candidate)[:, 0:2]
+                # Find the index where the x value goes from negative to positive
+                # That's where the lane marking intersect the y-axis of the front bumper
+                # Find the idx where the sign is about to change
+                sign_change_idx = np.where(
+                    candidate_2D[:-1, 0] * candidate_2D[1:, 0] < 0)[0]
+                # Skip this candidate if there is no sign change at all
+                if not sign_change_idx:
+                    break
+                last_neg_idx = sign_change_idx[0]
+                first_pos_idx = last_neg_idx + 1
+                pt1 = candidate_2D[last_neg_idx, :]
+                pt2 = candidate_2D[first_pos_idx, :]
+
+                # TODO: address when pt1 or pt2 don't exist
+
+                # If the 2 points across the y-axis are too far, there are no lane marking defined in between
+                # then skip this candidate
+                if np.linalg.norm(pt1-pt2) > 10:
+                    break
+
+                # Compute c0 and c1
+                c1 = (pt2[1] - pt1[1]) / (pt2[0] - pt1[0])
+                c0 = pt1[1] - c1*pt1[0]
+
+                # Use the marking of pt2
+                candidate_marking_obj = candidate_markings[idx][first_pos_idx]
+
+                # append the tuple ([c0, c1], marking_type)
+                candidates.append(([c0, c1], candidate_marking_obj))
+
+            # Sort candidate markings with c0 in descending order (left to right)
+            candidates.sort(reverse=True)
+
+            # Init indices
+            left_idx = None
+            next_left_idx = None
+            right_idx = None
+            next_right_idx = None
+
+            # Get the candidate with the smallest positive c0, which is the left lane marking
+            left_idx = (sum(item[0][0] >= 0 for item in candidates)-1) if (
+                    sum(item[0][0] >= 0 for item in candidates)-1 > 0) else None
+
+            # Find the rest
+            if left_idx:
+                next_left_idx = left_idx-1 if left_idx-1 >= 0 else None
+                right_idx = (left_idx+1) if (left_idx+1 <
+                                             len(candidates)) else None
+            if not right_idx:
+                right_idx = -(sum(item[0][0] < 0 for item in candidates)-1) if (
+                    sum(item[0][0] > 0 for item in candidates)-1 > 0) else None
+            if right_idx:
+                next_right_idx = (right_idx+1) if (right_idx +
+                                                   1 < len(candidates)) else None
             
-            # TODO: lane marking parameters
+            self.left_marking_param = candidates[left_idx][0] if left_idx is not None else [0, 0]
+            self.left_marking = candidates[left_idx][1] if left_idx is not None else None
+            self.next_left_marking_param = candidates[next_left_idx][0] if next_left_idx is not None else [0, 0]
+            self.next_left_marking = candidates[next_left_idx][1] if next_left_idx is not None else None
+            self.right_marking_param = candidates[right_idx][0] if right_idx is not None else [0, 0]
+            self.right_marking = candidates[right_idx][1] if right_idx is not None else None
+            self.next_right_marking_param = candidates[next_right_idx][0] if next_right_idx is not None else [0, 0]
+            self.next_right_marking = candidates[next_right_idx][1] if next_right_idx is not None else None
+
+
         else:
-            self.waypoint_left_marking = None
-            self.waypoint_right_marking = None
-            self.waypoint_next_left_marking = None
-            self.waypoint_next_right_marking = None
+            # self.waypoint_left_marking = None
+            # self.waypoint_right_marking = None
+            # self.waypoint_next_left_marking = None
+            # self.waypoint_next_right_marking = None
             self.left_marking = None
             self.right_marking = None
             self.next_left_marking = None
@@ -144,21 +209,21 @@ class GroundTruthExtractor(object):
     def _find_candidate_markings(self):
         """ 
         Find candidate lane markings withing a radius at the current time step.
-        Return a list of 3D points of candidate markings and a list of their corresponding marking type.
+        Return a list of 3D points of candidate markings and a list of their corresponding carla.Lanemarking object.
         """
         fbumper_transform = carla.Transform(
             self._fbumper_location, self.ego_veh.get_transform().rotation)
-        # Object for transforming a carla.Location in carla's world frame (z-down) into our ego vehicle's frame (z-up)
+        # Object for transforming a carla.Location in carla's world frame (z-down) into our  front bumper's frame (z-up)
         tform_w2e = CarlaW2ETform(fbumper_transform)
         waypt_ego_frame = tform_w2e.tform_world_to_ego(
             self.waypoint.transform.location)
 
         # Container lists
         # A list of points of each candidate marking
-        # Each candidate marking has a list of 3D points in ego vehicle's frame (z-up)
+        # Each candidate marking has a list of 3D points in front bumper's frame (z-up)
         candidate_markings_in_ego = []
-        # A list of type of each candidate marking point
-        candidate_marking_types = []
+        # A 2D list of carla.LandMarking object of each candidate marking point
+        candidate_markings = []
 
         # Left
         # Initilization with current waypoint
@@ -172,11 +237,11 @@ class GroundTruthExtractor(object):
                 left_marking_waypt, Direction.Left)
             if left_marking.type != carla.LaneMarkingType.NONE:
                 # A candidate found
-                marking_pts, marking_types = self._get_marking_pts(
+                marking_pts, marking_objs = self._get_marking_pts(
                     left_marking_waypt, tform_w2e, Direction.Left)
 
                 candidate_markings_in_ego.append(marking_pts)
-                candidate_marking_types.append(marking_types)
+                candidate_markings.append(marking_objs)
 
             # Stop when reaching a curb
             if left_marking.type == carla.LaneMarkingType.Curb:
@@ -202,11 +267,11 @@ class GroundTruthExtractor(object):
                 right_marking_waypt, Direction.Right)
             if right_marking.type != carla.LaneMarkingType.NONE:
                 # A candidate found
-                marking_pts, marking_types = self._get_marking_pts(
+                marking_pts, marking_objs = self._get_marking_pts(
                     right_marking_waypt, tform_w2e, Direction.Right)
 
                 candidate_markings_in_ego.append(marking_pts)
-                candidate_marking_types.append(marking_types)
+                candidate_markings.append(marking_objs)
 
             # Stop when reaching a curb
             if right_marking.type == carla.LaneMarkingType.Curb:
@@ -220,10 +285,13 @@ class GroundTruthExtractor(object):
                 # Stop when next lane waypoint is None
                 break
 
-        return candidate_markings_in_ego, candidate_marking_types
+        return candidate_markings_in_ego, candidate_markings
 
     def _get_marking_pts(self, waypoint: carla.Waypoint, world_to_ego: CarlaW2ETform, direction):
-        """ Get marking points along the lane in ego frame (z-up) for given waypoint and direction """
+        """ 
+        Get marking points along the lane in ego frame (z-up) for given waypoint and direction 
+        and their corresponding carla.LaneMarking object
+        """
 
         # Local helper functions
         def get_lane_marking_pt_in_ego_frame(waypoint_of_interest):
@@ -271,7 +339,7 @@ class GroundTruthExtractor(object):
         # Containers for lane marking points and their types
         # Stored in ascending order (from back to forth)
         lane_pts_in_ego = []    # a list 3D points in ego frame (z-up)
-        lane_types = []         # a list of marking type of each point
+        lane_markings = []      # a list of carla.LaneMarking of each point
         # Previous waypointes of the given waypoint
         # carla's waypoint.previous_until_lane_start() has bugs with lane type like Border and Parking.
         # The method simply stops the whole program without any warning or error when called with a waypoint of the types above.
@@ -281,21 +349,21 @@ class GroundTruthExtractor(object):
             backward_waypt = get_next_waypoint(
                 waypoint, distance, Direction.Backward)
             if backward_waypt is not None:
-                lane_type = self._get_lane_marking(
-                    backward_waypt, direction).type
+                lane_marking = self._get_lane_marking(
+                    backward_waypt, direction)
                 # Add only points with visible marking types
-                if lane_type != carla.LaneMarkingType.NONE:
+                if lane_marking.type != carla.LaneMarkingType.NONE:
                     lane_pts_in_ego.append(
                         get_lane_marking_pt_in_ego_frame(backward_waypt))
-                    lane_types.append(lane_type)
+                    lane_markings.append(lane_marking)
             else:
                 continue
 
         # The given waypoint
-        lane_type = self._get_lane_marking(waypoint, direction).type
-        if lane_type != carla.LaneMarkingType.NONE:
+        lane_marking = self._get_lane_marking(waypoint, direction)
+        if lane_marking.type != carla.LaneMarkingType.NONE:
             lane_pts_in_ego.append(get_lane_marking_pt_in_ego_frame(waypoint))
-            lane_types.append(lane_type)
+            lane_markings.append(lane_marking)
 
         # Next waypointes of the given waypoint
         # Here a for loop is used instead of next_until_lane_end() for finding waypoints forwards.
@@ -304,16 +372,16 @@ class GroundTruthExtractor(object):
             forward_waypt = get_next_waypoint(
                 waypoint, distance, Direction.Forward)
             if forward_waypt is not None:
-                lane_type = self._get_lane_marking(
-                    forward_waypt, direction).type
-                if lane_type != carla.LaneMarkingType.NONE:
+                lane_marking = self._get_lane_marking(
+                    forward_waypt, direction)
+                if lane_marking.type != carla.LaneMarkingType.NONE:
                     lane_pts_in_ego.append(
                         get_lane_marking_pt_in_ego_frame(forward_waypt))
-                    lane_types.append(lane_type)
+                    lane_markings.append(lane_marking)
             else:
                 continue
 
-        return lane_pts_in_ego, lane_types
+        return lane_pts_in_ego, lane_markings
 
     def _get_left_lane_marking(self):
         """

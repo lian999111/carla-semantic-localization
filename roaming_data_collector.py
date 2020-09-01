@@ -508,17 +508,18 @@ def main():
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
                 world.imu.vx, world.imu.vy, world.imu.gyro_z * 180 / pi))
             print('in junction: {}'.format(world.ground_truth.in_junction))
-            # print('{}'.format(
-            #     world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint else None))
-            # print('{}   {}   {}'.format(
-            #     world.ground_truth.waypoint_next_left_marking.lane_width if world.ground_truth.waypoint_next_left_marking else None,
-            #     world.ground_truth.waypoint.lane_width if world.ground_truth.waypoint else None,
-            #     world.ground_truth.waypoint_next_right_marking.lane_width if world.ground_truth.waypoint_next_right_marking else None))
-            # print('{}   {}   {}   {}'.format(
-            #     world.ground_truth.next_left_marking.type if world.ground_truth.next_left_marking else None,
-            #     world.ground_truth.left_marking.type if world.ground_truth.left_marking else None,
-            #     world.ground_truth.right_marking.type if world.ground_truth.right_marking else None,
-            #     world.ground_truth.next_right_marking.type if world.ground_truth.next_right_marking else None))
+            print('{}'.format(
+                world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint else None))
+            print('{}   {}   {}   {}'.format(
+                world.ground_truth.next_left_marking_param[1] if world.ground_truth.next_left_marking else None,
+                world.ground_truth.left_marking_param[1] if world.ground_truth.left_marking else None,
+                world.ground_truth.right_marking_param[1] if world.ground_truth.right_marking else None,
+                world.ground_truth.next_right_marking_param[1] if world.ground_truth.next_right_marking else None))
+            print('{}   {}   {}   {}'.format(
+                world.ground_truth.next_left_marking.type if world.ground_truth.next_left_marking else None,
+                world.ground_truth.left_marking.type if world.ground_truth.left_marking else None,
+                world.ground_truth.right_marking.type if world.ground_truth.right_marking else None,
+                world.ground_truth.next_right_marking.type if world.ground_truth.next_right_marking else None))
 
             if idx % int(5/config_args['world']['delta_seconds']) == 0:
                 world.force_lane_change(to_left=to_left)
