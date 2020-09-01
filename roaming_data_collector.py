@@ -138,7 +138,7 @@ class World(object):
         # Spawn the ego vehicle as a cool mustang
         ego_veh_bp = self.carla_world.get_blueprint_library().find('vehicle.mustang.mustang')
 
-        if self.ego_veh is not None:
+        if self.ego_veh:
             if spawn_point is None:
                 print("Respawning ego vehicle.")
                 spawn_point = self.ego_veh.get_transform()
@@ -179,7 +179,7 @@ class World(object):
 
     def set_ego_autopilot(self, active, autopilot_config_args=None):
         """ Set traffic manager and register ego vehicle to it """
-        if autopilot_config_args is not None:
+        if autopilot_config_args:
             self.tm.auto_lane_change(
                 self.ego_veh, autopilot_config_args['auto_lane_change'])
             self.tm.ignore_lights_percentage(
@@ -224,19 +224,19 @@ class World(object):
 
     def destroy(self):
         """ Destroy spawned actors in carla world """
-        if self.ego_veh is not None:
+        if self.ego_veh:
             print("Destroying the ego vehicle.")
             self.ego_veh.destroy()
             self.ego_veh = None
-        if self.imu is not None:
+        if self.imu:
             print("Destroying IMU sensor.")
             self.imu.destroy()
             self.imu = None
-        if self.gnss is not None:
+        if self.gnss:
             print("Destroying gnss sensor.")
             self.gnss.destroy()
             self.gnss = None
-        if self.semantic_camera is not None:
+        if self.semantic_camera:
             print("Destroying semantic camera sensor.")
             self.semantic_camera.destroy()
             self.semantic_camera = None
@@ -264,7 +264,7 @@ class CarlaSensor(object):
 
     def destroy(self):
         """ Destroy sensor actor """
-        if self.sensor is not None:
+        if self.sensor:
             self.sensor.destroy()
             self.sensor = None
 
@@ -509,23 +509,23 @@ def main():
                 world.imu.vx, world.imu.vy, world.imu.gyro_z * 180 / pi))
             print('in junction: {}'.format(world.ground_truth.in_junction))
             # print('{}'.format(
-            #     world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint is not None else None))
+            #     world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint else None))
             # print('{}   {}   {}'.format(
-            #     world.ground_truth.waypoint_next_left_marking.lane_width if world.ground_truth.waypoint_next_left_marking is not None else None,
-            #     world.ground_truth.waypoint.lane_width if world.ground_truth.waypoint is not None else None,
-            #     world.ground_truth.waypoint_next_right_marking.lane_width if world.ground_truth.waypoint_next_right_marking is not None else None))
+            #     world.ground_truth.waypoint_next_left_marking.lane_width if world.ground_truth.waypoint_next_left_marking else None,
+            #     world.ground_truth.waypoint.lane_width if world.ground_truth.waypoint else None,
+            #     world.ground_truth.waypoint_next_right_marking.lane_width if world.ground_truth.waypoint_next_right_marking else None))
             # print('{}   {}   {}   {}'.format(
-            #     world.ground_truth.next_left_marking.type if world.ground_truth.next_left_marking is not None else None,
-            #     world.ground_truth.left_marking.type if world.ground_truth.left_marking is not None else None,
-            #     world.ground_truth.right_marking.type if world.ground_truth.right_marking is not None else None,
-            #     world.ground_truth.next_right_marking.type if world.ground_truth.next_right_marking is not None else None))
+            #     world.ground_truth.next_left_marking.type if world.ground_truth.next_left_marking else None,
+            #     world.ground_truth.left_marking.type if world.ground_truth.left_marking else None,
+            #     world.ground_truth.right_marking.type if world.ground_truth.right_marking else None,
+            #     world.ground_truth.next_right_marking.type if world.ground_truth.next_right_marking else None))
 
             if idx % int(5/config_args['world']['delta_seconds']) == 0:
                 world.force_lane_change(to_left=to_left)
                 to_left = not to_left
 
     finally:
-        if world is not None:
+        if world:
             world.set_ego_autopilot(False)
             world.destroy()
             # Allow carla engine to run freely so it doesn't just hang there
