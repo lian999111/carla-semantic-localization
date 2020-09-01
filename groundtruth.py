@@ -102,21 +102,20 @@ class GroundTruthExtractor(object):
                                               -self.ego_veh_tform.rotation.pitch,
                                               -self.ego_veh_tform.rotation.yaw])
 
-        # TODO: modify comment to Drivee
         # Find a waypoint on the nearest lane (any lane type except NONE)
         # So when ego vehicle is driving abnormally (e.g. on shoulder or parking), lane markings can still be obtained.
         # Some strange results may happen in extreme cases though (e.g. car drives on rail or sidewalk).
         self.waypoint = self.map.get_waypoint(
-            self._fbumper_location, lane_type=carla.LaneType.Driving)
+            self._fbumper_location, lane_type=carla.LaneType.Any)
 
         # Update in_junction flag if current waypoint is junction
         self.in_junction = self.waypoint.is_junction
 
-        # When the query point (front bumper) is farther from the obtained waypoint than its half lane width,
+        # When the query point (front bumper) is farther from the obtained waypoint than searching radius,
         # the ego vehicle is likely  to be off road, then no lane info is further extracted.
         # make a carla.Location object
         fbumper_loc = carla.Location(self._fbumper_location)
-        if fbumper_loc.distance(self.waypoint.transform.location) >= self.waypoint.lane_width/2:
+        if fbumper_loc.distance(self.waypoint.transform.location) >= self._radius:
             self.waypoint = None
 
         if self.waypoint is not None:
