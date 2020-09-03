@@ -1,3 +1,7 @@
+"""
+Implements ground truth of neighboring objects extraction from Carla simulation environment.
+"""
+
 import glob
 import os
 import sys
