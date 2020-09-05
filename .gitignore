@@ -2,8 +2,8 @@
 /images
 /opendrive
 /test_images
-/test_image_seqs
-/free_images
+/recording
+/calib_images
 
 *.pyc
 *.pyo
