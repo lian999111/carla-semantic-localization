@@ -24,6 +24,7 @@ import queue
 from groundtruth import GroundTruthExtractor
 from carlatform import CarlaW2ETform
 from math import pi
+import pickle
 
 # %% ================= Global function =================
 
@@ -306,7 +307,7 @@ class IMU(CarlaSensor):
         self.vy = 0.0           # m/s
         # Virtual odometry uses velocities of ego vehicle's actor directly,
         # which is found to lag behind Carla's IMU by 1 simulation step.
-        # To recover that, virtual odometry's velocities are added with acceleration times simulation step 
+        # To recover that, virtual odometry's velocities are added with acceleration times simulation step
         self._delta_seconds = imu_config_args['delta_seconds']
 
         world = self._parent.get_world()
@@ -362,7 +363,7 @@ class IMU(CarlaSensor):
         vel = self._parent.get_velocity()
         tform_w2e = CarlaW2ETform(self._parent.get_transform())
         # Transform velocities from Carla world frame (z-down) to ego frame (z-up)
-        ego_vel = tform_w2e.rotm_world_to_ego(vel) # an np 3D vector
+        ego_vel = tform_w2e.rotm_world_to_ego(vel)  # an np 3D vector
         self.vx = ego_vel[0] + self._delta_seconds * self.accel_x
         self.vy = ego_vel[1] + self._delta_seconds * self.accel_y
         self._add_velocity_noise()
@@ -493,8 +494,10 @@ def main():
 
     # Initialize world
     world = None
-    # spawn_point = carla.Transform(carla.Location(-88.5, 93.5, 0))
     spawn_point = None
+    # Assign spawn point for ego vehicle
+    spawn_point = carla.Transform(carla.Location(
+        229.65, 80.99, 0.59), carla.Rotation(yaw=91.39))
     try:
         client = carla.Client('localhost', 2000)
         client.set_timeout(5.0)
@@ -508,30 +511,43 @@ def main():
         n_ticks = int(config_args['sim_duration'] /
                       config_args['world']['delta_seconds'])
 
+        lane_images =[]
+        pole_images = []
+        vx = []
+        yaw_rate = []
+
         # Simulation loop
         to_left = True
         for idx in range(n_ticks):
             world.step_forward()
             world.see_ego_veh()
+
+            lane_images.append(world.semantic_camera.lane_img)
+            pole_images.append(world.semantic_camera.pole_img)
+            vx.append(world.imu.vx)
+            yaw_rate.append(world.imu.gyro_z)
+
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
                 world.imu.vx, world.imu.vy, world.imu.gyro_z * 180 / pi))
             print('in junction: {}'.format(world.ground_truth.in_junction))
             print('{}'.format(
                 world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint else None))
+            # c0
             print('{}   {}   {}   {}'.format(
-                world.ground_truth.next_left_marking_param[1] if world.ground_truth.next_left_marking else None,
-                world.ground_truth.left_marking_param[1] if world.ground_truth.left_marking else None,
-                world.ground_truth.right_marking_param[1] if world.ground_truth.right_marking else None,
-                world.ground_truth.next_right_marking_param[1] if world.ground_truth.next_right_marking else None))
+                world.ground_truth.next_left_marking_param[0] if world.ground_truth.next_left_marking else None,
+                world.ground_truth.left_marking_param[0] if world.ground_truth.left_marking else None,
+                world.ground_truth.right_marking_param[0] if world.ground_truth.right_marking else None,
+                world.ground_truth.next_right_marking_param[0] if world.ground_truth.next_right_marking else None))
+            # Marking type
             print('{}   {}   {}   {}'.format(
                 world.ground_truth.next_left_marking.type if world.ground_truth.next_left_marking else None,
                 world.ground_truth.left_marking.type if world.ground_truth.left_marking else None,
                 world.ground_truth.right_marking.type if world.ground_truth.right_marking else None,
                 world.ground_truth.next_right_marking.type if world.ground_truth.next_right_marking else None))
 
-            if idx % int(5/config_args['world']['delta_seconds']) == 0:
-                world.force_lane_change(to_left=to_left)
-                to_left = not to_left
+            # if idx % int(5/config_args['world']['delta_seconds']) == 0:
+            #     world.force_lane_change(to_left=to_left)
+            #     to_left = not to_left
 
     finally:
         if world:
@@ -539,6 +555,15 @@ def main():
             world.destroy()
             # Allow carla engine to run freely so it doesn't just hang there
             world.allow_free_run()
+        
+        with open('recording/lane_images', 'wb') as image_file:
+            pickle.dump(lane_images, image_file)
+        with open('recording/pole_images', 'wb') as image_file:
+            pickle.dump(pole_images, image_file)
+        with open('recording/vx', 'wb') as vx_file:
+            pickle.dump(vx, vx_file)
+        with open('recording/yaw_rate', 'wb') as yaw_rate_file:
+            pickle.dump(yaw_rate, yaw_rate_file)
 
 
 # %%
