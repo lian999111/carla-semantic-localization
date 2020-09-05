@@ -1,8 +1,4 @@
-# Unit test for ctrv.py
-
-import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Run it from project root with: python -m unittest model.test.test_ctrv
 
 import unittest
 import model.ctrv as ctrv
