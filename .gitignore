@@ -1,9 +1,9 @@
 .vscode
-/images
+vision/images
+vision/calib_images
+
 /opendrive
-/test_images
 /recording
-/calib_images
 
 *.pyc
 *.pyo
