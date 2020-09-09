@@ -136,8 +136,8 @@ class GroundTruthExtractor(object):
                 sign_change_idx = np.where(
                     candidate_2D[:-1, 0] * candidate_2D[1:, 0] < 0)[0]
                 # Skip this candidate if there is no sign change at all
-                if not sign_change_idx:
-                    break
+                if sign_change_idx.size == 0:
+                    continue
                 last_neg_idx = sign_change_idx[0]
                 first_pos_idx = last_neg_idx + 1
                 pt1 = candidate_2D[last_neg_idx, :]
@@ -171,29 +171,35 @@ class GroundTruthExtractor(object):
 
             # Get the candidate with the smallest positive c0, which is the left lane marking
             left_idx = (sum(item[0][0] >= 0 for item in candidates)-1) if (
-                    sum(item[0][0] >= 0 for item in candidates)-1 > 0) else None
+                sum(item[0][0] >= 0 for item in candidates) > 0) else None
 
-            # Find the rest
-            if left_idx:
+            # Try to find next left and right by shifting from left_idx
+            if left_idx is not None:
                 next_left_idx = left_idx-1 if left_idx-1 >= 0 else None
                 right_idx = (left_idx+1) if (left_idx+1 <
                                              len(candidates)) else None
-            if not right_idx:
-                right_idx = -(sum(item[0][0] < 0 for item in candidates)-1) if (
-                    sum(item[0][0] > 0 for item in candidates)-1 > 0) else None
-            if right_idx:
+            # If the right marking is not decided yet
+            if right_idx is None:
+                # Get the candidate with the largest negative c0 (smallest absolute value), which is the right lane marking
+                right_idx = len(candidates)-sum(item[0][0] < 0 for item in candidates) if (
+                    sum(item[0][0] < 0 for item in candidates) > 0) else None
+            # Try to find next right by shifting from right_idx
+            if right_idx is not None:
                 next_right_idx = (right_idx+1) if (right_idx +
                                                    1 < len(candidates)) else None
-            
-            self.left_marking_param = candidates[left_idx][0] if left_idx is not None else [0, 0]
-            self.left_marking = candidates[left_idx][1] if left_idx is not None else None
-            self.next_left_marking_param = candidates[next_left_idx][0] if next_left_idx is not None else [0, 0]
-            self.next_left_marking = candidates[next_left_idx][1] if next_left_idx is not None else None
-            self.right_marking_param = candidates[right_idx][0] if right_idx is not None else [0, 0]
-            self.right_marking = candidates[right_idx][1] if right_idx is not None else None
-            self.next_right_marking_param = candidates[next_right_idx][0] if next_right_idx is not None else [0, 0]
-            self.next_right_marking = candidates[next_right_idx][1] if next_right_idx is not None else None
 
+            self.left_marking_param = candidates[left_idx][0] if left_idx is not None else [
+                0, 0]
+            self.left_marking = candidates[left_idx][1] if left_idx is not None else None
+            self.next_left_marking_param = candidates[next_left_idx][0] if next_left_idx is not None else [
+                0, 0]
+            self.next_left_marking = candidates[next_left_idx][1] if next_left_idx is not None else None
+            self.right_marking_param = candidates[right_idx][0] if right_idx is not None else [
+                0, 0]
+            self.right_marking = candidates[right_idx][1] if right_idx is not None else None
+            self.next_right_marking_param = candidates[next_right_idx][0] if next_right_idx is not None else [
+                0, 0]
+            self.next_right_marking = candidates[next_right_idx][1] if next_right_idx is not None else None
 
         else:
             self.left_marking = None
