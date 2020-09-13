@@ -79,8 +79,6 @@ class LaneMarkingDetector(object):
         
         The peaks in histogram is then used as starting points for sliding window search. 
         """
-        # Use histogram to find starting points to find lane markings
-        # Original warped_img is used to create the histogram so entire lane marking areas contribute to the calculation rather than just the edges
         # Only the lower third image is used since we focus on the starting points
         histogram, _ = np.histogram(edge_image[int(edge_image.shape[0]/3):, :].nonzero()[1], bins=self.n_bins, range=(0, self.warped_size[0]))
         bin_width = edge_image.shape[1] / self.n_bins
