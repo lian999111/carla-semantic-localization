@@ -1,0 +1,19 @@
+## Parameters for lane detection
+lane:
+  dilation:
+    # Number of dilation operation iteration for edge image
+    n_iters: 1
+
+  histo:
+    # Minimum height to consider as a peak
+    requried_height: 500
+    # Bin number
+    n_bins: 40
+
+  sliding_window:
+    # Number of sliding windows for lane pixel searching
+    n_windows: 10
+    # Margin (half width) of sliding window
+    margin: 20
+    # Minimum number of detected pixels in a window to recenter the next window
+    recenter_minpix: 20

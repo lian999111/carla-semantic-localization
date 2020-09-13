@@ -37,12 +37,15 @@ class LaneMarkingDetector(object):
         self.px_per_meters_y = px_per_meter_y
 
         # Algorithm related parameters
-        # Sliding window
-        self.n_windows = lane_config_args['n_windows']
-        self.margin = lane_config_args['margin']
-        self.recenter_minpix = lane_config_args['recenter_minpix']
+        # Dilation
+        self.dilation_iter = lane_config_args['dilation']['n_iters']
         # Histogram
-        self.required_height = lane_config_args['required_height']
+        self.required_height = lane_config_args['histo']['required_height']
+        self.n_bins = lane_config_args['histo']['n_bins']
+        # Sliding window
+        self.n_windows = lane_config_args['sliding_window']['n_windows']
+        self.margin = lane_config_args['sliding_window']['margin']
+        self.recenter_minpix = lane_config_args['sliding_window']['recenter_minpix']
 
     def _get_bev_edge(self, lane_image):
         """ 
