@@ -3,6 +3,7 @@
 # See: https://carla.readthedocs.io/en/latest/build_system/
 import glob
 import os
+import datetime
 import sys
 
 try:
@@ -30,7 +31,7 @@ import pickle
 
 
 def find_weather_presets():
-    """ Method to find weather presets """
+    """ Method to find weather presets. """
     rgx = re.compile('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)')
     def name(x): return ' '.join(m.group(0) for m in rgx.finditer(x))
     presets = [x for x in dir(carla.WeatherParameters)
@@ -44,7 +45,9 @@ def find_weather_presets():
 
 class Geo2Location(object):
     """
-    Helper class for homogeneous transform from geolocation used by gnss to Cartisian location.
+    Helper class for homogeneous transform from geolocation 
+
+    This class is used by GNSS class to transform from carla.GeoLocation to carla.Location.
     This transform is not provided by Carla, but it can be solved using 4 chosen points.
     """
 
@@ -78,6 +81,7 @@ class Geo2Location(object):
     def transform(self, geolocation):
         """ 
         Transform from carla.GeoLocation to carla.Location.
+
         Numerical error may exist. Experiments show error is about under 1 cm in Town03.
         """
         geoloc = np.array(
@@ -94,12 +98,13 @@ class Geo2Location(object):
 
 
 class World(object):
-    """ Class representing the surrounding environment """
+    """ Class representing the surrounding environment. """
 
     def __init__(self, carla_world, traffic_manager, config_args, spawn_point=None):
         """ 
         Constructor method. 
-        If spawn_point not given, choose random spawn point recommended by carla.
+
+        If spawn_point not given, choose random spawn point recommended by the map.
         """
         self.carla_world = carla_world
         self.tm = traffic_manager
@@ -154,14 +159,14 @@ class World(object):
                 ego_veh_bp, spawn_point)
             if self.ego_veh is None:
                 print('Chosen spawn transform failed.')
-        
+
         else:
             if spawn_point:
                 print("Spawning new ego vehicle at assigned point.")
                 spawn_point.location.z += 2.0
                 self.ego_veh = self.carla_world.try_spawn_actor(
                     ego_veh_bp, spawn_point)
-        
+
         while self.ego_veh is None:
             if not self.map.get_spawn_points():
                 print('There are no spawn points available in your map/town.')
@@ -187,7 +192,7 @@ class World(object):
             self.ego_veh, self.map, actor_list=None, config_args=config_args)
 
     def set_ego_autopilot(self, active, autopilot_config_args=None):
-        """ Set traffic manager and register ego vehicle to it """
+        """ Set traffic manager and register ego vehicle to it. """
         if autopilot_config_args:
             self.tm.auto_lane_change(
                 self.ego_veh, autopilot_config_args['auto_lane_change'])
@@ -200,7 +205,8 @@ class World(object):
     def force_lane_change(self, to_left):
         """ 
         Force ego vehicle to change the lane regardless collision with other vehicles. 
-        However, it only allows lane changes in the possible direction. 
+
+        It only allows lane changes in the possible direction. 
         Performing a left lane change on the left-most lane is not possible.
         Carla's traffic manager doesn't seem to make car change to a left turn lane in built-in town (tested in Town03)
         """
@@ -208,7 +214,7 @@ class World(object):
         self.tm.force_lane_change(self.ego_veh, not to_left)
 
     def step_forward(self):
-        """ Tick carla world to take simulation one step forward """
+        """ Tick carla world to take simulation one step forward. """
         self.carla_world.tick()
         self.imu.update()
         self.gnss.update()
@@ -216,7 +222,7 @@ class World(object):
         self.ground_truth.update()
 
     def see_ego_veh(self, following_dist=5, height=5, tilt_ang=-30):
-        """ Aim the spectator down to the ego vehicle """
+        """ Aim the spectator down to the ego vehicle. """
         spect_location = carla.Location(x=-following_dist)
         self.ego_veh.get_transform().transform(
             spect_location)  # it modifies passed-in location
@@ -225,14 +231,14 @@ class World(object):
                                                      carla.Rotation(pitch=tilt_ang, yaw=ego_rotation.yaw)))
 
     def allow_free_run(self):
-        """ Allow carla engine to run asynchronously and freely """
+        """ Allow carla engine to run asynchronously and freely. """
         settings = self.carla_world.get_settings()
         settings.synchronous_mode = False
         settings.fixed_delta_seconds = 0.0
         self.carla_world.apply_settings(settings)
 
     def destroy(self):
-        """ Destroy spawned actors in carla world """
+        """ Destroy spawned actors in carla world. """
         if self.ego_veh:
             print("Destroying the ego vehicle.")
             self.ego_veh.destroy()
@@ -254,10 +260,10 @@ class World(object):
 
 
 class CarlaSensor(object):
-    """ Base class for sensors provided by carla """
+    """ Base class for sensors provided by carla. """
 
     def __init__(self, parent_actor):
-        """ Constructor method """
+        """ Constructor method. """
         self.sensor = None
         self.timestamp = 0.0
         self._parent = parent_actor
@@ -268,11 +274,11 @@ class CarlaSensor(object):
         self._queue = queue.Queue()
 
     def update(self):
-        """ Wait for sensro event to be put in queue and update data """
+        """ Wait for sensro event to be put in queue and update data. """
         raise NotImplementedError()
 
     def destroy(self):
-        """ Destroy sensor actor """
+        """ Destroy sensor actor. """
         if self.sensor:
             self.sensor.destroy()
             self.sensor = None
@@ -284,13 +290,14 @@ class CarlaSensor(object):
 class IMU(CarlaSensor):
     """ 
     Class for IMU sensor. 
+
     It uses ego vehicle's velocities to obtain virtual odometry internally.
     While Carla uses z-down coordinate system, 
     this wrapper class automatically convert to z-up coordinate system.
     """
 
     def __init__(self, parent_actor, imu_config_args):
-        """ Constructor method """
+        """ Constructor method. """
         super().__init__(parent_actor)
         # In z-up coordinate system
         # Accelerations
@@ -346,7 +353,7 @@ class IMU(CarlaSensor):
         self.sensor.listen(lambda event: self._queue.put(event))
 
     def update(self):
-        """ Wait for IMU measurement and update data """
+        """ Wait for IMU measurement and update data. """
         # get() blocks the script so synchronization is guaranteed
         event = self._queue.get()
 
@@ -378,13 +385,14 @@ class IMU(CarlaSensor):
 
 class GNSS(CarlaSensor):
     """ 
-    Class for GNSS sensor
+    Class for GNSS sensor.
+
     Carla uses z-down coordinate system (left-handed) while we use z-up coordinate system (right-handed).
     This class automatically converts the GNSS measurements into z-up coordinate system for x, y, z to match the convention.
     """
 
     def __init__(self, parent_actor, gnss_config_args):
-        """ Constructor method """
+        """ Constructor method. """
         super().__init__(parent_actor)
         self.lat = 0.0
         self.lon = 0.0
@@ -419,7 +427,7 @@ class GNSS(CarlaSensor):
         self.sensor.listen(lambda event: self._queue.put(event))
 
     def update(self):
-        """ Wait for GNSS measurement and update data """
+        """ Wait for GNSS measurement and update data. """
         # get() blocks the script so synchronization is guaranteed
         event = self._queue.get()
         self.timestamp = event.timestamp
@@ -440,10 +448,10 @@ class GNSS(CarlaSensor):
 
 
 class SemanticCamera(CarlaSensor):
-    """ Class for semantic camera """
+    """ Class for semantic camera. """
 
     def __init__(self, parent_actor, ss_cam_config_args):
-        """ Constructor method"""
+        """ Constructor method. """
         super().__init__(parent_actor)
         self.lane_img = None
         self.pole_img = None
@@ -464,7 +472,7 @@ class SemanticCamera(CarlaSensor):
         self.sensor.listen(lambda image: self._queue.put(image))
 
     def update(self):
-        """ Wait for semantic image and update data """
+        """ Wait for semantic image and update data. """
         image = self._queue.get()
         self.timestamp = image.timestamp
         np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
@@ -497,7 +505,7 @@ def main():
     spawn_point = None
     # Assign spawn point for ego vehicle
     spawn_point = carla.Transform(carla.Location(
-        229.65, 80.99, 0.59), carla.Rotation(yaw=91.39))
+        218.67, 59.18, 0.0), carla.Rotation(yaw=180))
     try:
         client = carla.Client('localhost', 2000)
         client.set_timeout(5.0)
@@ -511,10 +519,11 @@ def main():
         n_ticks = int(config_args['sim_duration'] /
                       config_args['world']['delta_seconds'])
 
-        lane_images =[]
+        lane_images = []
         pole_images = []
         vx = []
         yaw_rate = []
+        in_junction = []
 
         # Simulation loop
         to_left = True
@@ -526,12 +535,11 @@ def main():
             pole_images.append(world.semantic_camera.pole_img)
             vx.append(world.imu.vx)
             yaw_rate.append(world.imu.gyro_z)
+            in_junction.append(world.ground_truth.in_junction)
 
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
                 world.imu.vx, world.imu.vy, world.imu.gyro_z * 180 / pi))
             print('in junction: {}'.format(world.ground_truth.in_junction))
-            print('{}'.format(
-                world.ground_truth.waypoint.is_junction if world.ground_truth.waypoint else None))
             # c0
             print('{}   {}   {}   {}'.format(
                 world.ground_truth.next_left_marking_param[0] if world.ground_truth.next_left_marking else None,
@@ -555,15 +563,21 @@ def main():
             world.destroy()
             # Allow carla engine to run freely so it doesn't just hang there
             world.allow_free_run()
-        
-        with open('recording/lane_images', 'wb') as image_file:
+
+        mydir = os.path.join(os.getcwd(), 'recordings',
+                             datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+        os.makedirs(mydir)
+
+        with open(os.path.join(mydir, 'lane_images'), 'wb') as image_file:
             pickle.dump(lane_images, image_file)
-        with open('recording/pole_images', 'wb') as image_file:
+        with open(os.path.join(mydir, 'pole_images'), 'wb') as image_file:
             pickle.dump(pole_images, image_file)
-        with open('recording/vx', 'wb') as vx_file:
+        with open(os.path.join(mydir, 'vx'), 'wb') as vx_file:
             pickle.dump(vx, vx_file)
-        with open('recording/yaw_rate', 'wb') as yaw_rate_file:
+        with open(os.path.join(mydir, 'yaw_rate'), 'wb') as yaw_rate_file:
             pickle.dump(yaw_rate, yaw_rate_file)
+        with open(os.path.join(mydir, 'in_junction'), 'wb') as in_junction_file:
+            pickle.dump(in_junction, in_junction_file)
 
 
 # %%
