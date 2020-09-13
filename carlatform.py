@@ -28,8 +28,13 @@ from scipy.spatial.transform import Rotation
 class CarlaW2ETform:
     """ Helper class to perform world-to-ego transformation for Carla """
 
-    def __init__(self, ego_transform):
-        """ Constructor method. Lazy initialization is used. """
+    def __init__(self, ego_transform: carla.Transform):
+        """ 
+        Constructor method using lazy initialization. 
+        
+        Input:
+            ego_transform: a carla.Transform object of ego frame.
+        """
         self._ego_veh_transform = ego_transform
         # rotation matrix to transform a vector from world frame to ego frame
         self._rotm_w2e = None
@@ -39,7 +44,9 @@ class CarlaW2ETform:
     def rotm_world_to_ego(self, vector3D: carla.Vector3D):
         """ 
         Rotationally transform the given carla.Vector3D in ego frame to world frame.
-        Note the return np 3D vector already follows z-up coordinate system. 
+
+        Note the return np 3D vector already follows z-up coordinate system.
+        
         Input:
             vector3D: a carla.Vector3D which follows carla's coordinate system (z-down system).
         Output:
@@ -68,7 +75,7 @@ class CarlaW2ETform:
         
 
     def _init_rotm_w2e(self):
-        """ Helper method to create rotation matrix _rotm_e2w """
+        """ Helper method to create rotation matrix _rotm_e2w. """
         rotation = self._ego_veh_transform.rotation
         # Carla uses z-down coordinate system (z towards down)
         # Ref: https://carla.readthedocs.io/en/latest/python_api/#carlarotation
@@ -77,7 +84,7 @@ class CarlaW2ETform:
             'zyx', [-rotation.yaw, -rotation.pitch, rotation.roll], degrees=True).as_matrix().T
 
     def _init_tform_w2e(self):
-        """ Helper method to create rotation matrix _tform_e2w """
+        """ Helper method to create rotation matrix _tform_e2w. """
         if self._rotm_w2e is None:
             self._init_rotm_w2e()
         self._tform_w2e = np.zeros((4, 4), dtype=np.float)
