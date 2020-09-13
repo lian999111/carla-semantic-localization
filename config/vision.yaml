@@ -4,9 +4,13 @@ lane:
     # Number of dilation operation iteration for edge image
     n_iters: 1
 
+  rotation:
+    # Threshold for HoughLines
+    hough_thres: 300
+
   histo:
     # Minimum height to consider as a peak
-    requried_height: 500
+    required_height: 400
     # Bin number
     n_bins: 40
 
