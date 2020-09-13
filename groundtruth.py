@@ -219,10 +219,10 @@ class GroundTruthExtractor(object):
 
         Output:
             candidate_markings_in_ego:
-                list of candidate lane markings. Each lane marking consists of a list of 
+                List of candidate lane markings. Each lane marking consists of a list of 
                 3D points in the ego frame (z-up).
             candidate_markings:
-                list containing carla.LaneMarking objects corresponding to the points
+                List containing carla.LaneMarking objects corresponding to the points
                 in candidate_markings_in_ego.
         """
         fbumper_transform = carla.Transform(
@@ -306,7 +306,7 @@ class GroundTruthExtractor(object):
         Get marking points along the lane marking of specified side in ego frame (z-up).
 
         Input:
-            waypoint: carla.Waypont object of the lane marking of interest.
+            waypoint: Carla.Waypont object of the lane marking of interest.
             world_to_ego: CarlaW2ETform object that performs world-to-ego transformation.
             side: Direction object specifying the side of interest.
         """
@@ -337,8 +337,8 @@ class GroundTruthExtractor(object):
             Get the next waypoint in the specified direction (forward or backward).
 
             Input:
-                waypoint_of_interest: carla.Waypoint object of interest.
-                distance: distance in meters to query the next waypoint.
+                waypoint_of_interest: Carla.Waypoint object of interest.
+                distance: Distance in meters to query the next waypoint.
                 direction: Direction object specifying forward or backward with respect to the ego lane.
             Output:
                 carla.Waypoint object. None if not found. 
