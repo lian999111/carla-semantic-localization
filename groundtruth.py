@@ -21,7 +21,7 @@ from carlatform import CarlaW2ETform
 
 
 class Direction(Enum):
-    """ Enum for specifying lane searching direction """
+    """ Enum for specifying lane searching direction. """
     Left = 1
     Right = 2
     Forward = 3
@@ -29,10 +29,10 @@ class Direction(Enum):
 
 
 class GroundTruthExtractor(object):
-    """ Class for ground truth extraction """
+    """ Class for ground truth extraction. """
 
     def __init__(self, ego_veh, carla_map, actor_list, config_args):
-        """ Constructor method """
+        """ Constructor method. """
         # Ego vehicle
         # Distance from rear axle to front bumper
         self.raxle_to_fbumper = config_args['ego_veh']['raxle_to_fbumper']
@@ -89,7 +89,7 @@ class GroundTruthExtractor(object):
         self.next_right_marking_param = [0, 0]
 
     def update(self):
-        """ Update ground truth at the current tick """
+        """ Update ground truth at the current tick. """
         self.ego_veh_tform = self.ego_veh.get_transform()
 
         # Update front bumper (carla.Vector3D in z-down frame)
@@ -106,6 +106,7 @@ class GroundTruthExtractor(object):
                                               -self.ego_veh_tform.rotation.pitch,
                                               -self.ego_veh_tform.rotation.yaw])
 
+        # Update lanes
         # Find a waypoint on the nearest lane (any lane type except NONE)
         # So when ego vehicle is driving abnormally (e.g. on shoulder or parking), lane markings can still be obtained.
         # Some strange results may happen in extreme cases though (e.g. car drives on rail or sidewalk).
@@ -129,6 +130,7 @@ class GroundTruthExtractor(object):
             candidate_markings_in_ego, candidate_markings = self._find_candidate_markings()
             candidates = []
             for idx, candidate in enumerate(candidate_markings_in_ego):
+                # Extract only x and y coordinates of this candidate marking
                 candidate_2D = np.array(candidate)[:, 0:2]
                 # Find the index where the x value goes from negative to positive
                 # That's where the lane marking intersect the y-axis of the front bumper
@@ -214,7 +216,14 @@ class GroundTruthExtractor(object):
     def _find_candidate_markings(self):
         """ 
         Find candidate lane markings withing a radius at the current time step.
-        Return a list of 3D points of candidate markings and a list of their corresponding carla.Lanemarking object.
+
+        Output:
+            candidate_markings_in_ego:
+                list of candidate lane markings. Each lane marking consists of a list of 
+                3D points in the ego frame (z-up).
+            candidate_markings:
+                list containing carla.LaneMarking objects corresponding to the points
+                in candidate_markings_in_ego.
         """
         fbumper_transform = carla.Transform(
             self._fbumper_location, self.ego_veh.get_transform().rotation)
@@ -235,7 +244,7 @@ class GroundTruthExtractor(object):
         left_marking_waypt = self.waypoint
         cum_dist = waypt_ego_frame[1] + \
             0.5 * left_marking_waypt.lane_width
-        # Search left till cumulative distance exceeds radius
+        # Search left till cumulative distance exceeds radius or a None waypoint is reached
         while cum_dist < self._radius:
             # Get left marking of current waypoint
             left_marking = self._get_lane_marking(
@@ -265,7 +274,7 @@ class GroundTruthExtractor(object):
         right_marking_waypt = self.waypoint
         cum_dist = waypt_ego_frame[1] + \
             0.5 * right_marking_waypt.lane_width
-        # Search right till cumulative distance exceeds radius
+        # Search right till cumulative distance exceeds radius or a None waypoint is reached
         while cum_dist < self._radius:
             # Get right marking of current waypoint
             right_marking = self._get_lane_marking(
@@ -292,21 +301,29 @@ class GroundTruthExtractor(object):
 
         return candidate_markings_in_ego, candidate_markings
 
-    def _get_marking_pts(self, waypoint: carla.Waypoint, world_to_ego: CarlaW2ETform, direction):
+    def _get_marking_pts(self, waypoint: carla.Waypoint, world_to_ego: CarlaW2ETform, side: Direction):
         """ 
-        Get marking points along the lane in ego frame (z-up) for given waypoint and direction 
-        and their corresponding carla.LaneMarking object
+        Get marking points along the lane marking of specified side in ego frame (z-up).
+
+        Input:
+            waypoint: carla.Waypont object of the lane marking of interest.
+            world_to_ego: CarlaW2ETform object that performs world-to-ego transformation.
+            side: Direction object specifying the side of interest.
         """
 
         # Local helper functions
         def get_lane_marking_pt_in_ego_frame(waypoint_of_interest):
-            """ Get the corresponding marking point in ego frame given a waypoint of interest """
+            """ 
+            Get the corresponding marking point in ego frame given a waypoint of interest. 
+            
+            It obtains the point of lane marking by projecting the half lane width.
+            """
             if self._check_same_direction_as_ego_lane(waypoint_of_interest):
                 half_width = 0.5 * waypoint_of_interest.lane_width
             else:
                 half_width = -0.5 * waypoint_of_interest.lane_width
 
-            if direction == Direction.Left:
+            if side == Direction.Left:
                 lane_pt_in_world = waypoint_of_interest.transform.transform(
                     carla.Location(y=-half_width))
             else:
@@ -317,9 +334,14 @@ class GroundTruthExtractor(object):
         # Local helper functions
         def get_next_waypoint(waypoint_of_interest, distance, direction):
             """ 
-            Get the next waypoint of the waypont of interest.
-            The direction is with respect to the ego lane.
-            Returns None if not found.
+            Get the next waypoint in the specified direction (forward or backward).
+
+            Input:
+                waypoint_of_interest: carla.Waypoint object of interest.
+                distance: distance in meters to query the next waypoint.
+                direction: Direction object specifying forward or backward with respect to the ego lane.
+            Output:
+                carla.Waypoint object. None if not found. 
             """
             next_waypt = None
             if direction == Direction.Forward:
@@ -355,7 +377,7 @@ class GroundTruthExtractor(object):
                 waypoint, distance, Direction.Backward)
             if backward_waypt is not None:
                 lane_marking = self._get_lane_marking(
-                    backward_waypt, direction)
+                    backward_waypt, side)
                 # Add only points with visible marking types
                 if lane_marking.type != carla.LaneMarkingType.NONE:
                     lane_pts_in_ego.append(
@@ -365,7 +387,7 @@ class GroundTruthExtractor(object):
                 continue
 
         # The given waypoint
-        lane_marking = self._get_lane_marking(waypoint, direction)
+        lane_marking = self._get_lane_marking(waypoint, side)
         if lane_marking.type != carla.LaneMarkingType.NONE:
             lane_pts_in_ego.append(get_lane_marking_pt_in_ego_frame(waypoint))
             lane_markings.append(lane_marking)
@@ -378,7 +400,7 @@ class GroundTruthExtractor(object):
                 waypoint, distance, Direction.Forward)
             if forward_waypt is not None:
                 lane_marking = self._get_lane_marking(
-                    forward_waypt, direction)
+                    forward_waypt, side)
                 if lane_marking.type != carla.LaneMarkingType.NONE:
                     lane_pts_in_ego.append(
                         get_lane_marking_pt_in_ego_frame(forward_waypt))
@@ -389,13 +411,13 @@ class GroundTruthExtractor(object):
         return lane_pts_in_ego, lane_markings
 
     def _check_same_direction_as_ego_lane(self, waypoint_of_interest):
-        """ Check if the direction of the waypoint of interest is the same as the ego lane """
+        """ Check if the direction of the given waypoint is the same as the ego lane. """
         if waypoint_of_interest is None:
             return None
         return (self.waypoint.lane_id * waypoint_of_interest.lane_id) > 0
 
     def _get_next_lane(self, waypoint_of_interest, direction):
-        """ Get waypoint of next lane in specified direction with respect to ego lane """
+        """ Get waypoint of next lane in specified direction (left or right) with respect to ego lane. """
         if waypoint_of_interest is None:
             return None
         if direction == Direction.Left:
@@ -410,7 +432,7 @@ class GroundTruthExtractor(object):
                 return waypoint_of_interest.get_left_lane()
 
     def _get_lane_marking(self, waypoint_of_interest, direction):
-        """ Get carla.LaneMarking object of given waypoint in the specified direction with respect to ego lane """
+        """ Get carla.LaneMarking object of given waypoint in the specified direction with respect to ego lane. """
         if waypoint_of_interest is None:
             return None
         if direction == Direction.Left:

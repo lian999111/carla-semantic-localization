@@ -33,7 +33,7 @@ class CarlaW2ETform:
         Constructor method using lazy initialization. 
         
         Input:
-            ego_transform: a carla.Transform object of ego frame.
+            ego_transform: carla.Transform object of ego frame.
         """
         self._ego_veh_transform = ego_transform
         # rotation matrix to transform a vector from world frame to ego frame
@@ -46,9 +46,9 @@ class CarlaW2ETform:
         Rotationally transform the given carla.Vector3D in ego frame to world frame.
 
         Note the return np 3D vector already follows z-up coordinate system.
-        
+
         Input:
-            vector3D: a carla.Vector3D which follows carla's coordinate system (z-down system).
+            vector3D: carla.Vector3D which follows carla's coordinate system (z-down system).
         Output:
             np.array representing a 3D coordinate in the z-up coordinate system.
         """
@@ -63,7 +63,7 @@ class CarlaW2ETform:
         Homogeneous transform the given carla.Vector3D in ego frame to world frame.
         Note the return np 3D vector already follows z-up coordinate system.
         Input:
-            vector3D: a carla.Vector3D which follows carla's coordinate system (z-down system).
+            vector3D: carla.Vector3D which follows carla's coordinate system (z-down system).
         Output:
             np.array representing a 3D coordinate in the z-up coordinate system.
         """
