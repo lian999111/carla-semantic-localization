@@ -73,6 +73,15 @@ class LaneMarkingDetector(object):
 
         return edge_image
 
+    def _get_histo(self, edge_image):
+        # Use histogram to find starting points to find lane markings
+        # Original warped_img is used to create the histogram so entire lane marking areas contribute to the calculation rather than just the edges
+        # Only the lower third image is used since we focus on the starting points
+        histogram, _ = np.histogram(edge_image[int(edge_image.shape[0]/3):, :].nonzero()[1], bins=self.n_bins, range=(0, self.warped_size[0]))
+        bin_width = edge_image.shape[1] / self.n_bins
+
+        return histogram, bin_width
+
     def _find_histo_peaks(self, histogram):
         """ Find at most 2 peaks as lane marking searching bases from histogram. """
         # Find peaks above required height
@@ -85,12 +94,12 @@ class LaneMarkingDetector(object):
 
         # Find at most 2 peaks from the middle towards left and 2 towards right
         half_idx = histogram.shape[0]/2
-        left_base = peaks[peaks < half_idx][-1] if peaks[peaks <
+        left_base_bin = peaks[peaks < half_idx][-1] if peaks[peaks <
                                                         half_idx].size != 0 else None
-        right_base = peaks[peaks >= half_idx][0] if peaks[peaks >=
+        right_base_bin = peaks[peaks >= half_idx][0] if peaks[peaks >=
                                                         half_idx].size != 0 else None
 
-        return left_base, right_base
+        return left_base_bin, right_base_bin
 
     def _sliding_window_search(self, edge_image, left_base, right_base):
         """ 
