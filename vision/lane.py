@@ -74,6 +74,11 @@ class LaneMarkingDetector(object):
         return edge_image
 
     def _get_histo(self, edge_image):
+        """ 
+        Get histogram of edge image.
+        
+        The peaks in histogram is then used as starting points for sliding window search. 
+        """
         # Use histogram to find starting points to find lane markings
         # Original warped_img is used to create the histogram so entire lane marking areas contribute to the calculation rather than just the edges
         # Only the lower third image is used since we focus on the starting points
