@@ -1,5 +1,9 @@
 # Implementation of lane extraction from semantic segmentation images
 
+import os
+import pickle
+import argparse
+import yaml
 import numpy as np
 import cv2
 import glob
@@ -94,7 +98,7 @@ class LaneMarkingDetector(object):
         # starting search points is prone to fail. This method uses Hough transform to find major lines. If the
         # median angle of lines found is noticable, rotate the image around the center of image's lower bottom.
         # After rotation, lane markings should be more vertical and thus histogram is less likely to fail.
-        rot_image = self._try_rotate_image(dilated_edge_image)
+        rot_image, rot_angle = self._try_rotate_image(dilated_edge_image)
 
         # Get histogram peaks and corresponding bases for sliding window search
         histo, bin_width = self._get_histo(rot_image)
@@ -105,6 +109,8 @@ class LaneMarkingDetector(object):
         # Sliding window search
         left_idc, right_idc, nonzerox, nonzeroy = self._sliding_window_search(
             rot_image, left_base, right_base)
+
+        # TODO: Rotate back points
 
         return left_idc, right_idc, nonzerox, nonzeroy
 
@@ -162,9 +168,9 @@ class LaneMarkingDetector(object):
             M_rot = cv2.getRotationMatrix2D(rot_center, rot_angle, scale=1)
             rot_image = cv2.warpAffine(edge_image, M_rot, self.warped_size)
         else:
-            rot_image = None
+            rot_image = edge_image
 
-        return rot_angle, rot_image
+        return rot_image, rot_angle
 
     def _get_histo(self, edge_image):
         """ 
@@ -217,7 +223,7 @@ class LaneMarkingDetector(object):
             # Create an output image to draw on and  visualize the result
             debug_img = edge_image.copy()
         # Set height of windows
-        window_height = np.int(edge_image.shape[0]/n_windows*2/3)
+        window_height = np.int(edge_image.shape[0]/self.n_windows*2/3)
 
         # Identify the x and y positions of all nonzero pixels in the image
         nonzero = edge_image.nonzero()
@@ -343,7 +349,46 @@ class LaneMarkingDetector(object):
                 if rightx_curr > edge_image.shape[1] - self.margin or rightx_curr < 0:
                     search_right = False
         if __debug__:
+            plt.plot(nonzerox[left_idc], nonzeroy[left_idc], '.')
+            plt.plot(nonzerox[right_idc], nonzeroy[right_idc], '.')
             plt.imshow(debug_img)
             plt.show()
 
         return left_idc, right_idc, nonzerox, nonzeroy
+
+
+def main():
+    argparser = argparse.ArgumentParser(
+        description='Lane Detection using Semantic Images')
+    argparser.add_argument('vision_config', type=argparse.FileType(
+        'r'), help='configuration yaml file for vision algorithms')
+    args = argparser.parse_args()
+
+    # Read configurations from yaml file to config_args
+    with args.vision_config as vision_config_file:
+        vision_config_args = yaml.safe_load(vision_config_file)
+
+    # Load parameters for inverse projection
+    perspective_tform_data = np.load('vision/perspective_tform_vanish_pt_ideal.npz')
+    M = perspective_tform_data['M']
+    warped_size = tuple(perspective_tform_data['bev_size'])
+    valid_mask = perspective_tform_data['valid_mask']
+    px_per_meter_x = float(perspective_tform_data['px_per_meter_x'])
+    px_per_meter_y = float(perspective_tform_data['px_per_meter_y'])
+
+    # Load data
+    folder_name = 'highway'
+    mydir = os.path.join('recordings', folder_name)
+    with open(os.path.join(mydir, 'lane_images'), 'rb') as image_file:
+        images = pickle.load(image_file)
+    with open(os.path.join(mydir, 'yaw_rate'), 'rb') as yaw_rate_file:
+        yaw_rates = pickle.load(yaw_rate_file)
+    with open(os.path.join(mydir, 'in_junction'), 'rb') as in_junction_file:
+        in_junction = pickle.load(in_junction_file)
+    
+    lane_detector = LaneMarkingDetector(M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, vision_config_args['lane'])
+    lane_detector.find_marking_points(images[200].astype(np.uint8))
+
+
+if __name__ == "__main__":
+    main()
