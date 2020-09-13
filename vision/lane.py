@@ -18,7 +18,7 @@ class LaneMarkingDetector(object):
           It requires lane markings to be detected in previous images.
     """
 
-    def __init__(self, M, px_per_meter_x, px_per_meter_y, warped_size=(400, 600), valid_mask=None):
+    def __init__(self, M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, lane_config_args):
         """ 
         Constructor method. 
 
@@ -28,12 +28,21 @@ class LaneMarkingDetector(object):
             px_per_meter_y: Pixels per meters in y in the Bird's eye view.
             warped_size: Image size tuple of IPM image (width, height).
             valid_mask: Numpy.array of booleans to mask out edge pixels caused by the border of the FOV.
+            lane_config_args: Dict object storing algorithm related parameters.
         """
         self.ipm_tform = M  # ipm stands for inverse perspective mapping
         self.warped_size = warped_size
         self.valid_mask = valid_mask
         self.px_per_meters_x = px_per_meter_x
         self.px_per_meters_y = px_per_meter_y
+
+        # Algorithm related parameters
+        # Sliding window
+        self.n_windows = lane_config_args['n_windows']
+        self.margin = lane_config_args['margin']
+        self.recenter_minpix = lane_config_args['recenter_minpix']
+        # Histogram
+        self.required_height = lane_config_args['required_height']
 
     def _get_bev_edge(self, lane_image):
         """ 
@@ -61,21 +70,170 @@ class LaneMarkingDetector(object):
 
         return edge_image
 
-    def _find_histo_peaks(histo, required_height=500):
-    """ Find at most 2 peaks as lane marking searching bases from histogram. """
-    # Find peaks above required height
-    peaks, _ = find_peaks(histogram, height=required_height)
+    def _find_histo_peaks(self, histogram):
+        """ Find at most 2 peaks as lane marking searching bases from histogram. """
+        # Find peaks above required height
+        peaks, _ = find_peaks(histogram, height=self.required_height)
 
-    # Remove peaks that are too close to their precedents
-    # diff = np.diff(peaks)
-    # delete_mask = np.concatenate(([False], diff < 40))
-    # peaks = np.delete(peaks, delete_mask)
+        # Remove peaks that are too close to their precedents
+        # diff = np.diff(peaks)
+        # delete_mask = np.concatenate(([False], diff < 40))
+        # peaks = np.delete(peaks, delete_mask)
 
-    # Find at most 2 peaks from the middle towards left and 2 towards right
-    half_idx = histo.shape[0]/2
-    left_base = peaks[peaks < half_idx][-1] if peaks[peaks < half_idx].size != 0 else None
-    right_base = peaks[peaks >= half_idx][0] if peaks[peaks >= half_idx].size != 0 else None
+        # Find at most 2 peaks from the middle towards left and 2 towards right
+        half_idx = histogram.shape[0]/2
+        left_base = peaks[peaks < half_idx][-1] if peaks[peaks <
+                                                        half_idx].size != 0 else None
+        right_base = peaks[peaks >= half_idx][0] if peaks[peaks >=
+                                                        half_idx].size != 0 else None
 
-    return left_base, right_base
+        return left_base, right_base
 
-    
+    def _sliding_window_search(self, edge_image, left_base, right_base):
+        """ 
+        Find lane marking edge pixels using sliding window. 
+        
+        Input:
+            edge_image: Bird's eye image of edges.
+            left_base: Starting point to search for left marking.
+            right_base: Starting point to search for right marking.
+        Output:
+            left_idc: Indices of possible left marking points.
+            right_idc: Indices of possible right marking points.
+            nonzerox: X coordinates of non-zero pixels in the edge image.
+            nonzeroy: Y coordinates of non-zero pixels in the edge image.
+        """
+        if __debug__:
+            # Create an output image to draw on and  visualize the result
+            debug_img = edge_image.copy()
+        # Set height of windows
+        window_height = np.int(edge_image.shape[0]/n_windows*2/3)
+
+        # Identify the x and y positions of all nonzero pixels in the image
+        nonzero = edge_image.nonzero()
+        nonzeroy = np.array(nonzero[0])
+        nonzerox = np.array(nonzero[1])
+
+        # Create empty lists to store left and right lane pixel indices
+        left_idc = []
+        right_idc = []
+
+        # TODO: remove this?
+        # # Local function to set initial window's y position
+        # def set_init_window_y(window_x):
+        #     img_height = edge_image.shape[0]
+        #     img_width = edge_image.shape[1]
+        #     window_y = img_height
+        #     if window_x < invalid_tri_w:
+        #         window_y = int(
+        #             img_height + (window_x / invalid_tri_w - 1) * invalid_tri_h)
+        #     elif window_x > img_width - invalid_tri_w:
+        #         window_y = int(img_height + ((img_width - window_x) /
+        #                                     invalid_tri_w - 1) * invalid_tri_h)
+        #     return window_y
+
+        shift = 0
+
+        if left_base:
+            # Initial windows' positions
+            leftx_curr = int(left_base)
+
+            # TODO: remove this?
+            # if invalid_tri_w:
+            #     lefty_curr = set_init_window_y(leftx_curr)
+            # else:
+            #     lefty_curr = edge_image.shape[0]
+            lefty_curr = edge_image.shape[0]
+
+            # rightx_shift = 0
+            search_left = True
+        else:
+            search_left = False
+
+        if right_base:
+            rightx_curr = int(right_base)
+
+            # TODO: remove this?
+            # if invalid_tri_w:
+            #     righty_curr = set_init_window_y(rightx_curr)
+            # else:
+            #     righty_curr = edge_image.shape[0]
+            righty_curr = edge_image.shape[0]
+
+            # leftx_shift = 0
+            search_right = True
+        else:
+            search_right = False
+
+        for win_count in range(self.n_windows):
+            # Left markings
+            if search_left:
+                # Vertical
+                win_yleft_low = lefty_curr - (win_count + 1) * window_height
+                win_yleft_high = lefty_curr - win_count * window_height
+                # Horizontal
+                win_xleft_low = leftx_curr - self.margin
+                win_xleft_high = leftx_curr + self.margin
+                good_left_idc = ((nonzeroy >= win_yleft_low) & (nonzeroy < win_yleft_high) &
+                                (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0]
+
+                # TODO: Remove this?
+                # if good_left_idc.size == 0 or min(nonzeroy[good_left_idc]) > (win_yleft_low + 0.1*window_height):
+                #     win_xleft_low = int(leftx_curr - scale * self.margin)
+                #     win_xleft_high = int(leftx_curr + scale * self.margin)
+                #     good_left_idc = ((nonzeroy >= win_yleft_low) & (nonzeroy < win_yleft_high) &
+                #                     (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0]
+
+                if __debug__:
+                    cv2.rectangle(debug_img, (win_xleft_low, win_yleft_low),
+                                (win_xleft_high, win_yleft_high), 1, 2)
+
+                left_idc += list(good_left_idc)
+                # Recenter next window if enough points found in current window
+                if len(good_left_idc) > self.recenter_minpix:
+                    newx = np.int(np.mean(nonzerox[good_left_idc]))
+                    shift = newx - leftx_curr
+                    leftx_curr = newx
+                else:
+                    leftx_curr += shift
+
+                if leftx_curr > edge_image.shape[1] - self.margin or leftx_curr < 0:
+                    search_left = False
+
+            # Right markings
+            if search_right:
+                # Vertical
+                win_yright_low = righty_curr - (win_count + 1) * window_height
+                win_yright_high = righty_curr - win_count * window_height
+                # Horizontal
+                win_xright_low = rightx_curr - self.margin
+                win_xright_high = rightx_curr + self.margin
+                good_right_idc = ((nonzeroy >= win_yright_low) & (nonzeroy < win_yright_high) &
+                                (nonzerox >= win_xright_low) & (nonzerox < win_xright_high)).nonzero()[0]
+
+                # TODO: Remove this?
+                # if good_right_idc.size == 0 or min(nonzeroy[good_right_idc]) > (win_yright_low + 0.1*window_height):
+                #     win_xright_low = int(rightx_curr - scale * self.margin)
+                #     win_xright_high = int(rightx_curr + scale * self.margin)
+                #     good_right_idc = ((nonzeroy >= win_yright_low) & (nonzeroy < win_yright_high) &
+                #                     (nonzerox >= win_xright_low) & (nonzerox < win_xright_high)).nonzero()[0]
+                if __debug__:
+                    cv2.rectangle(debug_img, (win_xright_low, win_yright_low),
+                                (win_xright_high, win_yright_high), 1, 2)
+
+                right_idc += list(good_right_idc)
+                # Recenter next window if enough points found in current window
+                if len(good_right_idc) > self.recenter_minpix:
+                    newx = np.int(np.mean(nonzerox[good_right_idc]))
+                    shift = newx - rightx_curr
+                    rightx_curr = newx
+                else:
+                    rightx_curr += shift
+
+                if rightx_curr > edge_image.shape[1] - self.margin or rightx_curr < 0:
+                    search_right = False
+        if __debug__:
+            plt.imshow(debug_img)
+            plt.show()
+
+        return left_idc, right_idc, nonzerox, nonzeroy
