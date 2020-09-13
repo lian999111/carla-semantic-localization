@@ -39,6 +39,8 @@ class LaneMarkingDetector(object):
         # Algorithm related parameters
         # Dilation
         self.dilation_iter = lane_config_args['dilation']['n_iters']
+        # Rotation
+        self.hough_thres = lane_config_args['rotation']['hough_thres']
         # Histogram
         self.required_height = lane_config_args['histo']['required_height']
         self.n_bins = lane_config_args['histo']['n_bins']
@@ -72,6 +74,41 @@ class LaneMarkingDetector(object):
             edge_image = edge_image.astype(np.uint8) & self.valid_mask
 
         return edge_image
+
+    def _try_rotate_image(self, edge_image):
+        """
+        Try rotating edge image if the major lines in the lower half of edge image are tilted.
+
+        This method uses Hough transform to find major lines. If the median angle of lines found 
+        is noticable, rotate the image around the center of image's lower bottom to make it more vertical.
+        """
+        # When the heading angle difference between ego vehicle and lane is too high, using histogram to find
+        # starting search points is prone to fail. This method uses Hough transform to find major lines. If the
+        # median angle of lines found is noticable, rotate the image around the center of image's lower bottom.
+        # After rotation, lane markings should be more vertical and thus histogram is less likely to fail.
+        lines = cv2.HoughLines(
+            edge_image[edge_image.shape[0]//2:, :], 2, np.pi/180, self.hough_thres)
+
+        # When hough transform can't find lines in the lower half of image,
+        # it's an indication that there is no good lines to detect
+        if lines is not None:
+            # Convert the angle range from (0, pi) to (-pi/2, pi/2)
+            # Those with angle larger than pi/2 are also those with negative rhos.
+            lines[lines[:, :, 0] < 0, 1] -= np.pi
+            # Convert to degree
+            rot_angle = np.median(lines[:, :, 1]) * 180 / np.pi
+        else:
+            rot_angle = None
+
+        # %% Rotate image
+        if rot_angle and abs(rot_angle) > 5:
+            rot_center = (self.warped_size[0]//2, self.warped_size[1])
+            M_rot = cv2.getRotationMatrix2D(rot_center, rot_angle, scale=1)
+            rot_image = cv2.warpAffine(edge_image, M_rot, self.warped_size)
+        else:
+            rot_image = None
+
+        return rot_angle, rot_image
 
     def _get_histo(self, edge_image):
         """ 
