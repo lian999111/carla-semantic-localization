@@ -100,7 +100,7 @@ class LaneMarkingDetector(object):
         if __debug__:
             image_side_by_side(edge_img, 'Edge Image',
                                dilated_edge_image, 'Dilated Edge Image')
-            plt.show()
+            plt.show(block=False)
 
         # When the heading angle difference between ego vehicle and lane is too high, using histogram to find
         # starting search points is prone to fail. This method uses Hough transform to find major lines. If the
@@ -110,6 +110,12 @@ class LaneMarkingDetector(object):
 
         # Get histogram peaks and corresponding bases for sliding window search
         histo, bin_width = self._get_histo(rot_image)
+
+        if __debug__:
+            plt.figure()
+            plt.plot(histo)
+            plt.show(block=False)
+
         left_base_bin, right_base_bin = self._find_histo_peaks(histo)
         left_base = left_base_bin*bin_width + bin_width/2 if left_base_bin else None
         right_base = right_base_bin*bin_width + bin_width/2 if right_base_bin else None
@@ -362,13 +368,12 @@ class LaneMarkingDetector(object):
                 else:
                     rightx_curr += shift
 
-                if rightx_curr > edge_image.shape[1] - self.margin or rightx_curr < 0:
-                    search_right = False
         if __debug__:
+            plt.figure()
             plt.plot(nonzerox[left_idc], nonzeroy[left_idc], '.')
             plt.plot(nonzerox[right_idc], nonzeroy[right_idc], '.')
             plt.imshow(debug_img)
-            plt.show()
+            plt.show(block=False)
 
         return left_idc, right_idc, nonzerox, nonzeroy
 
