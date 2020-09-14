@@ -7,8 +7,10 @@ import yaml
 import numpy as np
 import cv2
 import glob
-import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
+
+if __debug__:
+    import matplotlib.pyplot as plt
 
 
 def image_side_by_side(leftImg, leftTitle, rightImg, rightTitle, figsize=(20, 10), leftCmap=None, rightCmap=None):
@@ -377,7 +379,7 @@ def main():
     px_per_meter_y = float(perspective_tform_data['px_per_meter_y'])
 
     # Load data
-    folder_name = 'highway'
+    folder_name = 'small_roundabout'
     mydir = os.path.join('recordings', folder_name)
     with open(os.path.join(mydir, 'lane_images'), 'rb') as image_file:
         images = pickle.load(image_file)
