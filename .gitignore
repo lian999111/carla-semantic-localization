@@ -3,7 +3,7 @@ vision/images
 vision/calib_images
 
 /opendrive
-/recording
+/recordings
 
 *.pyc
 *.pyo
