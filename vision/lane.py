@@ -391,8 +391,7 @@ def main():
         vision_config_args = yaml.safe_load(vision_config_file)
 
     # Load parameters for inverse projection
-    perspective_tform_data = np.load(
-        'vision/perspective_tform_vanish_pt_ideal.npz')
+    perspective_tform_data = np.load('vision/ipm_data.npz')
     M = perspective_tform_data['M']
     warped_size = tuple(perspective_tform_data['bev_size'])
     valid_mask = perspective_tform_data['valid_mask']
