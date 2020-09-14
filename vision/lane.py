@@ -55,6 +55,7 @@ class LaneMarkingDetector(object):
             valid_mask: Numpy.array of booleans to mask out edge pixels caused by the border of the FOV.
             lane_config_args: Dict object storing algorithm related parameters.
         """
+        # IPM related data
         self.ipm_tform = M  # ipm stands for inverse perspective mapping
         self.warped_size = warped_size
         self.valid_mask = valid_mask
