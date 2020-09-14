@@ -97,6 +97,7 @@ class LaneMarkingDetector(object):
         dilated_edge_image = cv2.dilate(
             edge_img, kernel=np.ones((3, 3), np.uint8), iterations=self.dilation_iter)
 
+        # Sliding window approach
         if __debug__:
             image_side_by_side(edge_img, 'Edge Image',
                                dilated_edge_image, 'Dilated Edge Image')
