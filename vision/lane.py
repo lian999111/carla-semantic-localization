@@ -281,7 +281,7 @@ class LaneMarkingDetector(object):
         The peaks in histogram is then used as starting points for sliding window search. 
         """
         # Only the lower third image is used since we focus on the starting points
-        histogram, _ = np.histogram(edge_image[int(edge_image.shape[0]*self._histo_region):, :].nonzero()[
+        histogram, _ = np.histogram(edge_image[int(edge_image.shape[0]*(1-self._histo_region)):, :].nonzero()[
                                     1], bins=self._n_bins, range=(0, self.warped_size[0]))
         bin_width = edge_image.shape[1] / self._n_bins
 
