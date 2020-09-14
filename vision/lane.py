@@ -200,7 +200,8 @@ class LaneMarkingDetector(object):
             ax[1].plot(-left_coords_ego[1], left_coords_ego[0], '.')
             ax[1].plot(-right_coords_ego[1], right_coords_ego[0], '.')
             ax[1].set_aspect('equal')
-            ax[1].set_xlim(-self.warped_size[0]/2 / self.px_per_meters_y, self.warped_size[0]/2 / self.px_per_meters_y)
+            ax[1].set_xlim(-self.warped_size[0]/2 / self.px_per_meters_y,
+                           self.warped_size[0]/2 / self.px_per_meters_y)
             ax[1].set_ylim(0, self.warped_size[1] / self.px_per_meters_x)
             ax[1].set_title('Detected Marking Points in Ego Frame')
             plt.show(block=False)
@@ -324,7 +325,8 @@ class LaneMarkingDetector(object):
             # Create an output image to draw on and  visualize the result
             debug_img = edge_image.copy()
         # Set height of windows
-        window_height = np.int(edge_image.shape[0]/self._n_windows*self._search_region)
+        window_height = np.int(
+            edge_image.shape[0]/self._n_windows*self._search_region)
 
         # Identify the x and y positions of all nonzero pixels in the image
         nonzero = edge_image.nonzero()
