@@ -8,6 +8,7 @@ import numpy as np
 import cv2
 import glob
 from scipy.signal import find_peaks
+from math import sin, cos
 
 if __debug__:
     import matplotlib.pyplot as plt
@@ -112,9 +113,55 @@ class LaneMarkingDetector(object):
         left_idc, right_idc, nonzerox, nonzeroy = self._sliding_window_search(
             rot_image, left_base, right_base)
 
-        # TODO: Rotate back points
+        # Recenter coordinates at the center of the image's bottom
+        # Now the coordinates are aligned with ego frame (x forwards, y leftwards)
+        left_coords = np.array([edge_img.shape[0] - nonzeroy[left_idc],
+                                edge_img.shape[1]//2 - nonzerox[left_idc]])
 
-        return left_idc, right_idc, nonzerox, nonzeroy
+        right_coords = np.array([edge_img.shape[0] - nonzeroy[right_idc],
+                                 edge_img.shape[1]//2 - nonzerox[right_idc]])
+
+        # Down sampling to reduce number of points to process
+        if left_coords.size != 0:
+            left_coords = left_coords[:, 0::int(1/self.sampling_ratio)]
+        if right_coords.size != 0:
+            right_coords = right_coords[:, 0::int(1/self.sampling_ratio)]
+
+        # Rotate coordinates back to the original orientation if image was rotated
+        if rot_angle:
+            sin_minus_rot_angle = sin(-rot_angle)
+            cos_minus_rot_angle = cos(-rot_angle)
+            rotm = np.array([[cos_minus_rot_angle, -sin_minus_rot_angle],
+                             [sin_minus_rot_angle, cos_minus_rot_angle]])
+            left_coords = rotm @ left_coords
+            right_coords = rotm @ right_coords
+
+        # Map from pixels to meters
+        left_coords_ego = left_coords.astype(np.float)
+        right_coords_ego = right_coords.astype(np.float)
+        left_coords_ego[0, :] = left_coords_ego[0, :] / self.px_per_meters_x
+        left_coords_ego[1, :] = left_coords_ego[1, :] / self.px_per_meters_y
+        right_coords_ego[0, :] = right_coords_ego[0, :] / self.px_per_meters_x
+        right_coords_ego[1, :] = right_coords_ego[1, :] / self.px_per_meters_y
+
+        if __debug__:
+            _, ax = plt.subplots(ncols=2)
+            ax[0].plot(-left_coords[1], left_coords[0], '.')
+            ax[0].plot(-right_coords[1], right_coords[0], '.')
+            ax[0].set_aspect('equal')
+            ax[0].set_xlim(-self.warped_size[0]/2, self.warped_size[0]/2)
+            ax[0].set_ylim(0, self.warped_size[1])
+            ax[0].set_title('Detected Marking Pixels')
+
+            ax[1].plot(-left_coords_ego[1], left_coords_ego[0], '.')
+            ax[1].plot(-right_coords_ego[1], right_coords_ego[0], '.')
+            ax[1].set_aspect('equal')
+            ax[1].set_xlim(-self.warped_size[0]/2 / self.px_per_meters_y, self.warped_size[0]/2 / self.px_per_meters_y)
+            ax[1].set_ylim(0, self.warped_size[1] / self.px_per_meters_x)
+            ax[1].set_title('Detected Marking Points in Ego Frame')
+            plt.show(block=False)
+
+        return left_coords_ego, right_coords_ego
 
     def _get_bev_edge(self, lane_image):
         """ 
@@ -159,18 +206,19 @@ class LaneMarkingDetector(object):
             # Convert the angle range from (0, pi) to (-pi/2, pi/2)
             # Those with angle larger than pi/2 are also those with negative rhos.
             lines[lines[:, :, 0] < 0, 1] -= np.pi
-            # Convert to degree
-            rot_angle = np.median(lines[:, :, 1]) * 180 / np.pi
+            rot_angle = np.median(lines[:, :, 1])   # (rad)
         else:
             rot_angle = None
 
-        # %% Rotate image
-        if rot_angle and abs(rot_angle) > 5:
+        # Rotate image when angle larger than 5 degrees
+        if rot_angle and abs(rot_angle) > 5 * np.pi / 180:
             rot_center = (self.warped_size[0]//2, self.warped_size[1])
-            M_rot = cv2.getRotationMatrix2D(rot_center, rot_angle, scale=1)
+            M_rot = cv2.getRotationMatrix2D(
+                rot_center, rot_angle * 180 / np.pi, scale=1)
             rot_image = cv2.warpAffine(edge_image, M_rot, self.warped_size)
         else:
             rot_image = edge_image
+            rot_angle = None
 
         return rot_image, rot_angle
 
