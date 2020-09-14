@@ -63,20 +63,21 @@ class LaneMarkingDetector(object):
 
         # Algorithm related parameters
         # Dilation
-        self.dilation_iter = lane_config_args['dilation']['n_iters']
+        self._dilation_iter = lane_config_args['dilation']['n_iters']
         # Rotation
-        self.hough_thres = lane_config_args['rotation']['hough_thres']
+        self._hough_thres = lane_config_args['rotation']['hough_thres']
         # Histogram
-        self.histo_region = lane_config_args['histo']['histo_region']
-        self.required_height = lane_config_args['histo']['required_height']
-        self.n_bins = lane_config_args['histo']['n_bins']
+        self._histo_region = lane_config_args['histo']['histo_region']
+        self._required_height = lane_config_args['histo']['required_height']
+        self._n_bins = lane_config_args['histo']['n_bins']
         # Sliding window
-        self.search_region = lane_config_args['sliding_window']['search_region']
-        self.n_windows = lane_config_args['sliding_window']['n_windows']
-        self.margin = lane_config_args['sliding_window']['margin']
-        self.recenter_minpix = lane_config_args['sliding_window']['recenter_minpix']
+        self._search_region = lane_config_args['sliding_window']['search_region']
+        self._n_windows = lane_config_args['sliding_window']['n_windows']
+        self._margin = lane_config_args['sliding_window']['_margin']
+        self._recenter_minpix = lane_config_args['sliding_window']['recenter_minpix']
         # Fitting
-        self.sampling_ratio = lane_config_args['fitting']['sampling_ratio']
+        self._sampling_ratio = lane_config_args['fitting']['sampling_ratio']
+        self._order = lane_config_args['fitting']['_order']
 
     def find_marking_points(self, lane_image):
         """
@@ -95,7 +96,7 @@ class LaneMarkingDetector(object):
         edge_img = self._get_bev_edge(lane_image)
         # Dilate edge image so markings are thicker and easier to detect.
         dilated_edge_image = cv2.dilate(
-            edge_img, kernel=np.ones((3, 3), np.uint8), iterations=self.dilation_iter)
+            edge_img, kernel=np.ones((3, 3), np.uint8), iterations=self._dilation_iter)
 
         # Sliding window approach
         if __debug__:
@@ -135,9 +136,9 @@ class LaneMarkingDetector(object):
 
         # Down sampling to reduce number of points to process
         if left_coords.size != 0:
-            left_coords = left_coords[:, 0::int(1/self.sampling_ratio)]
+            left_coords = left_coords[:, 0::int(1/self._sampling_ratio)]
         if right_coords.size != 0:
-            right_coords = right_coords[:, 0::int(1/self.sampling_ratio)]
+            right_coords = right_coords[:, 0::int(1/self._sampling_ratio)]
 
         # Rotate coordinates back to the original orientation if image was rotated
         if rot_angle is not None:
@@ -174,6 +175,19 @@ class LaneMarkingDetector(object):
             plt.show(block=False)
 
         return left_coords_ego, right_coords_ego
+
+    def fit_lane_marking(self, coords, _order=3):
+        """ 
+        Fit a polynomial curve to the coordinates.
+
+        Input:
+            coords: Numpy.array of x-y coordinates (2-by-N).
+        Output:
+            coeffs: coefficients of the result polynomial curve.
+        """
+        coeffs = np.polyfit(coords[0, :], coords[1, :], self._order)
+        return coeffs
+
 
     def _get_bev_edge(self, lane_image):
         """ 
@@ -217,7 +231,7 @@ class LaneMarkingDetector(object):
         """
 
         lines = cv2.HoughLines(
-            edge_image[edge_image.shape[0]//2:, :], 2, np.pi/180, self.hough_thres)
+            edge_image[edge_image.shape[0]//2:, :], 2, np.pi/180, self._hough_thres)
 
         # When hough transform can't find lines in the lower half of image,
         # it's an indication that there is no good lines to detect
@@ -248,16 +262,16 @@ class LaneMarkingDetector(object):
         The peaks in histogram is then used as starting points for sliding window search. 
         """
         # Only the lower third image is used since we focus on the starting points
-        histogram, _ = np.histogram(edge_image[int(edge_image.shape[0]*self.histo_region):, :].nonzero()[
-                                    1], bins=self.n_bins, range=(0, self.warped_size[0]))
-        bin_width = edge_image.shape[1] / self.n_bins
+        histogram, _ = np.histogram(edge_image[int(edge_image.shape[0]*self._histo_region):, :].nonzero()[
+                                    1], bins=self._n_bins, range=(0, self.warped_size[0]))
+        bin_width = edge_image.shape[1] / self._n_bins
 
         return histogram, bin_width
 
     def _find_histo_peaks(self, histogram):
         """ Find at most 2 peaks as lane marking searching bases from histogram. """
         # Find peaks above required height
-        peaks, _ = find_peaks(histogram, height=self.required_height)
+        peaks, _ = find_peaks(histogram, height=self._required_height)
 
         # Remove peaks that are too close to their precedents
         # diff = np.diff(peaks)
@@ -292,7 +306,7 @@ class LaneMarkingDetector(object):
             # Create an output image to draw on and  visualize the result
             debug_img = edge_image.copy()
         # Set height of windows
-        window_height = np.int(edge_image.shape[0]/self.n_windows*self.search_region)
+        window_height = np.int(edge_image.shape[0]/self._n_windows*self._search_region)
 
         # Identify the x and y positions of all nonzero pixels in the image
         nonzero = edge_image.nonzero()
@@ -320,15 +334,15 @@ class LaneMarkingDetector(object):
         else:
             search_right = False
 
-        for win_count in range(self.n_windows):
+        for win_count in range(self._n_windows):
             # Left markings
             if search_left:
                 # Vertical
                 win_yleft_low = lefty_curr - (win_count + 1) * window_height
                 win_yleft_high = lefty_curr - win_count * window_height
                 # Horizontal
-                win_xleft_low = leftx_curr - self.margin
-                win_xleft_high = leftx_curr + self.margin
+                win_xleft_low = leftx_curr - self._margin
+                win_xleft_high = leftx_curr + self._margin
                 good_left_idc = ((nonzeroy >= win_yleft_low) & (nonzeroy < win_yleft_high) &
                                  (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0]
 
@@ -338,7 +352,7 @@ class LaneMarkingDetector(object):
 
                 left_idc += list(good_left_idc)
                 # Recenter next window if enough points found in current window
-                if len(good_left_idc) > self.recenter_minpix:
+                if len(good_left_idc) > self._recenter_minpix:
                     newx = np.int(np.mean(nonzerox[good_left_idc]))
                     shift = newx - leftx_curr
                     leftx_curr = newx
@@ -351,8 +365,8 @@ class LaneMarkingDetector(object):
                 win_yright_low = righty_curr - (win_count + 1) * window_height
                 win_yright_high = righty_curr - win_count * window_height
                 # Horizontal
-                win_xright_low = rightx_curr - self.margin
-                win_xright_high = rightx_curr + self.margin
+                win_xright_low = rightx_curr - self._margin
+                win_xright_high = rightx_curr + self._margin
                 good_right_idc = ((nonzeroy >= win_yright_low) & (nonzeroy < win_yright_high) &
                                   (nonzerox >= win_xright_low) & (nonzerox < win_xright_high)).nonzero()[0]
 
@@ -362,7 +376,7 @@ class LaneMarkingDetector(object):
 
                 right_idc += list(good_right_idc)
                 # Recenter next window if enough points found in current window
-                if len(good_right_idc) > self.recenter_minpix:
+                if len(good_right_idc) > self._recenter_minpix:
                     newx = np.int(np.mean(nonzerox[good_right_idc]))
                     shift = newx - rightx_curr
                     rightx_curr = newx
