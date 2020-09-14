@@ -67,7 +67,9 @@ class LaneMarkingDetector(object):
         # Dilation
         self._dilation_iter = lane_config_args['dilation']['n_iters']
         # Rotation
+        self._hough_region = lane_config_args['rotation']['hough_region']
         self._hough_thres = lane_config_args['rotation']['hough_thres']
+        self._rot_thres = lane_config_args['rotation']['rot_thres']
         # Histogram
         self._histo_region = lane_config_args['histo']['histo_region']
         self._required_height = lane_config_args['histo']['required_height']
@@ -237,7 +239,7 @@ class LaneMarkingDetector(object):
         """
 
         lines = cv2.HoughLines(
-            edge_image[edge_image.shape[0]//2:, :], 2, np.pi/180, self._hough_thres)
+            edge_image[int(edge_image.shape[0]*self._hough_region):, :], 2, np.pi/180, self._hough_thres)
 
         # When hough transform can't find lines in the lower half of image,
         # it's an indication that there is no good lines to detect
@@ -249,8 +251,8 @@ class LaneMarkingDetector(object):
         else:
             rot_angle = None
 
-        # Rotate image when angle larger than 5 degrees
-        if rot_angle and abs(rot_angle) > 5 * np.pi / 180:
+        # Rotate image when angle magnitude larger than threshold
+        if rot_angle and abs(rot_angle) > self._rot_thres * np.pi / 180:
             rot_center = (self.warped_size[0]//2, self.warped_size[1])
             M_rot = cv2.getRotationMatrix2D(
                 rot_center, rot_angle * 180 / np.pi, scale=1)

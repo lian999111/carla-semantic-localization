@@ -5,8 +5,15 @@ lane:
     n_iters: 1
 
   rotation:
+    # Ratio of the image height within which Hough lines are found
+    # e.g. 0.5 means only the region from bottom to half height of the image are considered
+    hough_region: 0.5
     # Threshold for HoughLines
     hough_thres: 300
+    # Threshold to decide whether to rotate image to make lane markings more vertical
+    # The algorithm uses Hough transform to find lines in the images
+    # The magnitude of the mdeian angle of the found lines are compared with this threshold
+    rot_thres: 3  # (deg)
 
   histo:
     # Minimum height to consider as a peak
@@ -14,7 +21,7 @@ lane:
     # Ratio of the image height that takes part in histogram calculation
     # e.g. 0.5 means only the region from bottom to half height of the image are searched
     # Since histogram is for finding starting points for sliding window, it should focus on on the lower part of image
-    histo_region: 0.4
+    histo_region: 0.5
     # Bin number
     n_bins: 40
 
@@ -24,7 +31,7 @@ lane:
     # Ratio of the image height that takes part in sliding window search
     # e.g. 0.5 means only the region from bottom to half height of the image are searched
     # The higher the ratio, the farther lane can be detected, but also more error prone
-    search_region: 0.5
+    search_region: 0.6
     # Margin (half width) of sliding window
     margin: 20
     # Minimum number of detected pixels in a window to recenter the next window
