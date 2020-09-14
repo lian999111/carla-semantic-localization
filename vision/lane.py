@@ -67,12 +67,16 @@ class LaneMarkingDetector(object):
         # Rotation
         self.hough_thres = lane_config_args['rotation']['hough_thres']
         # Histogram
+        self.histo_region = lane_config_args['histo']['histo_region']
         self.required_height = lane_config_args['histo']['required_height']
         self.n_bins = lane_config_args['histo']['n_bins']
         # Sliding window
+        self.search_region = lane_config_args['sliding_window']['search_region']
         self.n_windows = lane_config_args['sliding_window']['n_windows']
         self.margin = lane_config_args['sliding_window']['margin']
         self.recenter_minpix = lane_config_args['sliding_window']['recenter_minpix']
+        # Fitting
+        self.sampling_ratio = lane_config_args['fitting']['sampling_ratio']
 
     def find_marking_points(self, lane_image):
         """
@@ -229,7 +233,7 @@ class LaneMarkingDetector(object):
         The peaks in histogram is then used as starting points for sliding window search. 
         """
         # Only the lower third image is used since we focus on the starting points
-        histogram, _ = np.histogram(edge_image[int(edge_image.shape[0]/3):, :].nonzero()[
+        histogram, _ = np.histogram(edge_image[int(edge_image.shape[0]*self.histo_region):, :].nonzero()[
                                     1], bins=self.n_bins, range=(0, self.warped_size[0]))
         bin_width = edge_image.shape[1] / self.n_bins
 
@@ -273,7 +277,7 @@ class LaneMarkingDetector(object):
             # Create an output image to draw on and  visualize the result
             debug_img = edge_image.copy()
         # Set height of windows
-        window_height = np.int(edge_image.shape[0]/self.n_windows*2/3)
+        window_height = np.int(edge_image.shape[0]/self.n_windows*self.search_region)
 
         # Identify the x and y positions of all nonzero pixels in the image
         nonzero = edge_image.nonzero()

@@ -11,13 +11,26 @@ lane:
   histo:
     # Minimum height to consider as a peak
     required_height: 400
+    # Ratio of the image height that takes part in histogram calculation
+    # e.g. 0.5 means only the region from bottom to half height of the image are searched
+    # Since histogram is for finding starting points for sliding window, it should focus on on the lower part of image
+    histo_region: 0.4
     # Bin number
     n_bins: 40
 
   sliding_window:
     # Number of sliding windows for lane pixel searching
     n_windows: 10
+    # Ratio of the image height that takes part in sliding window search
+    # e.g. 0.5 means only the region from bottom to half height of the image are searched
+    # The higher the ratio, the farther lane can be detected, but also more error prone
+    search_region: 0.5
     # Margin (half width) of sliding window
     margin: 20
     # Minimum number of detected pixels in a window to recenter the next window
-    recenter_minpix: 20
+    recenter_minpix: 35
+
+  fitting:
+    # Ratio of number of samples to number of total points
+    # e.g. 0.1 means taking 100 samples from 1000 points
+    sampling_ratio: 0.1
