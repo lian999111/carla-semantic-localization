@@ -18,7 +18,7 @@ def image_side_by_side(leftImg, leftTitle, rightImg, rightTitle, figsize=(20, 10
     """
     Display the images `leftImg` and `rightImg` side by side with image titles.
     """
-    fig, axes = plt.subplots(ncols=2, figsize=figsize)
+    _, axes = plt.subplots(ncols=2, figsize=figsize)
     if leftCmap == None:
         axes[0].imshow(leftImg)
     else:
@@ -139,7 +139,7 @@ class LaneMarkingDetector(object):
             right_coords = right_coords[:, 0::int(1/self.sampling_ratio)]
 
         # Rotate coordinates back to the original orientation if image was rotated
-        if rot_angle:
+        if rot_angle is not None:
             sin_minus_rot_angle = sin(-rot_angle)
             cos_minus_rot_angle = cos(-rot_angle)
             rotm = np.array([[cos_minus_rot_angle, -sin_minus_rot_angle],
