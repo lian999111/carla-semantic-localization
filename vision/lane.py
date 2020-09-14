@@ -55,6 +55,7 @@ class LaneMarkingDetector(object):
             valid_mask: Numpy.array of booleans to mask out edge pixels caused by the border of the FOV.
             lane_config_args: Dict object storing algorithm related parameters.
         """
+
         # IPM related data
         self.ipm_tform = M  # ipm stands for inverse perspective mapping
         self.warped_size = warped_size
@@ -74,11 +75,15 @@ class LaneMarkingDetector(object):
         # Sliding window
         self._search_region = lane_config_args['sliding_window']['search_region']
         self._n_windows = lane_config_args['sliding_window']['n_windows']
-        self._margin = lane_config_args['sliding_window']['_margin']
+        self._margin = lane_config_args['sliding_window']['margin']
         self._recenter_minpix = lane_config_args['sliding_window']['recenter_minpix']
         # Fitting
         self._sampling_ratio = lane_config_args['fitting']['sampling_ratio']
-        self._order = lane_config_args['fitting']['_order']
+        self._order = lane_config_args['fitting']['order']
+
+        # Lane marking data
+        self.left_coeffs = [None] * (self._order + 1)
+        self.right_coeffs = [None] * (self._order + 1)
 
     def find_marking_points(self, lane_image):
         """
