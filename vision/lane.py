@@ -80,13 +80,14 @@ class LaneMarkingDetector(object):
 
     def find_marking_points(self, lane_image):
         """
-        Find marking points in the lane semantic image.
+        Find marking points using the lane semantic image.
 
         Input:
             lane_image: OpenCV image with supported data type (e.g. np.uint8). The image should have non-zero values only
             at lane-related pixels, which is easy to obtained from a semantic image.
         Output:
-            ...
+            left_coords_ego: x-y coordinates of detected left lane marking points in ego frame (z-up)
+            right_coords_ego: x-y coordinates of detected right lane marking points in ego frame (z-up)
         """
 
         # Get bird's eye view edge image
@@ -103,7 +104,7 @@ class LaneMarkingDetector(object):
 
         # When the heading angle difference between ego vehicle and lane is too high, using histogram to find
         # starting search points is prone to fail. This method uses Hough transform to find major lines. If the
-        # median angle of lines found is noticable, rotate the image around the center of image's lower bottom.
+        # median angle of lines found is noticable, rotate the image around the center of image's bottom.
         # After rotation, lane markings should be more vertical and thus histogram is less likely to fail.
         rot_image, rot_angle = self._try_rotate_image(dilated_edge_image)
 
@@ -198,7 +199,14 @@ class LaneMarkingDetector(object):
         Try rotating edge image if the major lines in the lower half of edge image are tilted.
 
         This method uses Hough transform to find major lines. If the median angle of lines found 
-        is noticable, rotate the image around the center of image's lower bottom to make it more vertical.
+        is noticable, rotate the image around the center of image's  bottom to make it more vertical.
+
+        Input:
+            edge_image: Edge image in the bird's eye view.
+
+        Output:
+            rot_image: Image after rotation. It is the same as input edge image if no rotation is needed.
+            rot_angle: Rotation angle in rad. It is None if no rotation is needed.
         """
 
         lines = cv2.HoughLines(
@@ -288,49 +296,19 @@ class LaneMarkingDetector(object):
         left_idc = []
         right_idc = []
 
-        # TODO: remove this?
-        # # Local function to set initial window's y position
-        # def set_init_window_y(window_x):
-        #     img_height = edge_image.shape[0]
-        #     img_width = edge_image.shape[1]
-        #     window_y = img_height
-        #     if window_x < invalid_tri_w:
-        #         window_y = int(
-        #             img_height + (window_x / invalid_tri_w - 1) * invalid_tri_h)
-        #     elif window_x > img_width - invalid_tri_w:
-        #         window_y = int(img_height + ((img_width - window_x) /
-        #                                     invalid_tri_w - 1) * invalid_tri_h)
-        #     return window_y
-
         shift = 0
 
         if left_base:
             # Initial windows' positions
             leftx_curr = int(left_base)
-
-            # TODO: remove this?
-            # if invalid_tri_w:
-            #     lefty_curr = set_init_window_y(leftx_curr)
-            # else:
-            #     lefty_curr = edge_image.shape[0]
             lefty_curr = edge_image.shape[0]
-
-            # rightx_shift = 0
             search_left = True
         else:
             search_left = False
 
         if right_base:
             rightx_curr = int(right_base)
-
-            # TODO: remove this?
-            # if invalid_tri_w:
-            #     righty_curr = set_init_window_y(rightx_curr)
-            # else:
-            #     righty_curr = edge_image.shape[0]
             righty_curr = edge_image.shape[0]
-
-            # leftx_shift = 0
             search_right = True
         else:
             search_right = False
@@ -347,13 +325,6 @@ class LaneMarkingDetector(object):
                 good_left_idc = ((nonzeroy >= win_yleft_low) & (nonzeroy < win_yleft_high) &
                                  (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0]
 
-                # TODO: Remove this?
-                # if good_left_idc.size == 0 or min(nonzeroy[good_left_idc]) > (win_yleft_low + 0.1*window_height):
-                #     win_xleft_low = int(leftx_curr - scale * self.margin)
-                #     win_xleft_high = int(leftx_curr + scale * self.margin)
-                #     good_left_idc = ((nonzeroy >= win_yleft_low) & (nonzeroy < win_yleft_high) &
-                #                     (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0]
-
                 if __debug__:
                     cv2.rectangle(debug_img, (win_xleft_low, win_yleft_low),
                                   (win_xleft_high, win_yleft_high), 1, 2)
@@ -367,9 +338,6 @@ class LaneMarkingDetector(object):
                 else:
                     leftx_curr += shift
 
-                if leftx_curr > edge_image.shape[1] - self.margin or leftx_curr < 0:
-                    search_left = False
-
             # Right markings
             if search_right:
                 # Vertical
@@ -381,12 +349,6 @@ class LaneMarkingDetector(object):
                 good_right_idc = ((nonzeroy >= win_yright_low) & (nonzeroy < win_yright_high) &
                                   (nonzerox >= win_xright_low) & (nonzerox < win_xright_high)).nonzero()[0]
 
-                # TODO: Remove this?
-                # if good_right_idc.size == 0 or min(nonzeroy[good_right_idc]) > (win_yright_low + 0.1*window_height):
-                #     win_xright_low = int(rightx_curr - scale * self.margin)
-                #     win_xright_high = int(rightx_curr + scale * self.margin)
-                #     good_right_idc = ((nonzeroy >= win_yright_low) & (nonzeroy < win_yright_high) &
-                #                     (nonzerox >= win_xright_low) & (nonzerox < win_xright_high)).nonzero()[0]
                 if __debug__:
                     cv2.rectangle(debug_img, (win_xright_low, win_yright_low),
                                   (win_xright_high, win_yright_high), 1, 2)
@@ -439,10 +401,12 @@ def main():
         yaw_rates = pickle.load(yaw_rate_file)
     with open(os.path.join(mydir, 'in_junction'), 'rb') as in_junction_file:
         in_junction = pickle.load(in_junction_file)
-    
-    lane_detector = LaneMarkingDetector(M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, vision_config_args['lane'])
-    lane_detector.find_marking_points(images[200].astype(np.uint8))
 
+    lane_detector = LaneMarkingDetector(
+        M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, vision_config_args['lane'])
+    left_coords, right_coords = lane_detector.find_marking_points(images[250].astype(np.uint8))
+    if __debug__:
+        plt.show()
 
 if __name__ == "__main__":
     main()
