@@ -10,8 +10,7 @@ import glob
 from scipy.signal import find_peaks
 from math import sin, cos
 
-if __debug__:
-    import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 
 def image_side_by_side(leftImg, leftTitle, rightImg, rightTitle, figsize=(20, 10), leftCmap=None, rightCmap=None):
@@ -81,11 +80,35 @@ class LaneMarkingDetector(object):
         self._recenter_minpix = lane_config_args['sliding_window']['recenter_minpix']
         # Fitting
         self._sampling_ratio = lane_config_args['fitting']['sampling_ratio']
-        self._order = lane_config_args['fitting']['order']
+        self.order = lane_config_args['fitting']['order']
 
         # Lane marking data
-        self.left_coeffs = [None] * (self._order + 1)
-        self.right_coeffs = [None] * (self._order + 1)
+        self.left_coeffs = None
+        self.right_coeffs = None
+
+    def update_lane_coeffs(self, lane_image):
+        """ 
+        Update lane marking coefficients of both sides.
+
+        If lane markings were not detected before, it uses sliding window to detect lane markings.
+        TODO: If lane markings were already detected, use Kalman filter to update or Kinematic detection. 
+
+        Input:
+            lane_image: OpenCV image with supported data type (e.g. np.uint8). The image should have non-zero values only
+            at lane-related pixels, which is easy to obtained from a semantic image.
+        """
+        # TODO: make it more robutst
+        left_coords, right_coords = self.find_marking_points(lane_image)
+
+        if left_coords.size != 0:
+            self.left_coeffs = np.polyfit(left_coords[0, :], left_coords[1, :], self.order)
+        else:
+            self.left_coeffs = None
+
+        if right_coords.size != 0:
+            self.right_coeffs = np.polyfit(right_coords[0, :], right_coords[1, :],  self.order)
+        else:
+            self.right_coeffs = None
 
     def find_marking_points(self, lane_image):
         """
@@ -430,11 +453,43 @@ def main():
     with open(os.path.join(mydir, 'in_junction'), 'rb') as in_junction_file:
         in_junction = pickle.load(in_junction_file)
 
+    image_idx = 90
+    lane_image = images[image_idx].astype(np.uint8)
+
     lane_detector = LaneMarkingDetector(
         M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, vision_config_args['lane'])
-    left_coords, right_coords = lane_detector.find_marking_points(images[250].astype(np.uint8))
+
+    lane_detector.update_lane_coeffs(lane_image)
+
     if __debug__:
         plt.show()
+    
+    # Verify lane marking results
+    edge_img = lane_detector._get_bev_edge(lane_image)
+    _, ax = plt.subplots(1, 1)
+    ax.imshow(edge_img)
+    x = np.linspace(0, 12, 50)
+    if lane_detector.left_coeffs is not None:
+        coeffs = lane_detector.left_coeffs
+        y = np.zeros(x.shape)
+        for idx, coeff in enumerate(reversed(coeffs)):
+            y += coeff * x**idx
+
+        y_img = edge_img.shape[0] - x * lane_detector.px_per_meters_x
+        x_img = edge_img.shape[1]//2 - y * lane_detector.px_per_meters_y
+        ax.plot(x_img, y_img)
+
+    if lane_detector.right_coeffs is not None:
+        coeffs = lane_detector.right_coeffs
+        y = np.zeros(x.shape)
+        for idx, coeff in enumerate(reversed(coeffs)):
+            y += coeff * x**idx
+        
+        y_img = edge_img.shape[0] - x * lane_detector.px_per_meters_x
+        x_img = edge_img.shape[1]//2 - y * lane_detector.px_per_meters_y
+        ax.plot(x_img, y_img)
+    plt.show()
+
 
 if __name__ == "__main__":
     main()
