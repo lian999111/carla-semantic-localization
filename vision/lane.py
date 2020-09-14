@@ -207,19 +207,6 @@ class LaneMarkingDetector(object):
 
         return left_coords_ego, right_coords_ego
 
-    def fit_lane_marking(self, coords, _order=3):
-        """ 
-        Fit a polynomial curve to the coordinates.
-
-        Input:
-            coords: Numpy.array of x-y coordinates (2-by-N).
-        Output:
-            coeffs: coefficients of the result polynomial curve.
-        """
-        coeffs = np.polyfit(coords[0, :], coords[1, :], self._order)
-        return coeffs
-
-
     def _get_bev_edge(self, lane_image):
         """ 
         Get edge image in the bird's eye view.
