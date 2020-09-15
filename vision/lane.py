@@ -209,12 +209,18 @@ class LaneMarkingDetector(object):
         right_coords_ego[1, :] = right_coords_ego[1, :] / self.px_per_meters_y
 
         if __debug__:
+            left_pts_in_image = np.zeros(left_coords.shape)
+            right_pts_in_image = np.zeros(right_coords.shape)
+            left_pts_in_image[0] = self.warped_size[0]//2 - left_coords[1]
+            left_pts_in_image[1] = self.warped_size[1] - left_coords[0]
+            right_pts_in_image[0] = self.warped_size[0]//2 - right_coords[1]
+            right_pts_in_image[1] = self.warped_size[1] - right_coords[0]
+
             _, ax = plt.subplots(ncols=2)
-            ax[0].plot(-left_coords[1], left_coords[0], '.')
-            ax[0].plot(-right_coords[1], right_coords[0], '.')
+            ax[0].imshow(dilated_edge_image)
+            ax[0].plot(left_pts_in_image[0], left_pts_in_image[1], '.')
+            ax[0].plot(right_pts_in_image[0], right_pts_in_image[1], '.')
             ax[0].set_aspect('equal')
-            ax[0].set_xlim(-self.warped_size[0]/2, self.warped_size[0]/2)
-            ax[0].set_ylim(0, self.warped_size[1])
             ax[0].set_title('Detected Marking Pixels')
 
             ax[1].plot(-left_coords_ego[1], left_coords_ego[0], '.')
@@ -658,5 +664,5 @@ def single(folder_name, image_idx):
 
 
 if __name__ == "__main__":
-    # single('small_roundabout', 315)
-    loop('highway_lane_change')
+    single('small_roundabout', 250)
+    # loop('highway_lane_change')
