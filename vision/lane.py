@@ -107,7 +107,7 @@ class LaneMarkingDetector(object):
         Input:
             lane_image: OpenCV image with supported data type (e.g. np.uint8). The image should have non-zero values only
                         at lane-related pixels, which is easy to obtained from a semantic image.
-            yaw_rate: Yaw rate of the ego vehicle.
+            yaw_rate: Yaw rate of the ego vehicle. (in rad/s)
         """
         # TODO: make it more robutst
         left_coords, right_coords = self.find_marking_points(lane_image, yaw_rate)
@@ -130,7 +130,8 @@ class LaneMarkingDetector(object):
 
         Input:
             lane_image: OpenCV image with supported data type (e.g. np.uint8). The image should have non-zero values only
-            at lane-related pixels, which is easy to obtained from a semantic image.
+                        at lane-related pixels, which is easy to obtained from a semantic image.
+            yaw_rate: Yaw rate of the ego vehicle. (in rad/s)
         Output:
             left_coords_ego: x-y coordinates of detected left lane marking points in ego frame (z-up)
             right_coords_ego: x-y coordinates of detected right lane marking points in ego frame (z-up)
@@ -296,11 +297,11 @@ class LaneMarkingDetector(object):
         Try rotating edge image if the major lines in the lower half of edge image are tilted.
 
         This method uses Hough transform to find major lines. If the median angle of lines found 
-        is noticable, rotate the image around the center of image's  bottom to make it more vertical.
+        is noticable, rotate the image around the center of image's  bottom to make markings more vertical.
 
         Input:
             edge_image: Edge image in the bird's eye view.
-            yaw_rate: Yaw rate of the ego vehicle.
+            yaw_rate: Yaw rate of the ego vehicle. (in rad/s)
         Output:
             rot_image: Image after rotation. It is the same as input edge image if no rotation is needed.
             rot_angle: Rotation angle in rad. It is None if no rotation is needed.
