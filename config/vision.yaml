@@ -1,29 +1,48 @@
 ## Parameters for lane detection
 lane:
+  arrow_removal:
+    # Minimum bounding box area
+    min_box_area: 900
+    # Maximum bounding box area
+    max_box_area: 10000
+    # Minimum witdh to height ratio
+    min_w2h_ratio: 0.15
+    # Maximum witdh to height ratio
+    max_w2h_ratio: 6.66
+    # Minimum occupation ratio (valid #pixels / bounding box area)
+    min_occup_ratio: 0.25
+    # Maximum occupation ratio
+    max_occup_ratio: 0.7
+
   dilation:
     # Number of dilation operation iteration for edge image
     n_iters: 1
 
   rotation:
+    # Scale to increase  horizontal image region considered based on yaw rate
+    yaw_rate_scale: 120
     # Ratio of the image height within which Hough lines are found
     # e.g. 0.5 means only the region from bottom to half height of the image are considered
-    hough_region: 0.5
+    hough_region_h: 0.5
+    # Ratio of the image width within which Hough lines are found
+    # It starts from the center
+    hough_region_w: 0.45
     # Threshold for HoughLines
-    hough_thres: 300
+    hough_thres: 250
     # Threshold to decide whether to rotate image to make lane markings more vertical
     # The algorithm uses Hough transform to find lines in the images
     # The magnitude of the mdeian angle of the found lines are compared with this threshold
-    rot_thres: 3  # (deg)
+    rot_thres: 1  # (deg)
 
   histo:
     # Minimum height to consider as a peak
-    required_height: 400
+    required_height: 150
     # Ratio of the image height that takes part in histogram calculation
     # e.g. 0.5 means only the region from bottom to half height of the image are searched
     # Since histogram is for finding starting points for sliding window, it should focus on on the lower part of image
     histo_region: 0.5
     # Bin number
-    n_bins: 40
+    n_bins: 100
 
   sliding_window:
     # Number of sliding windows for lane pixel searching
@@ -33,13 +52,24 @@ lane:
     # The higher the ratio, the farther lane can be detected, but also more error prone
     search_region: 0.6
     # Margin (half width) of sliding window
-    margin: 20
+    margin: 25
     # Minimum number of detected pixels in a window to recenter the next window
-    recenter_minpix: 35
+    recenter_minpix: 20
+    # The following 2 parameters are for detecting if the lane marking is spliting or merging in a window
+    # First the max and min x are found. If the difference between max_x and min_x are large and the corresponding y values are close,
+    # it is likely to be an Y shape. A horizontal line also fulfill this criterion, but it is rarely to see that during driving.
+    # Minimum required gap between min and max x-coordiantes 
+    # If the gap is beyond this threshold, it is likely the marking is spliting or merging
+    # y-coordinates should then be checked using recenter_y_gap
+    recenter_x_gap: 20
+    # Minimum required gap between y-coordiantes corresponding to the max and min x-coordinates
+    # If the gap is below this threshold, it is likely the marking is spliting or merging
+    # The the recenter should rely on the other side
+    recenter_y_gap: 10
 
   fitting:
     # Ratio of number of samples to number of total points
     # e.g. 0.1 means taking 100 samples from 1000 points
-    sampling_ratio: 0.1
+    sampling_ratio: 1.0
     # Order of polynomial
-    order: 3
+    order: 2
