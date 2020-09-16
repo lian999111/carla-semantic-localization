@@ -494,6 +494,8 @@ def main():
         description='CARLA Roaming Data Collector')
     argparser.add_argument('config', type=argparse.FileType(
         'r'), help='configuration yaml file for carla env setup')
+    argparser.add_argument('-r', '--record', default=False,
+                           action='store_true', help='record collected data')
     args = argparser.parse_args()
 
     # Read configurations from yaml file to config_args
@@ -564,20 +566,21 @@ def main():
             # Allow carla engine to run freely so it doesn't just hang there
             world.allow_free_run()
 
-        mydir = os.path.join(os.getcwd(), 'recordings',
-                             datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
-        os.makedirs(mydir)
+        if args.record:  
+            mydir = os.path.join(os.getcwd(), 'recordings',
+                                datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+            os.makedirs(mydir)
 
-        with open(os.path.join(mydir, 'lane_images'), 'wb') as image_file:
-            pickle.dump(lane_images, image_file)
-        with open(os.path.join(mydir, 'pole_images'), 'wb') as image_file:
-            pickle.dump(pole_images, image_file)
-        with open(os.path.join(mydir, 'vx'), 'wb') as vx_file:
-            pickle.dump(vx, vx_file)
-        with open(os.path.join(mydir, 'yaw_rate'), 'wb') as yaw_rate_file:
-            pickle.dump(yaw_rate, yaw_rate_file)
-        with open(os.path.join(mydir, 'in_junction'), 'wb') as in_junction_file:
-            pickle.dump(in_junction, in_junction_file)
+            with open(os.path.join(mydir, 'lane_images'), 'wb') as image_file:
+                pickle.dump(lane_images, image_file)
+            with open(os.path.join(mydir, 'pole_images'), 'wb') as image_file:
+                pickle.dump(pole_images, image_file)
+            with open(os.path.join(mydir, 'vx'), 'wb') as vx_file:
+                pickle.dump(vx, vx_file)
+            with open(os.path.join(mydir, 'yaw_rate'), 'wb') as yaw_rate_file:
+                pickle.dump(yaw_rate, yaw_rate_file)
+            with open(os.path.join(mydir, 'in_junction'), 'wb') as in_junction_file:
+                pickle.dump(in_junction, in_junction_file)
 
 
 # %%
