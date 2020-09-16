@@ -41,8 +41,8 @@ ego_veh:
   # Carla's Mustang:
   #   CG to rear axle: 1.4
   #   CG to front bumper: 2.4   
-  raxle_to_cg: 1.4
-  raxle_to_fbumper: 3.8    # (m) Distance from rear axle to front bumper
+  raxle_to_cg: 1.4         # (m) Distance from rear axle to center of gravity on the x-y plane
+  raxle_to_fbumper: 3.8    # (m) Distance from rear axle to front bumper on the x-y plane
 
 
 ## Sensors
@@ -87,7 +87,7 @@ sensor:
 ## Ground truth extraction
 gt:
   lane:
-    radius: 9      # Search radius for lane markings
+    radius: 9      # (m) Search radius for lane markings
 
 ## Setups
 sim_duration: 600  # sec
