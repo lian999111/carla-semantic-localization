@@ -87,8 +87,8 @@ class LaneMarkingDetector(object):
         self._n_windows = lane_config_args['sliding_window']['n_windows']
         self._margin = lane_config_args['sliding_window']['margin']
         self._recenter_minpix = lane_config_args['sliding_window']['recenter_minpix']
-        self._recenter_x_gap = lane_config_args['sliding_window']['recenter_x_gap']
-        self._recenter_y_gap = lane_config_args['sliding_window']['recenter_y_gap']
+        self._recenter_h_gap = lane_config_args['sliding_window']['recenter_h_gap']
+        self._recenter_v_gap = lane_config_args['sliding_window']['recenter_v_gap']
         # Fitting
         self._sampling_ratio = lane_config_args['fitting']['sampling_ratio']
         self.order = lane_config_args['fitting']['order']
@@ -157,12 +157,12 @@ class LaneMarkingDetector(object):
         # Sliding window approach
         # When the heading angle difference between ego vehicle and lane is too high, using histogram to find
         # starting search points is prone to fail. This method uses Hough transform to find major lines. If the
-        # median angle of lines found is noticable, rotate the image around the center of image's bottom.
+        # median angle of lines found is noticable, rotate the edge pixels around the center of image's bottom.
         # After rotation, lane markings should be more vertical and thus histogram is less likely to fail.
-        rot_image, rot_angle = self._try_rotate_image(dilated_edge_image, yaw_rate)
-
+        # The resulting coordinates are aligned with ego frame (x forwards, y leftwards, origin at the center of image bottom)
+        edge_coords_ego, rot_angle = self._try_rotate_edge_px(dilated_edge_image, yaw_rate)
         # Get histogram peaks and corresponding bases for sliding window search
-        histo, bin_width = self._get_histo(rot_image)
+        histo, bin_width = self._get_histo(edge_coords_ego)
 
         if __debug__:
             plt.figure()
@@ -170,28 +170,25 @@ class LaneMarkingDetector(object):
             plt.show(block=False)
 
         left_base_bin, right_base_bin = self._find_histo_peaks(histo)
-        left_base = left_base_bin*bin_width + bin_width/2 if left_base_bin else None
-        right_base = right_base_bin*bin_width + bin_width/2 if right_base_bin else None
+        # Recover real base positions from bin numbers
+        left_base = (left_base_bin-self._n_bins/2)*bin_width + bin_width/2 if left_base_bin else None
+        right_base = (right_base_bin-self._n_bins/2)*bin_width + bin_width/2 if right_base_bin else None
 
         # Sliding window search
-        left_idc, right_idc, nonzerox, nonzeroy = self._sliding_window_search(
-            rot_image, left_base, right_base)
+        left_idc, right_idc = self._sliding_window_search(edge_coords_ego, left_base, right_base)
 
-        # Recenter coordinates at the center of the image's bottom
-        # Now the coordinates are aligned with ego frame (x forwards, y leftwards)
-        left_coords = np.array([edge_image.shape[0] - nonzeroy[left_idc],
-                                edge_image.shape[1]//2 - nonzerox[left_idc]])
-
-        right_coords = np.array([edge_image.shape[0] - nonzeroy[right_idc],
-                                 edge_image.shape[1]//2 - nonzerox[right_idc]])
+        # Get lane marking coordinates
+        left_coords = edge_coords_ego[:, left_idc]
+        right_coords = edge_coords_ego[:, right_idc]
 
         # Down sampling to reduce number of points to process
-        if left_coords.size != 0:
-            left_coords = left_coords[:, 0::int(1/self._sampling_ratio)]
-        if right_coords.size != 0:
-            right_coords = right_coords[:, 0::int(1/self._sampling_ratio)]
+        if self._sampling_ratio < 1.0:
+            if left_coords.size != 0:
+                left_coords = left_coords[:, 0::int(1/self._sampling_ratio)]
+            if right_coords.size != 0:
+                right_coords = right_coords[:, 0::int(1/self._sampling_ratio)]
 
-        # Rotate coordinates back to the original orientation if image was rotated
+        # Rotate coordinates back to the original orientation if pixels were rotated
         if rot_angle is not None:
             sin_minus_rot_angle = sin(-rot_angle)
             cos_minus_rot_angle = cos(-rot_angle)
@@ -228,7 +225,7 @@ class LaneMarkingDetector(object):
             ax[1].set_aspect('equal')
             ax[1].set_xlim(-self.warped_size[0]/2 / self.px_per_meters_y,
                            self.warped_size[0]/2 / self.px_per_meters_y)
-            ax[1].set_ylim(0, self.warped_size[1] / self.px_per_meters_x)
+            ax[1].set_ylim(-2, self.warped_size[1] / self.px_per_meters_x)
             ax[1].set_title('Detected Marking Points in Ego Frame')
             plt.show(block=False)
 
@@ -281,8 +278,8 @@ class LaneMarkingDetector(object):
 
         Input:
             bev_image: OpenCV image in bird's eye view with supported data type (e.g. np.uint8). 
-                        The image should have non-zero values only at lane-related pixels, 
-                        which is easy to obtained from a semantic image.
+                       The image should have non-zero values only at lane-related pixels, 
+                       which is easy to obtained from a semantic image.
         Output:
             Edge image in the bird's eye view.
         """
@@ -298,21 +295,34 @@ class LaneMarkingDetector(object):
 
         return edge_image
 
-    def _try_rotate_image(self, edge_image, yaw_rate):
+    def _try_rotate_edge_px(self, edge_image, yaw_rate):
         """
-        Try rotating edge image if the major lines in the lower half of edge image are tilted.
+        Try rotating edge pixels if the major lines in the lower half of edge image are tilted.
 
-        This method uses Hough transform to find major lines. If the median angle of lines found 
+        This method uses Hough transform to find major lines. If the median angle of the lines found 
         is noticable, rotate the image around the center of image's  bottom to make markings more vertical.
+        The returned edge coordinates are transformed to align with the ego vehicle's frame:
+            - Origin at the center of the image bottom. X-axis points up. Y-axis points left.
+        It is thus not in the computer vision's convention anymore.
 
         Input:
             edge_image: Edge image in the bird's eye view.
             yaw_rate: Yaw rate of the ego vehicle. (in rad/s)
         Output:
-            rot_image: Image after rotation. It is the same as input edge image if no rotation is needed.
+            edge_coords_ego: Coordinates of edge pixels aligned with the ego frame (x-up, y-left).
+                             Coordinates are rotated if needed. 
+                             The caller can tell if it is the case by the value of rot_angle.
             rot_angle: Rotation angle in rad. It is None if no rotation is needed.
         """
+        # Image coordinates of nonzero pixels (2-by-N)
+        nonzero_coords_img = np.array([edge_image.nonzero()[0], edge_image.nonzero()[1]])
 
+        # Get coordinates of edge pixels aligned with ego vehicle's frame (x-up, y-left)
+        edge_coords_ego = np.zeros(nonzero_coords_img.shape)
+        edge_coords_ego[0] = self.warped_size[1] - nonzero_coords_img[0]     # x (positive upwards)
+        edge_coords_ego[1] = self.warped_size[0]//2 - nonzero_coords_img[1]  # y (positive leftwards)
+
+        # Set the considered region of image when performing Hough transform
         half_width = edge_image.shape[1] // 2
         left_idx = int(half_width - half_width * self._hough_region_w)
         right_idx = int(half_width + half_width * self._hough_region_w)
@@ -327,7 +337,7 @@ class LaneMarkingDetector(object):
         lines = cv2.HoughLines(
             edge_image[int(edge_image.shape[0]*(1-self._hough_region_h)):, left_idx:right_idx], 2, np.pi/180*2, self._hough_thres)
 
-        # When hough transform can't find lines in the lower half of image,
+        # TODO: When hough transform can't find lines in the lower half of image,
         # it's an indication that there is no good lines to detect
         if lines is not None:
             # Convert the angle range from (0, pi) to (-pi/2, pi/2)
@@ -336,28 +346,41 @@ class LaneMarkingDetector(object):
         else:
             rot_angle = None
 
-        # Rotate image when angle magnitude larger than threshold
-        if rot_angle and abs(rot_angle) > self._rot_thres * np.pi / 180:
-            rot_center = (self.warped_size[0]//2, self.warped_size[1])
-            M_rot = cv2.getRotationMatrix2D(
-                rot_center, rot_angle * 180 / np.pi, scale=1)
-            rot_image = cv2.warpAffine(edge_image, M_rot, self.warped_size)
+        # Rotate edge pixels when angle magnitude larger than threshold
+        if rot_angle and abs(rot_angle) > self._rot_thres * np.pi / 180:            
+            # Rotation matrix
+            sin_rot_angle = sin(rot_angle)
+            cos_rot_angle = cos(rot_angle)
+            rotm = np.array([[cos_rot_angle, -sin_rot_angle],
+                             [sin_rot_angle, cos_rot_angle]])
+
+            edge_coords_ego = rotm @ edge_coords_ego
         else:
-            rot_image = edge_image
             rot_angle = None
 
-        return rot_image, rot_angle
+        return edge_coords_ego, rot_angle
 
-    def _get_histo(self, edge_image):
+    def _get_histo(self, edge_coords):
         """ 
-        Get histogram of edge image.
+        Get histogram of edge pixels.
 
-        The peaks in histogram is then used as starting points for sliding window search. 
+        The peaks in histogram is then used as starting points for sliding window search.
+        The warped image size is used to determine parameters although the input is not the image.
+        Since the input coordinates are obtained from the warped image, it is reasonable.
+        
+        Input:
+            edge_coords: 2-by-N Numpy.array of edge pixel coordinates aligned with ego vehicle's frame (x-up, y-left)
+        Output:
+            histogram: Histogram of x values of input edge_coords
+            bin_width: Bin width in pixels
         """
-        # Only the lower third image is used since we focus on the starting points
-        histogram, _ = np.histogram(edge_image[int(edge_image.shape[0]*(1-self._histo_region)):, :].nonzero()[
-                                    1], bins=self._n_bins, range=(0, self.warped_size[0]))
-        bin_width = edge_image.shape[1] / self._n_bins
+        # Get the upper limit of the image region
+        upper = self._histo_region * self.warped_size[0]
+
+        histogram, _ = np.histogram(edge_coords[:, edge_coords[0] < upper], 
+                                    bins=self._n_bins, 
+                                    range=(-self.warped_size[0]//2, self.warped_size[0]//2))
+        bin_width = self.warped_size[0] / self._n_bins
 
         return histogram, bin_width
 
@@ -381,49 +404,45 @@ class LaneMarkingDetector(object):
 
         return left_base_bin, right_base_bin
 
-    def _sliding_window_search(self, edge_image, left_base, right_base):
+    def _sliding_window_search(self, edge_coords_ego, left_base, right_base):
         """ 
         Find lane marking edge pixels using sliding window. 
 
+        Although it processes just the edge pixel coordinates, the size of the warped image is used to determine
+        the window size. Since the edge coordinates are obtained from the warped image, this should be reasonable.
+
         Input:
-            edge_image: Bird's eye image of edges.
+            edge_coords_ego: Coordinates of edge pixels aligned with ego vehilce's frame (x-up, y-left)
             left_base: Starting point to search for left marking.
             right_base: Starting point to search for right marking.
         Output:
             left_idc: Indices of possible left marking points.
             right_idc: Indices of possible right marking points.
-            nonzerox: X coordinates of non-zero pixels in the edge image.
-            nonzeroy: Y coordinates of non-zero pixels in the edge image.
         """
-        if __debug__:
-            # Create an output image to draw on and  visualize the result
-            debug_img = edge_image.copy()
-        # Set height of windows
-        window_height = np.int(
-            edge_image.shape[0]/self._n_windows*self._search_region)
+        # x and y are aligned with the ego frame in this method!!!
+        min_x = min(edge_coords_ego[0])
 
-        # Identify the x and y positions of all nonzero pixels in the image
-        nonzero = edge_image.nonzero()
-        nonzeroy = np.array(nonzero[0])
-        nonzerox = np.array(nonzero[1])
+        # Set height of windows
+        window_height = int(self.warped_size[1] * self._search_region / self._n_windows)
 
         # Create empty lists to store left and right lane pixel indices
         left_idc = []
         right_idc = []
 
+        # The shift to recenter the next window
         shift = 0
 
         if left_base:
             # Initial windows' positions
-            leftx_curr = int(left_base)
-            lefty_curr = edge_image.shape[0]
+            left_win_h_curr = int(left_base)
+            left_win_v_curr = min_x
             search_left = True
         else:
             search_left = False
 
         if right_base:
-            rightx_curr = int(right_base)
-            righty_curr = edge_image.shape[0]
+            right_win_h_curr = int(right_base)
+            right_win_v_curr = min_x
             search_right = True
         else:
             search_right = False
@@ -432,74 +451,73 @@ class LaneMarkingDetector(object):
             # Left markings
             if search_left:
                 # Vertical
-                win_yleft_low = lefty_curr - (win_count + 1) * window_height
-                win_yleft_high = lefty_curr - win_count * window_height
+                win_v_left_low = left_win_v_curr - win_count * window_height
+                win_v_left_high = left_win_v_curr + (win_count + 1) * window_height
                 # Horizontal
-                win_xleft_low = leftx_curr - self._margin
-                win_xleft_high = leftx_curr + self._margin
-                good_left_idc = ((nonzeroy >= win_yleft_low) & (nonzeroy < win_yleft_high) &
-                                 (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0]
-
-                if __debug__:
-                    cv2.rectangle(debug_img, (win_xleft_low, win_yleft_low),
-                                  (win_xleft_high, win_yleft_high), 1, 2)
-
-                if good_left_idc.size != 0:
-                    min_x_idx = np.argmin(nonzerox[good_left_idc])
-                    max_x_idx = np.argmax(nonzerox[good_left_idc])
-                    x1 = nonzerox[good_left_idc][min_x_idx]
-                    x2 = nonzerox[good_left_idc][max_x_idx]
-                    y1 = nonzeroy[good_left_idc][min_x_idx]
-                    y2 = nonzeroy[good_left_idc][max_x_idx]
+                win_h_left_low = left_win_h_curr - self._margin
+                win_h_left_high = left_win_h_curr + self._margin
+                good_left_idc = ((edge_coords_ego[0] >= win_v_left_low) & (edge_coords_ego[0] < win_v_left_high) &
+                                 (edge_coords_ego[1] >= win_h_left_low) & (edge_coords_ego[1] < win_h_left_high)).nonzero()[0]
 
                 left_idc += list(good_left_idc)
-                # Recenter next window if enough points found in current window
-                if (len(good_left_idc) > self._recenter_minpix and (abs(x1 - x2) < self._recenter_x_gap or abs(y1 - y2) > self._recenter_y_gap)):
-                    newx = np.int(np.mean(nonzerox[good_left_idc]))
-                    shift = newx - leftx_curr
-                    leftx_curr = newx
+
+                # Find the points with max and min y values for split/merge detection
+                if good_left_idc.size != 0:
+                    min_y_idx = np.argmin(edge_coords_ego[1, good_left_idc])
+                    max_y_idx = np.argmax(edge_coords_ego[1, good_left_idc])
+                    x1 = edge_coords_ego[0, good_left_idc][min_y_idx]
+                    x2 = edge_coords_ego[0, good_left_idc][max_y_idx]
+                    y1 = edge_coords_ego[1, good_left_idc][min_y_idx]
+                    y2 = edge_coords_ego[1, good_left_idc][max_y_idx]
+                    not_split = abs(y1 - y2) < self._recenter_h_gap or abs(x1 - x2) > self._recenter_v_gap
+
+                # Recenter next window if enough points found in current window and no split/merge detected
+                if len(good_left_idc) > self._recenter_minpix and not_split:
+                    newx = np.int(np.mean(edge_coords_ego[1, good_left_idc]))
+                    shift = newx - left_win_h_curr
+                    left_win_h_curr = newx
                 else:
-                    leftx_curr += shift
+                    left_win_h_curr += shift
 
             # Right markings
             if search_right:
                 # Vertical
-                win_yright_low = righty_curr - (win_count + 1) * window_height
-                win_yright_high = righty_curr - win_count * window_height
+                win_v_right_low = right_win_v_curr - win_count * window_height
+                win_v_right_high = right_win_v_curr + (win_count + 1) * window_height
                 # Horizontal
-                win_xright_low = rightx_curr - self._margin
-                win_xright_high = rightx_curr + self._margin
-                good_right_idc = ((nonzeroy >= win_yright_low) & (nonzeroy < win_yright_high) &
-                                  (nonzerox >= win_xright_low) & (nonzerox < win_xright_high)).nonzero()[0]
+                win_h_right_low = right_win_h_curr - self._margin
+                win_h_right_high = right_win_h_curr + self._margin
 
-                if __debug__:
-                    cv2.rectangle(debug_img, (win_xright_low, win_yright_low),
-                                  (win_xright_high, win_yright_high), 1, 2)
-                if good_right_idc.size != 0:
-                    min_x_idx = np.argmin(nonzerox[good_right_idc])
-                    max_x_idx = np.argmax(nonzerox[good_right_idc])
-                    x1 = nonzerox[good_right_idc][min_x_idx]
-                    x2 = nonzerox[good_right_idc][max_x_idx]
-                    y1 = nonzeroy[good_right_idc][min_x_idx]
-                    y2 = nonzeroy[good_right_idc][max_x_idx]
+                good_right_idc = ((edge_coords_ego[0] >= win_v_right_low) & (edge_coords_ego[0] < win_v_right_high) &
+                                 (edge_coords_ego[1] >= win_h_right_low) & (edge_coords_ego[1] < win_h_right_high)).nonzero()[0]
 
                 right_idc += list(good_right_idc)
-                # Recenter next window if enough points found in current window
-                if (len(good_right_idc) > self._recenter_minpix and (abs(x1 - x2) < self._recenter_x_gap or abs(y1 - y2) > self._recenter_y_gap)):
-                    newx = np.int(np.mean(nonzerox[good_right_idc]))
-                    shift = newx - rightx_curr
-                    rightx_curr = newx
+
+                # Find the points with max and min y values for split/merge detection
+                if good_right_idc.size != 0:
+                    min_y_idx = np.argmin(edge_coords_ego[1, good_right_idc])
+                    max_y_idx = np.argmax(edge_coords_ego[1, good_right_idc])
+                    x1 = edge_coords_ego[0, good_right_idc][min_y_idx]
+                    x2 = edge_coords_ego[0, good_right_idc][max_y_idx]
+                    y1 = edge_coords_ego[1, good_right_idc][min_y_idx]
+                    y2 = edge_coords_ego[1, good_right_idc][max_y_idx]
+                    not_split = abs(y1 - y2) < self._recenter_h_gap or abs(x1 - x2) > self._recenter_v_gap
+
+                # Recenter next window if enough points found in current window and no split/merge detected
+                if len(good_right_idc) > self._recenter_minpix and not_split:
+                    newx = np.int(np.mean(edge_coords_ego[1, good_right_idc]))
+                    shift = newx - right_win_h_curr
+                    right_win_h_curr = newx
                 else:
-                    rightx_curr += shift
+                    right_win_h_curr += shift
 
-        if __debug__:
-            plt.figure()
-            plt.plot(nonzerox[left_idc], nonzeroy[left_idc], '.')
-            plt.plot(nonzerox[right_idc], nonzeroy[right_idc], '.')
-            plt.imshow(debug_img)
-            plt.show(block=False)
+        # if __debug__:
+        #     plt.figure()
+        #     plt.plot(-edge_coords_ego[1, left_idc], edge_coords_ego[0, left_idc], '.')
+        #     plt.plot(-edge_coords_ego[1, right_idc], edge_coords_ego[0, right_idc], '.')
+        #     plt.show(block=False)
 
-        return left_idc, right_idc, nonzerox, nonzeroy
+        return left_idc, right_idc
 
 
 def loop(folder_name):
@@ -630,39 +648,39 @@ def single(folder_name, image_idx):
     if __debug__:
         plt.show()
 
-    # Verify lane marking results
-    edge_image = lane_detector._get_bev_image(lane_image)
-    im.set_data(edge_image)
-    # im.set_clim(vmin=0, vmax=1.0)
+    # # Verify lane marking results
+    # edge_image = lane_detector._get_bev_image(lane_image)
+    # im.set_data(edge_image)
+    # # im.set_clim(vmin=0, vmax=1.0)
 
-    x = np.linspace(0, 12, 50)
-    if lane_detector.left_coeffs is not None:
-        coeffs = lane_detector.left_coeffs
-        y = np.zeros(x.shape)
-        for idx, coeff in enumerate(reversed(coeffs)):
-            y += coeff * x**idx
+    # x = np.linspace(0, 12, 50)
+    # if lane_detector.left_coeffs is not None:
+    #     coeffs = lane_detector.left_coeffs
+    #     y = np.zeros(x.shape)
+    #     for idx, coeff in enumerate(reversed(coeffs)):
+    #         y += coeff * x**idx
 
-        y_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
-        x_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
+    #     y_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
+    #     x_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
-        left_lane.set_data(x_img, y_img)
+    #     left_lane.set_data(x_img, y_img)
 
-    if lane_detector.right_coeffs is not None:
-        coeffs = lane_detector.right_coeffs
-        y = np.zeros(x.shape)
-        for idx, coeff in enumerate(reversed(coeffs)):
-            y += coeff * x**idx
+    # if lane_detector.right_coeffs is not None:
+    #     coeffs = lane_detector.right_coeffs
+    #     y = np.zeros(x.shape)
+    #     for idx, coeff in enumerate(reversed(coeffs)):
+    #         y += coeff * x**idx
 
-        y_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
-        x_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
+    #     y_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
+    #     x_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
-        right_lane.set_data(x_img, y_img)
+    #     right_lane.set_data(x_img, y_img)
 
-    ax.set_title(image_idx)
-    plt.show()
-    print(yaw_rates[image_idx])
+    # ax.set_title(image_idx)
+    # plt.show()
+    # print(yaw_rates[image_idx])
 
 
 if __name__ == "__main__":
-    single('small_roundabout', 250)
-    # loop('highway_lane_change')
+    # single('small_roundabout', 250)
+    loop('small_roundabout')
