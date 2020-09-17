@@ -134,6 +134,12 @@ class World(object):
         self.step_forward()
 
     def restart(self, config_args, spawn_point=None):
+        """
+        Start the simulation with the configuration arguments.
+
+        It spawn the actors including ego vehicle and sensors. If the ego vehicle exists already,
+        it respawn the vehicle either at the same location or at the designated location.
+        """
         # Set up carla engine using config
         settings = self.carla_world.get_settings()
         settings.no_rendering_mode = config_args['world']['no_rendering']
@@ -141,7 +147,7 @@ class World(object):
         settings.fixed_delta_seconds = config_args['world']['delta_seconds']
         self.carla_world.apply_settings(settings)
 
-        # Spawn the ego vehicle as a cool mustang
+        # Spawn a Mustang as the ego vehicle (not stolen from John Wick, don't panic)
         ego_veh_bp = self.carla_world.get_blueprint_library().find('vehicle.mustang.mustang')
 
         if self.ego_veh:
@@ -158,7 +164,7 @@ class World(object):
             self.ego_veh = self.carla_world.try_spawn_actor(
                 ego_veh_bp, spawn_point)
             if self.ego_veh is None:
-                print('Chosen spawn transform failed.')
+                print('Chosen spawn point failed.')
 
         else:
             if spawn_point:
