@@ -81,7 +81,7 @@ sensor:
   semantic_image:
     # Semantic segmentation image
     pos_x: 0.6    # Installation position x with respect to center of gravity
-    pos_z: 1.5    # Installation position z with respect to center of gravity
+    pos_z: 1.5    # Installation position z with respect to center of gravity (+: up)
     res_h: '800'  # (px) horizontal resolution
     res_v: '600'  # (px) vertical resolution
     fov: '60'     # (deg)

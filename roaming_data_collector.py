@@ -49,6 +49,7 @@ class Geo2Location(object):
 
     This class is used by GNSS class to transform from carla.GeoLocation to carla.Location.
     This transform is not provided by Carla, but it can be solved using 4 chosen points.
+    Note that carla.Location is in the left-handed coordinate system.
     """
 
     def __init__(self, carla_map):
@@ -297,15 +298,20 @@ class IMU(CarlaSensor):
     """ 
     Class for IMU sensor. 
 
-    It uses ego vehicle's velocities to obtain virtual odometry internally.
-    While Carla uses z-down coordinate system, 
-    this wrapper class automatically convert to z-up coordinate system.
+    This class wraps the IMU sensor provided by Carla that gives accelerations and angular velocities in each axis.
+    To fulfill the need for also velocities, the actor's velocities are extracted. Experiments show that actor's dynamics
+    lag the IMU sensor by one simulation tick, so a compensation using the acceleration multiplied with the time step is added.
+
+        Important note:
+        Carla uses left-handed (x-forward, y-right, z-up) coordinate system for locations 
+        and right-handed z-down (airplane-like) coordinate system for rotations (roll-pitch-yaw).
+        This wrapper class automatically convert to right-handed z-up coordinate system to match our convention.
     """
 
     def __init__(self, parent_actor, imu_config_args):
         """ Constructor method. """
         super().__init__(parent_actor)
-        # In z-up coordinate system
+        # In right-handed z-up coordinate system
         # Accelerations
         self.accel_x = 0.0      # m/s^2
         self.accel_y = 0.0      # m/s^2
@@ -363,11 +369,11 @@ class IMU(CarlaSensor):
         # get() blocks the script so synchronization is guaranteed
         event = self._queue.get()
 
-        # Convert to z-up frame
+        # Convert to right-handed z-up frame
         self.timestamp = event.timestamp
         self.accel_x = event.accelerometer.x
         self.accel_y = - event.accelerometer.y
-        self.accel_z = - event.accelerometer.z
+        self.accel_z = event.accelerometer.z
         self.gyro_x = event.gyroscope.x
         self.gyro_y = - event.gyroscope.y
         self.gyro_z = - event.gyroscope.z
@@ -375,7 +381,7 @@ class IMU(CarlaSensor):
         # Velocities
         vel = self._parent.get_velocity()
         tform_w2e = CarlaW2ETform(self._parent.get_transform())
-        # Transform velocities from Carla world frame (z-down) to ego frame (z-up)
+        # Transform velocities from Carla world frame (left-handed) to ego frame (right-handed)
         ego_vel = tform_w2e.rotm_world_to_ego(vel)  # an np 3D vector
         self.vx = ego_vel[0] + self._delta_seconds * self.accel_x
         self.vy = ego_vel[1] + self._delta_seconds * self.accel_y
@@ -393,8 +399,9 @@ class GNSS(CarlaSensor):
     """ 
     Class for GNSS sensor.
 
-    Carla uses z-down coordinate system (left-handed) while we use z-up coordinate system (right-handed).
-    This class automatically converts the GNSS measurements into z-up coordinate system for x, y, z to match the convention.
+    Carla uses left-handed coordinate system  while we use right-handed coordinate system.
+    Ref: https://subscription.packtpub.com/book/game_development/9781784394905/1/ch01lvl1sec18/the-2d-and-3d-coordinate-systems
+    This class already converts the GNSS measurements into our right-handed z-up coordinate system.
     """
 
     def __init__(self, parent_actor, gnss_config_args):
@@ -445,10 +452,10 @@ class GNSS(CarlaSensor):
         location = self._geo2location.transform(
             carla.GeoLocation(self.lat, self.lon, self.alt))
 
-        # y and z must be flipped to match the z-up convention we use.
+        # y must be flipped to match the right-handed convention we use.
         self.x = location.x
         self.y = - location.y
-        self.z = - location.z
+        self.z = location.z
 
 # %% ================= Semantic Camera =================
 

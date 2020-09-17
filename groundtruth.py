@@ -42,22 +42,22 @@ class GroundTruthExtractor(object):
         self.ego_veh = ego_veh
         self.ego_veh_tform = ego_veh.get_transform()
 
-        # Front bumper location in Carla's coordinate system (z-down) as a carla.Vector3D object
-        # It in carla's z-down world frame so querying waypoints using carla's APIs is more straightforward
+        # Front bumper location in Carla's coordinate system (left-handed z-up) as a carla.Vector3D object
+        # It's in carla's left-handed world frame so querying waypoints using carla's APIs is more straightforward
         self._fbumper_location = self.ego_veh_tform.transform(
             carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))
         # A flag indicating ego vehicle is in junction
         self.in_junction = False
 
-        # Rear axle in Carla's coordinate system (z-down) as a carla.Vector3D object
+        # Rear axle in Carla's coordinate system (left-handed z-up) as a carla.Vector3D object
         raxle_location = self.ego_veh_tform.transform(
             carla.Location(x=-self.raxle_to_cg))
-        # Rear axle's location in our coordinate system (z-up) as a numpy array
+        # Rear axle's location in our coordinate system (right-handed z-up) as a numpy array
         # This is the ground truth of the rear axle's location
         self.raxle_gt_location = np.array([raxle_location.x,
                                            -raxle_location.y,
-                                           -raxle_location.z])
-        # Rear axle's orientation in our coordinate system (z-up) as a numpy array (roll, pitch, yaw)
+                                           raxle_location.z])
+        # Rear axle's orientation in our coordinate system (right-handed z-up) as a numpy array (roll, pitch, yaw)
         # This is the ground truth of the rear axle's orientation
         self.raxle_gt_orientation = np.array([self.ego_veh_tform.rotation.roll,
                                               -self.ego_veh_tform.rotation.pitch,
@@ -92,16 +92,16 @@ class GroundTruthExtractor(object):
         """ Update ground truth at the current tick. """
         self.ego_veh_tform = self.ego_veh.get_transform()
 
-        # Update front bumper (carla.Vector3D in z-down frame)
+        # Update front bumper's location (carla.Vector3D in left-handed frame)
         self._fbumper_location = self.ego_veh_tform.transform(
             carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))  # carla.Location.transform() returns just a carla.Vector3D object
 
-        # Update rear axle (np.array in z-up frame)
+        # Update rear axle's location and orientation (np.array in right-handed z-up frame)
         raxle_location = self.ego_veh_tform.transform(
             carla.Location(x=-self.raxle_to_cg))
         self.raxle_gt_location = np.array([raxle_location.x,
                                            -raxle_location.y,
-                                           -raxle_location.z])
+                                           raxle_location.z])
         self.raxle_gt_orientation = np.array([self.ego_veh_tform.rotation.roll,
                                               -self.ego_veh_tform.rotation.pitch,
                                               -self.ego_veh_tform.rotation.yaw])
@@ -125,7 +125,7 @@ class GroundTruthExtractor(object):
 
         if self.waypoint is not None:
             # Find candidate visible markings within the specified radius
-            # We get a list of 3D points of candidate markings in front bumper's frame (z-up)
+            # We get a list of 3D points of candidate markings in front bumper's frame (right-handed z-up)
             # as well as a list containing the corresponding marking types.
             candidate_markings_in_ego, candidate_markings = self._find_candidate_markings()
             candidates = []
@@ -220,14 +220,15 @@ class GroundTruthExtractor(object):
         Output:
             candidate_markings_in_ego:
                 List of candidate lane markings. Each lane marking consists of a list of 
-                3D points in the ego frame (z-up).
+                3D points in the ego frame (right-handed z-up).
             candidate_markings:
                 List containing carla.LaneMarking objects corresponding to the points
                 in candidate_markings_in_ego.
         """
         fbumper_transform = carla.Transform(
             self._fbumper_location, self.ego_veh.get_transform().rotation)
-        # Object for transforming a carla.Location in carla's world frame (z-down) into our  front bumper's frame (z-up)
+        # Object for transforming a carla.Location in carla's world frame (left-handed z-up) 
+        # into our front bumper's frame (right-handed z-up)
         tform_w2e = CarlaW2ETform(fbumper_transform)
         waypt_ego_frame = tform_w2e.tform_world_to_ego(
             self.waypoint.transform.location)
@@ -303,12 +304,15 @@ class GroundTruthExtractor(object):
 
     def _get_marking_pts(self, waypoint: carla.Waypoint, world_to_ego: CarlaW2ETform, side: Direction):
         """ 
-        Get marking points along the lane marking of specified side in ego frame (z-up).
+        Get marking points along the lane marking of specified side in ego frame (right-handed z-up).
 
         Input:
             waypoint: Carla.Waypont object of the lane marking of interest.
             world_to_ego: CarlaW2ETform object that performs world-to-ego transformation.
             side: Direction object specifying the side of interest.
+        Output:
+            lane_pts_in_ego: A list of lane markings 3D points in ego frame (right-handed z-up).
+            lane_markings: A list of lane marking objects corresponding to the list of 3D points.
         """
 
         # Local helper functions
@@ -365,7 +369,7 @@ class GroundTruthExtractor(object):
 
         # Containers for lane marking points and their types
         # Stored in ascending order (from back to forth)
-        lane_pts_in_ego = []    # a list 3D points in ego frame (z-up)
+        lane_pts_in_ego = []    # a list 3D points in ego frame (right-handed z-up)
         lane_markings = []      # a list of carla.LaneMarking of each point
         # Previous waypointes of the given waypoint
         # carla's waypoint.previous_until_lane_start() has bugs with lane type like Border and Parking.

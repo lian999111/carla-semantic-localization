@@ -17,16 +17,24 @@ import carla
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-# Carla provides only a transform API from ego to world frame.
-# This class complement the transfromation abilities from world to ego frame.
 
-# Note:
-# Carla uses z-down coordinate system (left-handed) while we use z-up coordinate system (right-handed).
-# This class automatically convert given carla.Transform and carla.Location so the transformation results
-# will be in the "ego z-up coordinate system".
+
 
 class CarlaW2ETform:
-    """ Helper class to perform world-to-ego transformation for Carla """
+    """ 
+    Helper class to perform world-to-ego transformation for Carla. 
+    
+    Carla provides only an API to transform a location from ego to world frame.
+    This class complements the transfromation abilities from world to ego frame.
+
+    Important note:
+     Carla (Unreal Engine) uses:
+     - Left-handed coordinate system for locations (x-forward, y-rightward, z-up)
+     - Right-handed z-down coordinate (airplane like) coordinate system for rotations (roll-pitch-yaw)
+
+    This class automatically converts given carla.Transform and carla.Location so the transformation results
+    will be in our right-handed z-up coordinate system convention.
+    """
 
     def __init__(self, ego_transform: carla.Transform):
         """ 
@@ -45,41 +53,42 @@ class CarlaW2ETform:
         """ 
         Rotationally transform the given carla.Vector3D in ego frame to world frame.
 
-        Note the return np 3D vector already follows z-up coordinate system.
+        Note the return np 3D vector already follows the right-handed z-up coordinate system.
 
         Input:
             vector3D: Carla.Vector3D which follows carla's coordinate system (z-down system).
         Output:
-            Numpy.array representing a 3D coordinate in the z-up coordinate system.
+            Numpy.array representing a 3D coordinate in the right-handed z-up coordinate system.
         """
         if self._rotm_w2e is None:
             self._init_rotm_w2e()
-        # Need to convert from z-down to z-up coordiante
-        np_vec = np.array([vector3D.x, -vector3D.y, -vector3D.z]).T
+        # Need to convert from left-handed to right-handed before apply the rotation
+        np_vec = np.array([vector3D.x, -vector3D.y, vector3D.z]).T
         return self._rotm_w2e.dot(np_vec)
 
     def tform_world_to_ego(self, vector3D: carla.Vector3D):
         """ 
         Homogeneous transform the given carla.Vector3D in ego frame to world frame.
-        Note the return np 3D vector already follows z-up coordinate system.
+
+        Note the return np 3D vector already follows right-handed z-up coordinate system.
+
         Input:
             vector3D: Carla.Vector3D which follows carla's coordinate system (z-down system).
         Output:
-            Numpy.array representing a 3D coordinate in the z-up coordinate system.
+            Numpy.array representing a 3D coordinate in the right-handed z-up coordinate system.
         """
         if self._tform_w2e is None:
             self._init_tform_w2e()
-        # Need to convert from z-down to z-up coordiante
-        np_homo_vec = np.array([vector3D.x, -vector3D.y, -vector3D.z, 1]).T
+        # Need to convert from left-handed to right-handed before apply the homogeneous transformation
+        np_homo_vec = np.array([vector3D.x, -vector3D.y, vector3D.z, 1])
         return self._tform_w2e.dot(np_homo_vec)[0:3]
         
 
     def _init_rotm_w2e(self):
         """ Helper method to create rotation matrix _rotm_e2w. """
         rotation = self._ego_veh_transform.rotation
-        # Carla uses z-down coordinate system (z towards down)
-        # Ref: https://carla.readthedocs.io/en/latest/python_api/#carlarotation
-        # Convert to z-up coordinate system when building up the rotation matrix
+        # Need to convert from right-handed z-down to right-handed z-down system when building up the rotation matrix
+        # Transpose so it is the rotation of the world frame wrt the ego frame
         self._rotm_w2e = Rotation.from_euler(
             'zyx', [-rotation.yaw, -rotation.pitch, rotation.roll], degrees=True).as_matrix().T
 
