@@ -80,9 +80,11 @@ sensor:
     delta_seconds: *delta_seconds  # Simulation time step
   semantic_image:
     # Semantic segmentation image
-    res_x: '800'  # px
-    res_y: '600'  # px
-    fov: '60'     # deg
+    pos_x: 0.6    # Installation position x with respect to center of gravity
+    pos_z: 1.5    # Installation position z with respect to center of gravity
+    res_h: '800'  # (px) horizontal resolution
+    res_v: '600'  # (px) vertical resolution
+    fov: '60'     # (deg)
 
 ## Ground truth extraction
 gt:

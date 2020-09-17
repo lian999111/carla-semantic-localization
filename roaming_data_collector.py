@@ -465,14 +465,14 @@ class SemanticCamera(CarlaSensor):
         world = self._parent.get_world()
         ss_cam_bp = world.get_blueprint_library().find(
             'sensor.camera.semantic_segmentation')
-        ss_cam_bp.set_attribute('image_size_x', ss_cam_config_args['res_x'])
-        ss_cam_bp.set_attribute('image_size_y', ss_cam_config_args['res_y'])
+        ss_cam_bp.set_attribute('image_size_x', ss_cam_config_args['res_h'])
+        ss_cam_bp.set_attribute('image_size_y', ss_cam_config_args['res_v'])
         ss_cam_bp.set_attribute('fov', ss_cam_config_args['fov'])
 
         print("Spawning semantic camera sensor.")
         self.sensor = world.spawn_actor(ss_cam_bp,
                                         carla.Transform(
-                                            carla.Location(x=0.6, z=1.5)),
+                                            carla.Location(x=ss_cam_config_args['pos_x'], z=ss_cam_config_args['pos_z'])),
                                         attach_to=self._parent)
 
         self.sensor.listen(lambda image: self._queue.put(image))
@@ -572,9 +572,9 @@ def main():
             # Allow carla engine to run freely so it doesn't just hang there
             world.allow_free_run()
 
-        if args.record:  
+        if args.record:
             mydir = os.path.join(os.getcwd(), 'recordings',
-                                datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+                                 datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
             os.makedirs(mydir)
 
             with open(os.path.join(mydir, 'lane_images'), 'wb') as image_file:
