@@ -1,15 +1,14 @@
 # Implementation of lane extraction from semantic segmentation images
 
 import os
-import pickle
 import argparse
 import yaml
 import numpy as np
 import cv2
-import glob
 from scipy.signal import find_peaks
 from math import sin, cos
 
+import pickle
 import matplotlib.pyplot as plt
 
 
