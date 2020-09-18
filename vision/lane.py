@@ -135,7 +135,6 @@ class LaneMarkingDetector(object):
             left_coords_ego: x-y coordinates of detected left lane marking points in ego frame (z-up)
             right_coords_ego: x-y coordinates of detected right lane marking points in ego frame (z-up)
         """
-
         # IPM to get bird's eye view
         bev_image = self._get_bev_image(lane_image)
 
@@ -323,19 +322,39 @@ class LaneMarkingDetector(object):
         edge_coords_ego[1] = self.warped_size[0]//2 - nonzero_coords_img[1]  # y (positive leftwards)
 
         # Set the considered region of image when performing Hough transform
-        half_width = edge_image.shape[1] // 2
+        half_width = self.warped_size[0] // 2
         left_idx = int(half_width - half_width * self._hough_region_w)
         right_idx = int(half_width + half_width * self._hough_region_w)
 
         # If yaw rate is positive, increase the considered region on the left
         if yaw_rate > 0:
             left_idx -= int(self._yaw_rate_scale * yaw_rate)
+            left_idx = max((0, left_idx))
         # Otherwise, increase the considered region on the right
         else:
             right_idx -= int(self._yaw_rate_scale * yaw_rate)
+            right_idx = min((self.warped_size[0], right_idx))
 
         lines = cv2.HoughLines(
-            edge_image[int(edge_image.shape[0]*(1-self._hough_region_h)):, left_idx:right_idx], 2, np.pi/180*2, self._hough_thres)
+            edge_image[int(self.warped_size[1]*(1-self._hough_region_h)):, left_idx:right_idx], 2, np.pi/180, self._hough_thres)
+
+        if __debug__:
+            edge_image_crop = edge_image[int(self.warped_size[1]*(1-self._hough_region_h)):, left_idx:right_idx].copy()
+            plt.figure()
+
+            for line in lines:
+                rho, theta = line[0, 0], line[0, 1]
+                a = np.cos(theta)
+                b = np.sin(theta)
+                x0 = a*rho
+                y0 = b*rho
+                x1 = int(x0 + 1000*(-b))
+                y1 = int(y0 + 1000*(a))
+                x2 = int(x0 - 1000*(-b))
+                y2 = int(y0 - 1000*(a))
+
+                cv2.line(edge_image_crop, (x1,y1), (x2,y2), (255,255,255), 2)
+            plt.imshow(edge_image_crop)
 
         # TODO: When hough transform can't find lines in the lower half of image,
         # it's an indication that there is no good lines to detect
@@ -375,7 +394,7 @@ class LaneMarkingDetector(object):
             bin_width: Bin width in pixels
         """
         # Get the upper limit of the image region
-        upper = self._histo_region * self.warped_size[0]
+        upper = self._histo_region * self.warped_size[1]
 
         histogram, _ = np.histogram(edge_coords[:, edge_coords[0] < upper], 
                                     bins=self._n_bins, 
@@ -676,5 +695,5 @@ def single(folder_name, image_idx):
 
 
 if __name__ == "__main__":
-    # single('highway_lane_change', 216)
-    loop('small_roundabout')
+    # single('small_roundabout', 245)
+    loop('highway_lane_change')

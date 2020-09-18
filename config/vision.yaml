@@ -25,10 +25,10 @@ lane:
     yaw_rate_scale: 120
     # Ratio of the image height within which Hough lines are found
     # e.g. 0.5 means only the region from bottom to half height of the image are considered
-    hough_region_h: 0.5
+    hough_region_h: 0.6
     # Ratio of the image width within which Hough lines are found
     # It starts from the center
-    hough_region_w: 0.45
+    hough_region_w: 0.5
     # Threshold for HoughLines
     hough_thres: 250
     # Threshold to decide whether to rotate image to make lane markings more vertical
@@ -42,9 +42,9 @@ lane:
     # Ratio of the image height that takes part in histogram calculation
     # e.g. 0.5 means only the region from bottom to half height of the image are searched
     # Since histogram is for finding starting points for sliding window, it should focus on on the lower part of image
-    histo_region: 0.6
+    histo_region: 0.5
     # Bin number
-    n_bins: 80
+    n_bins: 60
 
   sliding_window:
     # Number of sliding windows for lane pixel searching
