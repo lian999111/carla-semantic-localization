@@ -67,6 +67,7 @@ class LaneMarkingDetector(object):
         self._max_box_area = lane_config_args['arrow_removal']['max_box_area']
         self._min_w2h_ratio = lane_config_args['arrow_removal']['min_w2h_ratio']
         self._max_w2h_ratio = lane_config_args['arrow_removal']['max_w2h_ratio']
+        self._min_area = lane_config_args['arrow_removal']['min_area']
         self._min_occup_ratio = lane_config_args['arrow_removal']['min_occup_ratio']
         self._max_occup_ratio = lane_config_args['arrow_removal']['max_occup_ratio']
         # Dilation
@@ -169,8 +170,8 @@ class LaneMarkingDetector(object):
 
         left_base_bin, right_base_bin = self._find_histo_peaks(histo)
         # Recover real base positions from bin numbers
-        left_base = -((left_base_bin-self._n_bins/2)*bin_width + bin_width/2) if left_base_bin else None
-        right_base = -((right_base_bin-self._n_bins/2)*bin_width + bin_width/2) if right_base_bin else None
+        left_base = (left_base_bin-self._n_bins/2)*bin_width - bin_width/2 if left_base_bin else None
+        right_base = (right_base_bin-self._n_bins/2)*bin_width - bin_width/2 if right_base_bin else None
 
         # Sliding window search
         left_idc, right_idc = self._sliding_window_search(edge_coords_ego, left_base, right_base)
@@ -264,6 +265,7 @@ class LaneMarkingDetector(object):
                                           box_areas < self._max_box_area,
                                           w2h_ratios > self._min_w2h_ratio,
                                           w2h_ratios < self._max_w2h_ratio,
+                                          stats[:, 4] > self._min_area,
                                           occup_ratio > self._min_occup_ratio,
                                           occup_ratio < self._max_occup_ratio])
 
@@ -674,5 +676,5 @@ def single(folder_name, image_idx):
 
 
 if __name__ == "__main__":
-    single('highway_lane_change', 139)
-    # loop('highway_lane_change')
+    # single('highway_lane_change', 216)
+    loop('small_roundabout')
