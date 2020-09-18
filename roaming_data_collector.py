@@ -466,8 +466,7 @@ class SemanticCamera(CarlaSensor):
     def __init__(self, parent_actor, ss_cam_config_args):
         """ Constructor method. """
         super().__init__(parent_actor)
-        self.lane_img = None
-        self.pole_img = None
+        self.ss_img = None
 
         world = self._parent.get_world()
         ss_cam_bp = world.get_blueprint_library().find(
@@ -490,12 +489,13 @@ class SemanticCamera(CarlaSensor):
         self.timestamp = image.timestamp
         np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
         # Reshap to BGRA format
-        # Semantic info is stored only in the R channel
         np_img = np.reshape(np_img, (image.height, image.width, -1))
-        # Lane lines and sidewalks are considered
-        self.lane_img = (np_img[:, :, 2] == 6) | (np_img[:, :, 2] == 8)
-        # Pole-like objects
-        self.pole_img = np_img[:, :, 2] == 5
+        # Semantic info is stored only in the R channel
+        self.ss_img = np_img[:, :, 2]
+        # # Lane lines and sidewalks are considered
+        # self.lane_img = (np_img[:, :, 2] == 6) | (np_img[:, :, 2] == 8)
+        # # Pole-like objects
+        # self.pole_img = np_img[:, :, 2] == 5
 
 # TODO: stop sign measurement
 
@@ -520,7 +520,7 @@ def main():
     spawn_point = None
     # Assign spawn point for ego vehicle
     spawn_point = carla.Transform(carla.Location(
-        218.67, 59.18, 0.0), carla.Rotation(yaw=180))
+        229.67, 80.99, 0.59), carla.Rotation(yaw=91.39))
     try:
         client = carla.Client('localhost', 2000)
         client.set_timeout(5.0)
@@ -534,8 +534,7 @@ def main():
         n_ticks = int(config_args['sim_duration'] /
                       config_args['world']['delta_seconds'])
 
-        lane_images = []
-        pole_images = []
+        ss_images = []
         vx = []
         yaw_rate = []
         in_junction = []
@@ -546,8 +545,7 @@ def main():
             world.step_forward()
             world.see_ego_veh()
 
-            lane_images.append(world.semantic_camera.lane_img)
-            pole_images.append(world.semantic_camera.pole_img)
+            ss_images.append(world.semantic_camera.ss_img.copy())
             vx.append(world.imu.vx)
             yaw_rate.append(world.imu.gyro_z)
             in_junction.append(world.ground_truth.in_junction)
@@ -568,9 +566,24 @@ def main():
                 world.ground_truth.right_marking.type if world.ground_truth.right_marking else None,
                 world.ground_truth.next_right_marking.type if world.ground_truth.next_right_marking else None))
 
-            # if idx % int(5/config_args['world']['delta_seconds']) == 0:
-            #     world.force_lane_change(to_left=to_left)
-            #     to_left = not to_left
+            if (idx+1) % int(1/config_args['world']['delta_seconds']) == 0:
+                world.force_lane_change(to_left=to_left)
+                to_left = not to_left
+
+        # Store data
+        if args.record:
+            mydir = os.path.join(os.getcwd(), 'recordings',
+                                 datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+            os.makedirs(mydir)
+
+            with open(os.path.join(mydir, 'ss_images'), 'wb') as image_file:
+                pickle.dump(ss_images, image_file)
+            with open(os.path.join(mydir, 'vx'), 'wb') as vx_file:
+                pickle.dump(vx, vx_file)
+            with open(os.path.join(mydir, 'yaw_rate'), 'wb') as yaw_rate_file:
+                pickle.dump(yaw_rate, yaw_rate_file)
+            with open(os.path.join(mydir, 'in_junction'), 'wb') as in_junction_file:
+                pickle.dump(in_junction, in_junction_file)
 
     finally:
         if world:
@@ -578,22 +591,6 @@ def main():
             world.destroy()
             # Allow carla engine to run freely so it doesn't just hang there
             world.allow_free_run()
-
-        if args.record:
-            mydir = os.path.join(os.getcwd(), 'recordings',
-                                 datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
-            os.makedirs(mydir)
-
-            with open(os.path.join(mydir, 'lane_images'), 'wb') as image_file:
-                pickle.dump(lane_images, image_file)
-            with open(os.path.join(mydir, 'pole_images'), 'wb') as image_file:
-                pickle.dump(pole_images, image_file)
-            with open(os.path.join(mydir, 'vx'), 'wb') as vx_file:
-                pickle.dump(vx, vx_file)
-            with open(os.path.join(mydir, 'yaw_rate'), 'wb') as yaw_rate_file:
-                pickle.dump(yaw_rate, yaw_rate_file)
-            with open(os.path.join(mydir, 'in_junction'), 'wb') as in_junction_file:
-                pickle.dump(in_junction, in_junction_file)
 
 
 # %%

@@ -37,8 +37,8 @@ class LaneMarkingDetector(object):
     It performs inverse perspective mapping (IPM) to obtain the bird's eye view, 
     then uses 2 approaches to detect lane marking pixels:
         - Sliding window: Used when there was no lane marking detected in previous images.
-        - CTRV motion model: Used to predict the current positions of lane markings. 
-        It requires lane markings to be detected in previous images.
+        - TODO: CTRV motion model: Used to predict the current positions of lane markings. 
+                                   It requires lane markings to be detected in previous images.
     """
 
     def __init__(self, M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, lane_config_args):
@@ -108,7 +108,6 @@ class LaneMarkingDetector(object):
                         at lane-related pixels, which is easy to obtained from a semantic image.
             yaw_rate: Yaw rate of the ego vehicle. (in rad/s)
         """
-        # TODO: make it more robutst
         left_coords, right_coords = self.find_marking_points(lane_image, yaw_rate)
 
         if left_coords.size != 0:
@@ -170,8 +169,8 @@ class LaneMarkingDetector(object):
 
         left_base_bin, right_base_bin = self._find_histo_peaks(histo)
         # Recover real base positions from bin numbers
-        left_base = (left_base_bin-self._n_bins/2)*bin_width + bin_width/2 if left_base_bin else None
-        right_base = (right_base_bin-self._n_bins/2)*bin_width + bin_width/2 if right_base_bin else None
+        left_base = -((left_base_bin-self._n_bins/2)*bin_width + bin_width/2) if left_base_bin else None
+        right_base = -((right_base_bin-self._n_bins/2)*bin_width + bin_width/2) if right_base_bin else None
 
         # Sliding window search
         left_idc, right_idc = self._sliding_window_search(edge_coords_ego, left_base, right_base)
@@ -387,13 +386,7 @@ class LaneMarkingDetector(object):
         """ Find at most 2 peaks as lane marking searching bases from histogram. """
         # Find peaks above required height
         peaks, _ = find_peaks(histogram, height=self._required_height)
-
-        # Remove peaks that are too close to their precedents
-        # diff = np.diff(peaks)
-        # delete_mask = np.concatenate(([False], diff < 40))
-        # peaks = np.delete(peaks, delete_mask)
-
-        # Find at most 2 peaks from the middle towards left and 2 towards right
+        # Find at most 2 peaks from the middle towards left and towards right
         # Return None if no peaks found
         half_idx = histogram.shape[0]/2
         left_base_bin = peaks[peaks < half_idx][-1] if peaks[peaks <
@@ -540,8 +533,8 @@ def loop(folder_name):
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'lane_images'), 'rb') as image_file:
-        images = pickle.load(image_file)
+    with open(os.path.join(mydir, 'ss_images'), 'rb') as image_file:
+        ss_images = pickle.load(image_file)
     with open(os.path.join(mydir, 'yaw_rate'), 'rb') as yaw_rate_file:
         yaw_rates = pickle.load(yaw_rate_file)
     with open(os.path.join(mydir, 'in_junction'), 'rb') as in_junction_file:
@@ -553,9 +546,9 @@ def loop(folder_name):
     left_lane = ax.plot([], [])[0]
     right_lane = ax.plot([], [])[0]
 
-    for image_idx, image in enumerate(images):
-        # image_idx = 90
-        lane_image = image.astype(np.uint8)
+    for image_idx, ss_image in enumerate(ss_images):
+        # Extract lane-relevant semantic labels (road line and sidewalk)
+        lane_image = (ss_image == 6) | (ss_image == 8).astype(np.uint8)
 
         lane_detector = LaneMarkingDetector(
             M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, vision_config_args['lane'])
@@ -599,7 +592,6 @@ def loop(folder_name):
 
         ax.set_title(image_idx)
         plt.pause(0.001)
-
         print(yaw_rates[image_idx])
 
 
@@ -610,7 +602,7 @@ def single(folder_name, image_idx):
         'r'), help='configuration yaml file for vision algorithms')
     args = argparser.parse_args()
 
-    # Read configurations from yaml file to config_args
+    # Read configurations from yaml file
     with args.vision_config as vision_config_file:
         vision_config_args = yaml.safe_load(vision_config_file)
 
@@ -624,20 +616,16 @@ def single(folder_name, image_idx):
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'lane_images'), 'rb') as image_file:
-        images = pickle.load(image_file)
+    with open(os.path.join(mydir, 'ss_images'), 'rb') as image_file:
+        ss_images = pickle.load(image_file)
     with open(os.path.join(mydir, 'yaw_rate'), 'rb') as yaw_rate_file:
         yaw_rates = pickle.load(yaw_rate_file)
     with open(os.path.join(mydir, 'in_junction'), 'rb') as in_junction_file:
         in_junction = pickle.load(in_junction_file)
 
-    fig, ax = plt.subplots(1, 1)
-    im = ax.imshow(
-        255*np.ones((warped_size[1], warped_size[0])).astype(np.uint8), vmin=0, vmax=1.0)
-    left_lane = ax.plot([], [])[0]
-    right_lane = ax.plot([], [])[0]
-
-    lane_image = images[image_idx].astype(np.uint8)
+    # Extract lane-relevant semantic labels (road line and sidewalk)
+    ss_image = ss_images[image_idx]
+    lane_image = (ss_image == 6) | (ss_image == 8).astype(np.uint8)
 
     lane_detector = LaneMarkingDetector(
         M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, vision_config_args['lane'])
@@ -647,39 +635,44 @@ def single(folder_name, image_idx):
     if __debug__:
         plt.show()
 
-    # # Verify lane marking results
-    # edge_image = lane_detector._get_bev_image(lane_image)
-    # im.set_data(edge_image)
-    # # im.set_clim(vmin=0, vmax=1.0)
+    # Verify lane marking results
+    fig, ax = plt.subplots(1, 1)
+    im = ax.imshow(
+        255*np.ones((warped_size[1], warped_size[0])).astype(np.uint8), vmin=0, vmax=1.0)
+    left_lane = ax.plot([], [])[0]
+    right_lane = ax.plot([], [])[0]
 
-    # x = np.linspace(0, 12, 50)
-    # if lane_detector.left_coeffs is not None:
-    #     coeffs = lane_detector.left_coeffs
-    #     y = np.zeros(x.shape)
-    #     for idx, coeff in enumerate(reversed(coeffs)):
-    #         y += coeff * x**idx
+    edge_image = lane_detector._get_bev_image(lane_image)
+    im.set_data(edge_image)
 
-    #     y_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
-    #     x_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
+    x = np.linspace(0, 12, 20)
+    if lane_detector.left_coeffs is not None:
+        coeffs = lane_detector.left_coeffs
+        y = np.zeros(x.shape)
+        for idx, coeff in enumerate(reversed(coeffs)):
+            y += coeff * x**idx
 
-    #     left_lane.set_data(x_img, y_img)
+        y_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
+        x_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
-    # if lane_detector.right_coeffs is not None:
-    #     coeffs = lane_detector.right_coeffs
-    #     y = np.zeros(x.shape)
-    #     for idx, coeff in enumerate(reversed(coeffs)):
-    #         y += coeff * x**idx
+        left_lane.set_data(x_img, y_img)
 
-    #     y_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
-    #     x_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
+    if lane_detector.right_coeffs is not None:
+        coeffs = lane_detector.right_coeffs
+        y = np.zeros(x.shape)
+        for idx, coeff in enumerate(reversed(coeffs)):
+            y += coeff * x**idx
 
-    #     right_lane.set_data(x_img, y_img)
+        y_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
+        x_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
-    # ax.set_title(image_idx)
-    # plt.show()
-    # print(yaw_rates[image_idx])
+        right_lane.set_data(x_img, y_img)
+
+    ax.set_title(image_idx)
+    plt.show()
+    print(yaw_rates[image_idx])
 
 
 if __name__ == "__main__":
-    # single('small_roundabout', 250)
-    loop('small_roundabout')
+    single('highway_lane_change', 139)
+    # loop('highway_lane_change')
