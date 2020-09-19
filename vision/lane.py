@@ -526,7 +526,8 @@ class LaneMarkingDetector(object):
                 # Recenter next window if enough points found in current window and no split/merge detected
                 if len(good_left_idc) > self._recenter_minpix and not_split:
                     newx = np.int(np.mean(edge_coords_ego[1, good_left_idc]))
-                    shift = newx - left_win_h_curr
+                    if win_count > 0:
+                        shift = newx - left_win_h_curr
                     left_win_h_curr = newx
                 else:
                     left_win_h_curr += shift
@@ -564,7 +565,8 @@ class LaneMarkingDetector(object):
                 # Recenter next window if enough points found in current window and no split/merge detected
                 if len(good_right_idc) > self._recenter_minpix and not_split:
                     newx = np.int(np.mean(edge_coords_ego[1, good_right_idc]))
-                    shift = newx - right_win_h_curr
+                    if win_count > 0:
+                        shift = newx - right_win_h_curr
                     right_win_h_curr = newx
                 else:
                     right_win_h_curr += shift
