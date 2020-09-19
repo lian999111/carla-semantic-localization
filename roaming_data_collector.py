@@ -492,10 +492,6 @@ class SemanticCamera(CarlaSensor):
         np_img = np.reshape(np_img, (image.height, image.width, -1))
         # Semantic info is stored only in the R channel
         self.ss_img = np_img[:, :, 2]
-        # # Lane lines and sidewalks are considered
-        # self.lane_img = (np_img[:, :, 2] == 6) | (np_img[:, :, 2] == 8)
-        # # Pole-like objects
-        # self.pole_img = np_img[:, :, 2] == 5
 
 # TODO: stop sign measurement
 
@@ -566,7 +562,7 @@ def main():
                 world.ground_truth.right_marking.type if world.ground_truth.right_marking else None,
                 world.ground_truth.next_right_marking.type if world.ground_truth.next_right_marking else None))
 
-            if (idx+1) % int(1/config_args['world']['delta_seconds']) == 0:
+            if (idx+1) % int(3/config_args['world']['delta_seconds']) == 0:
                 world.force_lane_change(to_left=to_left)
                 to_left = not to_left
 
