@@ -464,8 +464,9 @@ class LaneMarkingDetector(object):
             # Left markings
             if search_left:
                 # Vertical
-                win_v_left_low = left_win_v_curr - win_count * window_height
-                win_v_left_high = left_win_v_curr + (win_count + 1) * window_height
+                win_v_left_low = left_win_v_curr + win_count * window_height
+                win_v_left_high = left_win_v_curr + \
+                    (win_count + 1) * window_height
                 # Horizontal
                 win_h_left_low = left_win_h_curr - self._margin
                 win_h_left_high = left_win_h_curr + self._margin
@@ -495,8 +496,9 @@ class LaneMarkingDetector(object):
             # Right markings
             if search_right:
                 # Vertical
-                win_v_right_low = right_win_v_curr - win_count * window_height
-                win_v_right_high = right_win_v_curr + (win_count + 1) * window_height
+                win_v_right_low = right_win_v_curr + win_count * window_height
+                win_v_right_high = right_win_v_curr + \
+                    (win_count + 1) * window_height
                 # Horizontal
                 win_h_right_low = right_win_h_curr - self._margin
                 win_h_right_high = right_win_h_curr + self._margin
