@@ -365,19 +365,20 @@ class LaneMarkingDetector(object):
             edge_image_crop = edge_image[int(
                 self.warped_size[1]*(1-self._hough_region_h)):, left_idx:right_idx].copy() * 255
 
-            for line in lines:
-                rho, theta = line[0, 0], line[0, 1]
-                a = np.cos(theta)
-                b = np.sin(theta)
-                x0 = a*rho
-                y0 = b*rho
-                x1 = int(x0 + 1000*(-b))
-                y1 = int(y0 + 1000*(a))
-                x2 = int(x0 - 1000*(-b))
-                y2 = int(y0 - 1000*(a))
+            if lines is not None:
+                for line in lines:
+                    rho, theta = line[0, 0], line[0, 1]
+                    a = np.cos(theta)
+                    b = np.sin(theta)
+                    x0 = a*rho
+                    y0 = b*rho
+                    x1 = int(x0 + 1000*(-b))
+                    y1 = int(y0 + 1000*(a))
+                    x2 = int(x0 - 1000*(-b))
+                    y2 = int(y0 - 1000*(a))
 
-                cv2.line(edge_image_crop, (x1, y1),
-                         (x2, y2), 100, 2)
+                    cv2.line(edge_image_crop, (x1, y1),
+                            (x2, y2), 100, 2)
 
             _, ax = plt.subplots(1, 1)
             ax.imshow(edge_image_crop)
