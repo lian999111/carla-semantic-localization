@@ -25,12 +25,12 @@ lane:
     yaw_rate_scale: 120
     # Ratio of the image height within which Hough lines are found
     # e.g. 0.5 means only the region from bottom to half height of the image are considered
-    hough_region_h: 0.6
+    hough_region_h: 0.4
     # Ratio of the image width within which Hough lines are found
     # It starts from the center
     hough_region_w: 0.5
     # Threshold for HoughLines
-    hough_thres: 250
+    hough_thres: 280
     # Threshold to decide whether to rotate image to make lane markings more vertical
     # The algorithm uses Hough transform to find lines in the images
     # The magnitude of the mdeian angle of the found lines are compared with this threshold
@@ -72,6 +72,6 @@ lane:
   fitting:
     # Ratio of number of samples to number of total points
     # e.g. 0.1 means taking 100 samples from 1000 points
-    sampling_ratio: 0.2
+    sampling_ratio: 1.0
     # Order of polynomial
     order: 2
