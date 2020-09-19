@@ -75,3 +75,11 @@ lane:
     sampling_ratio: 1.0
     # Order of polynomial
     order: 2
+
+## Parameters for pole detection
+pole:
+  # The pole detection algorithm finds bounding boxes aroung connected pole labels beneath the vanish point
+  # Minimum height of the bounding box around a pole
+  min_height: 20
+  # Maximum width of the bounding box around a pole
+  max_width: 50
