@@ -566,6 +566,7 @@ def loop(folder_name):
         255*np.ones((warped_size[1], warped_size[0])).astype(np.uint8), vmin=0, vmax=1.0)
     left_lane = ax.plot([], [])[0]
     right_lane = ax.plot([], [])[0]
+    plt.show(block=False)
 
     for image_idx, ss_image in enumerate(ss_images):
         # Extract lane-relevant semantic labels (road line and sidewalk)
@@ -612,7 +613,8 @@ def loop(folder_name):
             right_lane.set_data([], [])
 
         ax.set_title(image_idx)
-        plt.pause(0.001)
+        fig.canvas.draw()
+        fig.canvas.flush_events()
         print(yaw_rates[image_idx])
 
 
@@ -696,4 +698,4 @@ def single(folder_name, image_idx):
 
 if __name__ == "__main__":
     # single('small_roundabout', 245)
-    loop('highway_lane_change')
+    loop('highway_lane_change2')
