@@ -94,6 +94,8 @@ class LaneMarkingDetector(object):
         self._sampling_ratio = lane_config_args['fitting']['sampling_ratio']
         self.order = lane_config_args['fitting']['order']
 
+        # TODO: Front bumper as reference frame
+
         # Lane marking data
         self.left_coeffs = None
         self.right_coeffs = None
