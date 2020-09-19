@@ -72,6 +72,6 @@ lane:
   fitting:
     # Ratio of number of samples to number of total points
     # e.g. 0.1 means taking 100 samples from 1000 points
-    sampling_ratio: 1.0
+    sampling_ratio: 0.2
     # Order of polynomial
     order: 2
