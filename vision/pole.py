@@ -9,6 +9,7 @@ import pickle
 import matplotlib.pyplot as plt
 
 from camproj import im2world_known_z
+import utils
 
 
 class PoleDetector(object):
@@ -76,26 +77,9 @@ class PoleDetector(object):
         Output:
             pole_bases_uv: Image coordiantes (u-v) of detected pole bases.
         """
-        # Use half height of image is horizon not given
-        if not horizon:
-            horizon = pole_image.shape[0] // 2
-
-        _, _, stats, centroids = cv2.connectedComponentsWithStats(
-            pole_image[horizon:, :])
-
-        selected = np.logical_and(
-            stats[:, 2] < self._max_width, stats[:, 3] > self._min_height)
-
-        n_pole_detected = sum(selected)
-        # Coordinates of pole bases in image (2-by-N)
-        pole_bases_uv = np.zeros((2, n_pole_detected))
-        # u
-        pole_bases_uv[0, :] = centroids[selected, 0]
-        # v
-        pole_bases_uv[1, :] = horizon + \
-            stats[selected, 1] + stats[selected, 3]
+        pole_bases_uv = utils.find_pole_bases(pole_image, self._max_width, self._min_height, horizon=horizon)
         
-        return pole_bases_uv.astype(np.int)
+        return pole_bases_uv
 
     def _get_pole_xy_fbumper(self, pole_bases_uv, z=0):
         """
@@ -170,4 +154,4 @@ def single(folder_name, image_idx):
 
 
 if __name__ == "__main__":
-    single('highway', 30)
+    single('highway', 20)
