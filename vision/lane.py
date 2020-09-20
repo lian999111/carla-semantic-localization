@@ -333,16 +333,16 @@ class LaneMarkingDetector(object):
                              The caller can tell if it is the case by the value of rot_angle.
             rot_angle: Rotation angle in rad. It is None if no rotation is needed.
         """
-        # Image coordinates of nonzero pixels (2-by-N)
-        nonzero_coords_img = np.array(
-            [edge_image.nonzero()[0], edge_image.nonzero()[1]])
+        # Image u-v coordinates of nonzero pixels (2-by-N)
+        nonzero_u = edge_image.nonzero()[1]
+        nonzero_v = edge_image.nonzero()[0]
 
         # Get coordinates of edge pixels aligned with ego vehicle's frame (x-up, y-left)
-        edge_coords_ego = np.zeros(nonzero_coords_img.shape)
+        edge_coords_ego = np.zeros((2, nonzero_u.shape[0]))
         edge_coords_ego[0] = self.warped_size[1] - \
-            nonzero_coords_img[0]     # x (positive upwards)
+            nonzero_v     # x (positive upwards)
         edge_coords_ego[1] = self.warped_size[0]//2 - \
-            nonzero_coords_img[1]  # y (positive leftwards)
+            nonzero_u  # y (positive leftwards)
 
         # Set the considered region of image when performing Hough transform
         half_width = self.warped_size[0] // 2
@@ -357,23 +357,26 @@ class LaneMarkingDetector(object):
         else:
             right_idx -= int(self._yaw_rate_scale_w * yaw_rate)
             right_idx = min((self.warped_size[0], right_idx))
-        
+
         # Vertical region to be considered
-        upper_idx = int(self.warped_size[1]*(1-self._hough_region_h) + abs(yaw_rate) * self._yaw_rate_scale_h)
-        upper_idx = min(self.warped_size[1] - 200, upper_idx)   # considered at least 200 px in height 
+        upper_idx = int(
+            self.warped_size[1]*(1-self._hough_region_h) + abs(yaw_rate) * self._yaw_rate_scale_h)
+        # considered at least 200 px in height
+        upper_idx = min(self.warped_size[1] - 200, upper_idx)
 
         lines = cv2.HoughLinesP(
             edge_image[upper_idx:, left_idx:right_idx], 1, np.pi / 180, threshold=50, minLineLength=50, maxLineGap=50)
 
         if __debug__:
             # Plot hough lines on the cropped edge image
-            edge_image_crop = edge_image[upper_idx:, left_idx:right_idx].copy() * 255
+            edge_image_crop = edge_image[upper_idx:,
+                                         left_idx:right_idx].copy() * 255
 
             if lines is not None:
                 for line in lines:
                     x1, y1, x2, y2 = line[0][0], line[0][1], line[0][2], line[0][3]
                     cv2.line(edge_image_crop, (x1, y1),
-                        (x2, y2), 100, 2)
+                             (x2, y2), 100, 2)
 
             _, ax = plt.subplots(1, 1)
             ax.imshow(edge_image_crop)
@@ -383,11 +386,12 @@ class LaneMarkingDetector(object):
         # it's an indication that there is no good lines to detect
         if lines is not None:
             # HoughLinesP
-            x1, y1, x2, y2 = lines[:, :, 0], lines[:, :, 1], lines[:, :, 2], lines[:, :, 3]
-            rot_angle =  -np.median(np.arctan((x2 - x1)/(y2 -y1)))
+            x1, y1, x2, y2 = lines[:, :, 0], lines[:,
+                                                   :, 1], lines[:, :, 2], lines[:, :, 3]
+            rot_angle = -np.median(np.arctan((x2 - x1)/(y2 - y1)))
         else:
             rot_angle = None
-        
+
         # Rotate edge pixels when angle magnitude larger than threshold
         if rot_angle and abs(rot_angle) > self._rot_thres * np.pi / 180:
             # Rotation matrix
