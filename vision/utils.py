@@ -23,7 +23,7 @@ def decode_depth(depth_buffer):
     return depth_image
 
 
-def find_pole_bases(pole_image, max_width, min_height, use_center=True, horizon=None):
+def find_pole_bases(pole_image, max_width, min_height, use_bbox_center=True, horizon=None):
     """
     Find bases of poles in the given image.
 
@@ -37,8 +37,8 @@ def find_pole_bases(pole_image, max_width, min_height, use_center=True, horizon=
                     at pole pixels, which is easy to obtained from a semantic image.
         max_width: Maximum width of bound box under which a pole object is considered.
         min_height: Minimum height of bound box under which a pole object is considered.
-        use_center: Bool whether to use the bottom center of the bounding box as a pole's base.
-                    If False, the pixel with the largest v coordinate (lowest in image) is used.
+        use_bbox_center: Bool whether to use the bottom center of the bounding box as a pole's base.
+                         If False, the pixel with the largest v coordinate (lowest in image) is used.
         horizon: Position of the horizon in the image (wrt the top of image). If not given, half point of image is used.
     Output:
         pole_bases_uv: Image coordiantes (u-v) of detected pole bases.
@@ -58,7 +58,7 @@ def find_pole_bases(pole_image, max_width, min_height, use_center=True, horizon=
     # Coordinates of pole bases in image (2-by-N)
     pole_bases_uv = np.zeros((2, n_pole_detected))
 
-    if use_center:
+    if use_bbox_center:
         # u
         pole_bases_uv[0, :] = centroids[selected, 0]
         # v

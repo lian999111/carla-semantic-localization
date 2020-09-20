@@ -81,7 +81,7 @@ class PoleDetector(object):
             pole_bases_uv: Image coordiantes (u-v) of detected pole bases.
         """
         self.pole_bases_uv = utils.find_pole_bases(
-            pole_image, self._max_width, self._min_height, use_center=False, horizon=horizon)
+            pole_image, self._max_width, self._min_height, use_bbox_center=False, horizon=horizon)
 
     def _get_pole_xy_fbumper(self, z=0):
         """
