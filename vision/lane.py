@@ -419,7 +419,7 @@ class LaneMarkingDetector(object):
         # Get the upper limit of the image region
         upper = self._histo_region * self.warped_size[1]
 
-        histogram, _ = np.histogram(edge_coords[:, edge_coords[0] < upper],
+        histogram, _ = np.histogram(edge_coords[1, edge_coords[0] < upper],
                                     bins=self._n_bins,
                                     range=(-self.warped_size[0]//2, self.warped_size[0]//2))
         bin_width = self.warped_size[0] / self._n_bins
