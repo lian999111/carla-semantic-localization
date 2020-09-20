@@ -540,10 +540,10 @@ class DepthCamera(CarlaSensor):
         # The depth info is encoded by the BGR channels using the so-called depth buffer.
         # Decoding is required before use.
         # Ref: https://carla.readthedocs.io/en/latest/ref_sensors/#depth-camera
+        np_img = np.reshape(np_img, (image.height, image.width, -1))
         # Since np_img is from the buffer, which is reused by Carla
         # Making a copy makes sure depth_buffer is not subject to side-effect when the underlying buffer is modified
-        np_img = np.reshape(np_img, (image.height, image.width, -1))
-        self.depth_buffer = np_img.copy()
+        self.depth_buffer = np_img[:, :, 0:3].copy()    # get just BGR channels
 
 # TODO: stop sign measurement
 
@@ -582,6 +582,7 @@ def main():
                       config_args['world']['delta_seconds'])
 
         ss_images = []
+        depth_buffers = []
         vx = []
         yaw_rate = []
         in_junction = []
@@ -593,6 +594,7 @@ def main():
             world.see_ego_veh()
 
             ss_images.append(world.semantic_camera.ss_img)
+            depth_buffers.append(world.depth_camera.depth_buffer)
             vx.append(world.imu.vx)
             yaw_rate.append(world.imu.gyro_z)
             in_junction.append(world.ground_truth.in_junction)
@@ -625,6 +627,8 @@ def main():
 
             with open(os.path.join(mydir, 'ss_images'), 'wb') as image_file:
                 pickle.dump(ss_images, image_file)
+            with open(os.path.join(mydir, 'depth_buffers'), 'wb') as depth_file:
+                pickle.dump(depth_buffers, depth_file)
             with open(os.path.join(mydir, 'vx'), 'wb') as vx_file:
                 pickle.dump(vx, vx_file)
             with open(os.path.join(mydir, 'yaw_rate'), 'wb') as yaw_rate_file:
