@@ -491,7 +491,9 @@ class SemanticCamera(CarlaSensor):
         # Reshap to BGRA format
         np_img = np.reshape(np_img, (image.height, image.width, -1))
         # Semantic info is stored only in the R channel
-        self.ss_img = np_img[:, :, 2]
+        # Since ss_img is from the buffer, which is reused by Carla
+        # Making a copy makes sure ss_img is not subject to side-effect when the underlying buffer is modified
+        self.ss_img = np_img[:, :, 2].copy()
 
 # TODO: stop sign measurement
 
@@ -541,7 +543,7 @@ def main():
             world.step_forward()
             world.see_ego_veh()
 
-            ss_images.append(world.semantic_camera.ss_img.copy())
+            ss_images.append(world.semantic_camera.ss_img)
             vx.append(world.imu.vx)
             yaw_rate.append(world.imu.gyro_z)
             in_junction.append(world.ground_truth.in_junction)
