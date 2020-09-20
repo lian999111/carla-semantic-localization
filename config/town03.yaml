@@ -41,8 +41,8 @@ ego_veh:
   # Carla's Mustang:
   #   CG to rear axle: 1.4
   #   CG to front bumper: 2.4   
-  raxle_to_cg: 1.4         # (m) Distance from rear axle to center of gravity on the x-y plane
-  raxle_to_fbumper: 3.8    # (m) Distance from rear axle to front bumper on the x-y plane
+  raxle_to_cg: 1.4         # (m) Distance from rear axle to center of gravity in x
+  raxle_to_fbumper: 3.8    # (m) Distance from rear axle to front bumper in x
 
 
 ## Sensors
@@ -78,7 +78,7 @@ sensor:
     # which is found to lag behind Carla's IMU by 1 simulation step.
     # To recover that, virtual odometry's velocities are added with acceleration times simulation step 
     delta_seconds: *delta_seconds  # Simulation time step
-  semantic_image:
+  front_camera:
     # Semantic segmentation image
     pos_x: 0.6    # Installation position x with respect to center of gravity
     pos_z: 1.5    # Installation position z with respect to center of gravity (+: up)
