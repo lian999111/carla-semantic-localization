@@ -126,6 +126,7 @@ class World(object):
         self.imu = None
         self.gnss = None
         self.semantic_camera = None
+        self.depth_camera = None
 
         self.ground_truth = None
 
@@ -192,7 +193,9 @@ class World(object):
         self.gnss = GNSS(self.ego_veh, config_args['sensor']['gnss'])
         self.imu = IMU(self.ego_veh, config_args['sensor']['imu'])
         self.semantic_camera = SemanticCamera(
-            self.ego_veh, config_args['sensor']['semantic_image'])
+            self.ego_veh, config_args['sensor']['front_camera'])
+        self.depth_camera = DepthCamera(
+            self.ego_veh, config_args['sensor']['front_camera'])
 
         # Ground truth extractor
         self.ground_truth = GroundTruthExtractor(
@@ -226,6 +229,7 @@ class World(object):
         self.imu.update()
         self.gnss.update()
         self.semantic_camera.update()
+        self.depth_camera.update()
         self.ground_truth.update()
 
     def see_ego_veh(self, following_dist=5, height=5, tilt_ang=-30):
@@ -262,6 +266,10 @@ class World(object):
             print("Destroying semantic camera sensor.")
             self.semantic_camera.destroy()
             self.semantic_camera = None
+        if self.depth_camera:
+            print("Destroying depth camera sensor.")
+            self.depth_camera.destroy()
+            self.depth_camera = None
 
 # %% ================= Sensor Base =================
 
@@ -491,12 +499,53 @@ class SemanticCamera(CarlaSensor):
         # Reshap to BGRA format
         np_img = np.reshape(np_img, (image.height, image.width, -1))
         # Semantic info is stored only in the R channel
-        # Since ss_img is from the buffer, which is reused by Carla
+        # Since np_img is from the buffer, which is reused by Carla
         # Making a copy makes sure ss_img is not subject to side-effect when the underlying buffer is modified
         self.ss_img = np_img[:, :, 2].copy()
 
-# TODO: stop sign measurement
+# %% ================= Depth Camera =================
 
+
+class DepthCamera(CarlaSensor):
+    """ Class for semantic camera. """
+
+    def __init__(self, parent_actor, depth_cam_config_args):
+        """ Constructor method. """
+        super().__init__(parent_actor)
+        self.depth_buffer = None
+
+        world = self._parent.get_world()
+        depth_cam_bp = world.get_blueprint_library().find(
+            'sensor.camera.depth')
+        depth_cam_bp.set_attribute(
+            'image_size_x', depth_cam_config_args['res_h'])
+        depth_cam_bp.set_attribute(
+            'image_size_y', depth_cam_config_args['res_v'])
+        depth_cam_bp.set_attribute('fov', depth_cam_config_args['fov'])
+
+        print("Spawning semantic camera sensor.")
+        self.sensor = world.spawn_actor(depth_cam_bp,
+                                        carla.Transform(
+                                            carla.Location(x=depth_cam_config_args['pos_x'], z=depth_cam_config_args['pos_z'])),
+                                        attach_to=self._parent)
+
+        self.sensor.listen(lambda image: self._queue.put(image))
+
+    def update(self):
+        """ Wait for semantic image and update data. """
+        image = self._queue.get()
+        self.timestamp = image.timestamp
+        np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
+        # Reshap to BGRA format
+        # The depth info is encoded by the BGR channels using the so-called depth buffer.
+        # Decoding is required before use.
+        # Ref: https://carla.readthedocs.io/en/latest/ref_sensors/#depth-camera
+        # Since np_img is from the buffer, which is reused by Carla
+        # Making a copy makes sure depth_buffer is not subject to side-effect when the underlying buffer is modified
+        np_img = np.reshape(np_img, (image.height, image.width, -1))
+        self.depth_buffer = np_img.copy()
+
+# TODO: stop sign measurement
 
 # %%
 def main():
