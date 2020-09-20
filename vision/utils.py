@@ -83,8 +83,10 @@ def find_pole_bases(pole_image, max_width, min_height, use_center=True, horizon=
 
             # Get the base coordinate
             selected_u, selected_v = nonzerou[mask], nonzerov[mask]
-            max_v_idx = selected_v.argmax()     # idx of largest v coordinate (lowest in image)
-            pole_bases_uv[0, pole_idx] = selected_u[max_v_idx]
-            pole_bases_uv[1, pole_idx] = selected_v[max_v_idx] + horizon
+            max_v = selected_v.max()     # largest v coordinate (lowest in image)
+            # If there are multiple pixels with v = max_v, pick the one in the middle
+            center_max_v_idx = int(np.median((selected_v == max_v).nonzero()))
+            pole_bases_uv[0, pole_idx] = selected_u[center_max_v_idx]
+            pole_bases_uv[1, pole_idx] = selected_v[center_max_v_idx] + horizon
 
     return pole_bases_uv.astype(np.int)
