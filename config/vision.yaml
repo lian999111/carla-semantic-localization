@@ -21,11 +21,15 @@ lane:
     n_iters: 1
 
   rotation:
-    # Scale to increase  horizontal image region considered based on yaw rate
-    yaw_rate_scale: 120
+    # Scale to decrease image height considered based on yaw rate
+    # Decrease vertical region with increasing yaw rate
+    yaw_rate_scale_h: 200
+    # Scale to increase horizontal image region considered based on yaw rate
+    # Increase left when yaw rate is positive. Increase right when yaw rate is negative.
+    yaw_rate_scale_w: 120
     # Ratio of the image height within which Hough lines are found
     # e.g. 0.5 means only the region from bottom to half height of the image are considered
-    hough_region_h: 0.4
+    hough_region_h: 0.5
     # Ratio of the image width within which Hough lines are found
     # It starts from the center
     hough_region_w: 0.5
@@ -38,7 +42,7 @@ lane:
 
   histo:
     # Minimum height to consider as a peak
-    required_height: 200
+    required_height: 100
     # Ratio of the image height that takes part in histogram calculation
     # e.g. 0.5 means only the region from bottom to half height of the image are searched
     # Since histogram is for finding starting points for sliding window, it should focus on on the lower part of image
@@ -54,9 +58,9 @@ lane:
     # The higher the ratio, the farther lane can be detected, but also more error prone
     search_region: 0.6
     # Margin (half width) of sliding window
-    margin: 25
+    margin: 20
     # Minimum number of detected pixels in a window to recenter the next window
-    recenter_minpix: 20
+    recenter_minpix: 50
     # The following 2 parameters are for detecting if the lane marking is spliting or merging in a window
     # First the max and min x are found. If the difference between max_x and min_x are large and the corresponding y values are close,
     # it is likely to be an Y shape. A horizontal line also fulfill this criterion, but it is rarely to see that during driving.

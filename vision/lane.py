@@ -74,7 +74,8 @@ class LaneMarkingDetector(object):
         # Dilation
         self._dilation_iter = lane_config_args['dilation']['n_iters']
         # Rotation
-        self._yaw_rate_scale = lane_config_args['rotation']['yaw_rate_scale']
+        self._yaw_rate_scale_h = lane_config_args['rotation']['yaw_rate_scale_h']
+        self._yaw_rate_scale_w = lane_config_args['rotation']['yaw_rate_scale_w']
         self._hough_region_h = lane_config_args['rotation']['hough_region_h']
         self._hough_region_w = lane_config_args['rotation']['hough_region_w']
         self._hough_thres = lane_config_args['rotation']['hough_thres']
@@ -350,49 +351,43 @@ class LaneMarkingDetector(object):
 
         # If yaw rate is positive, increase the considered region on the left
         if yaw_rate > 0:
-            left_idx -= int(self._yaw_rate_scale * yaw_rate)
+            left_idx -= int(self._yaw_rate_scale_w * yaw_rate)
             left_idx = max((0, left_idx))
         # Otherwise, increase the considered region on the right
         else:
-            right_idx -= int(self._yaw_rate_scale * yaw_rate)
+            right_idx -= int(self._yaw_rate_scale_w * yaw_rate)
             right_idx = min((self.warped_size[0], right_idx))
+        
+        # Vertical region to be considered
+        upper_idx = int(self.warped_size[1]*(1-self._hough_region_h) + abs(yaw_rate) * self._yaw_rate_scale_h)
+        upper_idx = min(self.warped_size[1] - 200, upper_idx)   # considered at least 200 px in height 
 
-        lines = cv2.HoughLines(
-            edge_image[int(self.warped_size[1]*(1-self._hough_region_h)):, left_idx:right_idx], 2, np.pi/180, self._hough_thres)
+        lines = cv2.HoughLinesP(
+            edge_image[upper_idx:, left_idx:right_idx], 1, np.pi / 180, threshold=50, minLineLength=50, maxLineGap=50)
 
         if __debug__:
             # Plot hough lines on the cropped edge image
-            edge_image_crop = edge_image[int(
-                self.warped_size[1]*(1-self._hough_region_h)):, left_idx:right_idx].copy() * 255
+            edge_image_crop = edge_image[upper_idx:, left_idx:right_idx].copy() * 255
 
             if lines is not None:
                 for line in lines:
-                    rho, theta = line[0, 0], line[0, 1]
-                    a = np.cos(theta)
-                    b = np.sin(theta)
-                    x0 = a*rho
-                    y0 = b*rho
-                    x1 = int(x0 + 1000*(-b))
-                    y1 = int(y0 + 1000*(a))
-                    x2 = int(x0 - 1000*(-b))
-                    y2 = int(y0 - 1000*(a))
-
+                    x1, y1, x2, y2 = line[0][0], line[0][1], line[0][2], line[0][3]
                     cv2.line(edge_image_crop, (x1, y1),
-                            (x2, y2), 100, 2)
+                        (x2, y2), 100, 2)
 
             _, ax = plt.subplots(1, 1)
             ax.imshow(edge_image_crop)
-            ax.set_title('Hough lines on cropped edge image')
+            ax.set_title('Hough segments on cropped edge image')
 
         # TODO: When hough transform can't find lines in the lower half of image,
         # it's an indication that there is no good lines to detect
         if lines is not None:
-            # Convert the angle range from (0, pi) to (-pi/2, pi/2)
-            lines[lines[:, :, 1] > np.pi/2, 1] -= np.pi
-            rot_angle = np.median(lines[:, :, 1])   # (rad)
+            # HoughLinesP
+            x1, y1, x2, y2 = lines[:, :, 0], lines[:, :, 1], lines[:, :, 2], lines[:, :, 3]
+            rot_angle =  -np.median(np.arctan((x2 - x1)/(y2 -y1)))
         else:
             rot_angle = None
-
+        
         # Rotate edge pixels when angle magnitude larger than threshold
         if rot_angle and abs(rot_angle) > self._rot_thres * np.pi / 180:
             # Rotation matrix
@@ -509,7 +504,8 @@ class LaneMarkingDetector(object):
 
                 if __debug__:
                     # Store boxes for visualization
-                    boxs.append((win_h_left_low, win_v_left_low, window_width, window_height))
+                    boxs.append((win_h_left_low, win_v_left_low,
+                                 window_width, window_height))
 
                 left_idc += list(good_left_idc)
 
@@ -548,7 +544,8 @@ class LaneMarkingDetector(object):
 
                 if __debug__:
                     # Store boxes for visualization
-                    boxs.append((win_h_right_low, win_v_right_low, window_width, window_height))
+                    boxs.append((win_h_right_low, win_v_right_low,
+                                 window_width, window_height))
 
                 right_idc += list(good_right_idc)
 
@@ -579,10 +576,13 @@ class LaneMarkingDetector(object):
 
             if __debug__:
                 for box in boxs:
-                    ax.add_patch(patches.Rectangle(box[0:2], box[2], box[3], fill=False))
+                    ax.add_patch(patches.Rectangle(
+                        box[0:2], box[2], box[3], fill=False))
 
-            ax.plot(edge_coords_ego[1, left_idc], edge_coords_ego[0, left_idc], '.', ms=0.5)
-            ax.plot(edge_coords_ego[1, right_idc], edge_coords_ego[0, right_idc], '.', ms=0.5)
+            ax.plot(edge_coords_ego[1, left_idc],
+                    edge_coords_ego[0, left_idc], '.', ms=0.5)
+            ax.plot(edge_coords_ego[1, right_idc],
+                    edge_coords_ego[0, right_idc], '.', ms=0.5)
             ax.invert_xaxis()
             ax.set_title('Extracted points from (possibly) rotated pixels')
             ax.set_xlabel('(px)')
@@ -619,6 +619,8 @@ def loop(folder_name):
         ss_images = pickle.load(image_file)
     with open(os.path.join(mydir, 'yaw_rate'), 'rb') as yaw_rate_file:
         yaw_rates = pickle.load(yaw_rate_file)
+    with open(os.path.join(mydir, 'vx'), 'rb') as vx_file:
+        vx = pickle.load(vx_file)
     with open(os.path.join(mydir, 'in_junction'), 'rb') as in_junction_file:
         in_junction = pickle.load(in_junction_file)
 
@@ -704,6 +706,8 @@ def single(folder_name, image_idx):
         ss_images = pickle.load(image_file)
     with open(os.path.join(mydir, 'yaw_rate'), 'rb') as yaw_rate_file:
         yaw_rates = pickle.load(yaw_rate_file)
+    with open(os.path.join(mydir, 'vx'), 'rb') as vx_file:
+        vx = pickle.load(vx_file)
     with open(os.path.join(mydir, 'in_junction'), 'rb') as in_junction_file:
         in_junction = pickle.load(in_junction_file)
 
