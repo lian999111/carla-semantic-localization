@@ -56,6 +56,10 @@ def visualize(folder_name):
     valid_mask = perspective_tform_data['valid_mask']
     px_per_meter_x = float(perspective_tform_data['px_per_meter_x'])
     px_per_meter_y = float(perspective_tform_data['px_per_meter_y'])
+    dist_cam_to_intersect = float(perspective_tform_data['dist_to_intersect'])
+
+    # For lane detector
+    dist_fbumper_to_intersect = dist_cam_to_intersect - dist_cam_to_fbumper
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
@@ -68,27 +72,31 @@ def visualize(folder_name):
 
     # Detector objects
     pole_detector = PoleDetector(K, R, x0, vision_config_args['pole'])
-    lane_detector = LaneMarkingDetector(
-        M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, vision_config_args['lane'])
+    lane_detector = LaneMarkingDetector(M, px_per_meter_x, px_per_meter_y,
+                                        warped_size, valid_mask,
+                                        dist_fbumper_to_intersect,
+                                        vision_config_args['lane'])
 
     # Init figure
     fig, ax = plt.subplots(1, 2)
-    # Left
+    # Camera view
     im = ax[0].imshow(np.ones((ss_images[0].shape[0], ss_images[0].shape[1], 3)).astype(
         np.uint8), vmin=0, vmax=255)
     left_lane = ax[0].plot([], [], ms=0.5)[0]
     right_lane = ax[0].plot([], [], ms=0.5)[0]
 
-    # Right
+    # Bird's eye view
     pole0 = ax[1].plot([], [], '.', label='z = 0')[0]
     pole_gt = ax[1].plot([], [], '.', label='GT')[0]
+    left_lane_bev = ax[1].plot([], [], linewidth=0.5)[0]
+    right_lane_bev = ax[1].plot([], [], linewidth=0.5)[0]
     ax[1].set_xlim((30, -30))
-    ax[1].set_ylim((-5, 60))
+    ax[1].set_ylim((0, 50))
     plt.legend()
     plt.show(block=False)
 
     # For lane points
-    x = np.linspace(0, 12, 10)
+    x = np.linspace(0, 20, 10)
 
     # Loop over data
     for image_idx, (ss_image, depth_buffer) in enumerate(zip(ss_images, depth_buffers)):
@@ -124,6 +132,7 @@ def visualize(folder_name):
             pole_gt.set_data([], [])
 
         # Lane detection
+        # TODO: Disable plt.show() in debug mode!
         lane_detector.update_lane_coeffs(lane_image, yaw_rates[image_idx])
 
         if lane_detector.left_coeffs is not None:
@@ -133,14 +142,16 @@ def visualize(folder_name):
                 y += coeff * x**idx
 
             # Project lane marking to image
-            homo_img_coords = P @ np.array([x+2, y,
+            homo_img_coords = P @ np.array([x, y,
                                             np.zeros(x.shape), np.ones(x.shape)])
             u = homo_img_coords[0, :] / homo_img_coords[2, :]
             v = homo_img_coords[1, :] / homo_img_coords[2, :]
 
             left_lane.set_data(u, v)
+            left_lane_bev.set_data(y, x)
         else:
             left_lane.set_data([], [])
+            left_lane_bev.set_data([], [])
 
         if lane_detector.right_coeffs is not None:
             coeffs = lane_detector.right_coeffs
@@ -149,14 +160,16 @@ def visualize(folder_name):
                 y += coeff * x**idx
 
             # Project lane marking to image
-            homo_img_coords = P @ np.array([x+2, y,
+            homo_img_coords = P @ np.array([x, y,
                                             np.zeros(x.shape), np.ones(x.shape)])
             u = homo_img_coords[0, :] / homo_img_coords[2, :]
             v = homo_img_coords[1, :] / homo_img_coords[2, :]
 
             right_lane.set_data(u, v)
+            right_lane_bev.set_data(y, x)
         else:
             right_lane.set_data([], [])
+            right_lane_bev.set_data([], [])
 
         im.set_data(ss_image_copy)
         ax[1].set_title(image_idx)
