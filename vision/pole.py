@@ -8,8 +8,8 @@ from scipy.spatial.transform import Rotation
 import pickle
 import matplotlib.pyplot as plt
 
-from camproj import im2world_known_z, im2world_known_x
-import vutils
+from vision.camproj import im2world_known_z, im2world_known_x
+from vision import vutils
 
 
 class PoleDetector(object):
@@ -124,7 +124,7 @@ def single(folder_name, image_idx):
                            - config_args['sensor']['front_camera']['pos_x']
                            - config_args['ego_veh']['raxle_to_cg'])
 
-    # Load parameters for inverse projection
+    # Load camera parameters
     calib_data = np.load('vision/calib_data.npz')
     K = calib_data['K']
     R = calib_data['R']
