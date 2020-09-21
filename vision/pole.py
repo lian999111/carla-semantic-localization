@@ -9,7 +9,7 @@ import pickle
 import matplotlib.pyplot as plt
 
 from camproj import im2world_known_z, im2world_known_x
-import utils
+import vutils
 
 
 class PoleDetector(object):
@@ -48,6 +48,8 @@ class PoleDetector(object):
         # For finding valid bounding boxes around pole-labelled pixels
         # Minimum bound box height (to ignore those too short)
         self._min_height = pole_config_args['min_height']
+        # Minimum bound box width (to ignore those too thin)
+        self._min_width = pole_config_args['min_width']
         # Maximum bound box width (to ignore those too wide)
         self._max_width = pole_config_args['max_width']
 
@@ -80,8 +82,8 @@ class PoleDetector(object):
         Output:
             pole_bases_uv: Image coordiantes (u-v) of detected pole bases.
         """
-        self.pole_bases_uv = utils.find_pole_bases(
-            pole_image, self._max_width, self._min_height, use_bbox_center=False, horizon=horizon)
+        self.pole_bases_uv = vutils.find_pole_bases(
+            pole_image, self._min_width, self._max_width, self._min_height, use_bbox_center=False, horizon=horizon)
 
     def _get_pole_xy_fbumper(self, z=0):
         """
@@ -123,7 +125,6 @@ def single(folder_name, image_idx):
 
     # Load parameters for inverse projection
     calib_data = np.load('vision/calib_data.npz')
-    H = calib_data['H']
     K = calib_data['K']
     R = calib_data['R']
     x0 = calib_data['x0']
@@ -140,7 +141,7 @@ def single(folder_name, image_idx):
     pole_image = (ss_image == 5).astype(np.uint8)
 
     depth_buffer = depth_buffers[image_idx]
-    depth_image = utils.decode_depth(depth_buffer)
+    depth_image = vutils.decode_depth(depth_buffer)
 
     pole_detector = PoleDetector(K, R, x0, vision_config_args['pole'])
     pole_detector.update_poles(pole_image, z=0)
@@ -150,13 +151,13 @@ def single(folder_name, image_idx):
 
     pole_bases_uv = pole_detector.pole_bases_uv
 
-
     ss_image_copy = ss_image.copy()
     _, ax = plt.subplots(1, 2)
     ax[0].imshow(ss_image_copy)
 
     if pole_bases_uv is not None:
-        x_world = depth_image[pole_bases_uv[1], pole_bases_uv[0]] - dist_cam_to_fbumper
+        x_world = depth_image[pole_bases_uv[1],
+                              pole_bases_uv[0]] - dist_cam_to_fbumper
         poles_gt_xyz = im2world_known_x(
             pole_detector.H, pole_detector.x0, pole_detector.pole_bases_uv, x_world)
 
@@ -174,6 +175,7 @@ def single(folder_name, image_idx):
 
         plt.legend()
     plt.show()
+
 
 def loop(folder_name):
     argparser = argparse.ArgumentParser(
@@ -207,11 +209,11 @@ def loop(folder_name):
     with open(os.path.join(mydir, 'depth_buffers'), 'rb') as image_file:
         depth_buffers = pickle.load(image_file)
 
-
     pole_detector = PoleDetector(K, R, x0, vision_config_args['pole'])
 
     _, ax = plt.subplots(1, 2)
-    im = ax[0].imshow(np.ones(ss_images[0].shape).astype(np.uint8), vmin=0, vmax=12)
+    im = ax[0].imshow(np.ones(ss_images[0].shape).astype(
+        np.uint8), vmin=0, vmax=12)
     pole0 = ax[1].plot([], [], '.', label='z = 0')[0]
     pole1 = ax[1].plot([], [], '.', label='z = 1')[0]
     pole_gt = ax[1].plot([], [], '.', label='GT')[0]
@@ -225,7 +227,7 @@ def loop(folder_name):
         # Extract pole-relevant semantic labels
         pole_image = (ss_image == 5).astype(np.uint8)
 
-        depth_image = utils.decode_depth(depth_buffer)
+        depth_image = vutils.decode_depth(depth_buffer)
 
         ss_image_copy = ss_image.copy()
 
@@ -238,7 +240,8 @@ def loop(folder_name):
 
         if pole_bases_uv is not None:
             # Ground truth
-            x_world = depth_image[pole_bases_uv[1], pole_bases_uv[0]] - dist_cam_to_fbumper
+            x_world = depth_image[pole_bases_uv[1],
+                                  pole_bases_uv[0]] - dist_cam_to_fbumper
             poles_gt_xyz = im2world_known_x(
                 pole_detector.H, pole_detector.x0, pole_detector.pole_bases_uv, x_world)
 
@@ -247,7 +250,6 @@ def loop(folder_name):
                 ss_image_copy = cv2.circle(
                     ss_image_copy, (base_coord[0], base_coord[1]), 10, color=[1, 0, 0], thickness=10)
 
-            
             pole0.set_data(poles_xy_z0[1, :], poles_xy_z0[0, :])
             pole1.set_data(poles_xy_z1[1, :], poles_xy_z1[0, :])
             pole_gt.set_data(poles_gt_xyz[1, :], poles_gt_xyz[0, :])
@@ -263,4 +265,4 @@ def loop(folder_name):
 
 if __name__ == "__main__":
     # single('depth', 193)
-    loop('depth')
+    loop('true_highway')
