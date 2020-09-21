@@ -609,7 +609,7 @@ def loop(folder_name):
     with args.vision_config as vision_config_file:
         vision_config_args = yaml.safe_load(vision_config_file)
 
-    # Load parameters for inverse projection
+    # Load parameters for bird's eye view projection
     perspective_tform_data = np.load('vision/ipm_data.npz')
     M = perspective_tform_data['M']
     warped_size = tuple(perspective_tform_data['bev_size'])
@@ -655,10 +655,10 @@ def loop(folder_name):
             for idx, coeff in enumerate(reversed(coeffs)):
                 y += coeff * x**idx
 
-            y_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
-            x_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
+            v_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
+            u_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
-            left_lane.set_data(x_img, y_img)
+            left_lane.set_data(u_img, v_img)
         else:
             left_lane.set_data([], [])
 
@@ -668,10 +668,10 @@ def loop(folder_name):
             for idx, coeff in enumerate(reversed(coeffs)):
                 y += coeff * x**idx
 
-            y_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
-            x_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
+            v_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
+            u_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
-            right_lane.set_data(x_img, y_img)
+            right_lane.set_data(u_img, v_img)
         else:
             right_lane.set_data([], [])
 
@@ -736,10 +736,10 @@ def single(folder_name, image_idx):
         for idx, coeff in enumerate(reversed(coeffs)):
             y += coeff * x**idx
 
-        y_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
-        x_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
+        v_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
+        u_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
-        left_lane.set_data(x_img, y_img)
+        left_lane.set_data(u_img, v_img)
 
     if lane_detector.right_coeffs is not None:
         coeffs = lane_detector.right_coeffs
@@ -747,10 +747,10 @@ def single(folder_name, image_idx):
         for idx, coeff in enumerate(reversed(coeffs)):
             y += coeff * x**idx
 
-        y_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
-        x_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
+        v_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
+        u_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
-        right_lane.set_data(x_img, y_img)
+        right_lane.set_data(u_img, v_img)
 
     ax.set_title(image_idx)
     plt.show()
