@@ -23,13 +23,13 @@ def decode_depth(depth_buffer):
     return depth_image
 
 
-def find_pole_bases(pole_image, min_width, max_width, min_height, use_bbox_center=True, horizon=None):
+def find_pole_bases(pole_image, min_width, max_width, min_height, use_bbox_center=True, upper_lim=None):
     """
     Find bases of poles in the given image.
 
     This function first finds connected pole pixels. Then the bottom center of their 
     bound boxes are extracted. Assuming flat ground, a pole stemming from the ground 
-    is bound to appear under the horizon. Thus, only image below the horizon is searched 
+    is bound to appear under the upper_lim. Thus, only image below the upper_lim is searched 
     to avoid cluttering caused by poles that are too far. 
 
     Input: 
@@ -39,16 +39,17 @@ def find_pole_bases(pole_image, min_width, max_width, min_height, use_bbox_cente
         min_height: Minimum height of bound box under which a pole object is considered.
         use_bbox_center: Bool whether to use the bottom center of the bounding box as a pole's base.
                          If False, the pixel with the largest v coordinate (lowest in image) is used.
-        horizon: Position of the horizon in the image (wrt the top of image). If not given, half point of image is used.
+        upper_lim: Position of the upper_lim in the image (wrt the top of image). If not given, half image height is used.
+                   Note that larger upper_lim value means lower in image since it's the v coordinate.
     Output:
         pole_bases_uv: Image coordiantes (u-v) of detected pole bases. None if no bases detected.
     """
-    # Use half height of image is horizon not given
-    if not horizon:
-        horizon = pole_image.shape[0] // 2
+    # Use half height of image is upper_lim not given
+    if not upper_lim:
+        upper_lim = pole_image.shape[0] // 2
 
     _, labels, stats, centroids = cv2.connectedComponentsWithStats(
-        pole_image[horizon:, :])
+        pole_image[upper_lim:, :])
 
     # Find components fulfilling the criteria
     selected = np.logical_and.reduce((
@@ -66,7 +67,7 @@ def find_pole_bases(pole_image, min_width, max_width, min_height, use_bbox_cente
         # u
         pole_bases_uv[0, :] = centroids[selected, 0]
         # v
-        pole_bases_uv[1, :] = horizon + \
+        pole_bases_uv[1, :] = upper_lim + \
             stats[selected, 1] + stats[selected, 3]
     else:
         # Nonzero coordiantes
@@ -91,6 +92,6 @@ def find_pole_bases(pole_image, min_width, max_width, min_height, use_bbox_cente
             # If there are multiple pixels with v = max_v, pick the one in the middle
             center_max_v_idx = int(np.median((selected_v == max_v).nonzero()))
             pole_bases_uv[0, pole_idx] = selected_u[center_max_v_idx]
-            pole_bases_uv[1, pole_idx] = selected_v[center_max_v_idx] + horizon
+            pole_bases_uv[1, pole_idx] = selected_v[center_max_v_idx] + upper_lim
 
     return pole_bases_uv.astype(np.int)

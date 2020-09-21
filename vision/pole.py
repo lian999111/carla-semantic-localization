@@ -53,37 +53,38 @@ class PoleDetector(object):
         # Maximum bound box width (to ignore those too wide)
         self._max_width = pole_config_args['max_width']
 
-    def update_poles(self, pole_image, horizon=None, z=0):
+    def update_poles(self, pole_image, upper_lim=None, z=0):
         """
         Update measurement of poles.
 
         Input: 
             pole_image: OpenCV image with supported data type (e.g. np.uint8). The image should have non-zero values only
                         at pole pixels, which is easy to obtained from a semantic image.
-            horizon: Position of the horizon in the image (wrt the top of image). If not given, half point of image is used.
+            upper_lim:  Position of the upper_lim in the image (wrt the top of image). If not given, half point of image is used.
+                        Note that larger upper_lim value means lower in image since it's the v coordinate.
             z: Assumed z coordinates perpendicular to ground of corresponding points
         """
-        self._find_pole_bases(pole_image, horizon)
+        self._find_pole_bases(pole_image, upper_lim)
         self._get_pole_xy_fbumper(z)
 
-    def _find_pole_bases(self, pole_image, horizon=None):
+    def _find_pole_bases(self, pole_image, upper_lim=None):
         """
         Find bases of poles in the given image.
 
         This method first finds connected pixels labelled as pole. Then the bottom center of their 
-        bound boxes are extracted. Only image below the horizon is searched to avoid poles that are 
-        too far. A pole taller than the camera is bound to cross the horizon, so this strategy can 
+        bound boxes are extracted. Only image below the upper_lim is searched to avoid poles that are 
+        too far. A pole taller than the camera is bound to cross the upper_lim, so this strategy can 
         find all near poles that are taller than the camera.
 
         Input: 
             pole_image: OpenCV image with supported data type (e.g. np.uint8). The image should have non-zero values only
                         at pole pixels, which is easy to obtained from a semantic image.
-            horizon: Position of the horizon in the image (wrt the top of image). If not given, half point of image is used.
+            upper_lim: Position of the upper_lim in the image (wrt the top of image). If not given, half point of image is used.
         Output:
             pole_bases_uv: Image coordiantes (u-v) of detected pole bases.
         """
         self.pole_bases_uv = vutils.find_pole_bases(
-            pole_image, self._min_width, self._max_width, self._min_height, use_bbox_center=False, horizon=horizon)
+            pole_image, self._min_width, self._max_width, self._min_height, use_bbox_center=False, upper_lim=upper_lim)
 
     def _get_pole_xy_fbumper(self, z=0):
         """
@@ -144,9 +145,9 @@ def single(folder_name, image_idx):
     depth_image = vutils.decode_depth(depth_buffer)
 
     pole_detector = PoleDetector(K, R, x0, vision_config_args['pole'])
-    pole_detector.update_poles(pole_image, z=0)
+    pole_detector.update_poles(pole_image, upper_lim=310, z=0)
     poles_xy_z0 = pole_detector.pole_bases_xy
-    pole_detector.update_poles(pole_image, z=0.1)
+    pole_detector.update_poles(pole_image, upper_lim=310, z=0.1)
     poles_xy_z1 = pole_detector.pole_bases_xy
 
     pole_bases_uv = pole_detector.pole_bases_uv
