@@ -42,7 +42,14 @@ class LaneMarkingDetector(object):
                                    It requires lane markings to be detected in previous images.
     """
 
-    def __init__(self, M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, lane_config_args):
+    def __init__(self,
+                 M,
+                 px_per_meter_x,
+                 px_per_meter_y,
+                 warped_size,
+                 valid_mask,
+                 dist_fbumper_to_intersect,
+                 lane_config_args):
         """ 
         Constructor method. 
 
@@ -52,6 +59,7 @@ class LaneMarkingDetector(object):
             px_per_meter_y: Pixels per meters in y in the Bird's eye view.
             warped_size: Image size tuple of IPM image (width, height).
             valid_mask: Numpy.array of booleans to mask out edge pixels caused by the border of the FOV.
+            dist_fbumper_to_intersect: Meters from front bumper to the point where vertical FOV intersects the flat ground in x.
             lane_config_args: Dict object storing algorithm related parameters.
         """
 
@@ -61,6 +69,7 @@ class LaneMarkingDetector(object):
         self.valid_mask = valid_mask
         self.px_per_meters_x = px_per_meter_x
         self.px_per_meters_y = px_per_meter_y
+        self.dist_fbumper_to_intersect = dist_fbumper_to_intersect
 
         # Algorithm related parameters
         # Arrow Removal
@@ -113,18 +122,18 @@ class LaneMarkingDetector(object):
                         at lane-related pixels, which is easy to obtained from a semantic image.
             yaw_rate: Yaw rate of the ego vehicle. (in rad/s)
         """
-        left_coords, right_coords = self.find_marking_points(
+        left_coords_fbumper, right_coords_fbumper = self.find_marking_points(
             lane_image, yaw_rate)
 
-        if left_coords.size != 0:
+        if left_coords_fbumper.size != 0:
             self.left_coeffs = np.polyfit(
-                left_coords[0, :], left_coords[1, :], self.order)
+                left_coords_fbumper[0, :], left_coords_fbumper[1, :], self.order)
         else:
             self.left_coeffs = None
 
-        if right_coords.size != 0:
+        if right_coords_fbumper.size != 0:
             self.right_coeffs = np.polyfit(
-                right_coords[0, :], right_coords[1, :],  self.order)
+                right_coords_fbumper[0, :], right_coords_fbumper[1, :], self.order)
         else:
             self.right_coeffs = None
 
@@ -137,8 +146,8 @@ class LaneMarkingDetector(object):
                         at lane-related pixels, which is easy to obtained from a semantic image.
             yaw_rate: Yaw rate of the ego vehicle. (in rad/s)
         Output:
-            left_coords_ego: x-y coordinates of detected left lane marking points in ego frame (z-up)
-            right_coords_ego: x-y coordinates of detected right lane marking points in ego frame (z-up)
+            left_coords_fbumper: x-y coordinates of detected left lane marking points in fbumper frame (z-up)
+            right_coords_fbumper: x-y coordinates of detected right lane marking points in fbumper frame (z-up)
         """
         # IPM to get bird's eye view
         bev_image = self._get_bev_image(lane_image)
@@ -213,12 +222,16 @@ class LaneMarkingDetector(object):
             right_coords = rotm @ right_coords
 
         # Map from pixels to meters
-        left_coords_ego = left_coords.astype(np.float)
-        right_coords_ego = right_coords.astype(np.float)
-        left_coords_ego[0, :] = left_coords_ego[0, :] / self.px_per_meters_x
-        left_coords_ego[1, :] = left_coords_ego[1, :] / self.px_per_meters_y
-        right_coords_ego[0, :] = right_coords_ego[0, :] / self.px_per_meters_x
-        right_coords_ego[1, :] = right_coords_ego[1, :] / self.px_per_meters_y
+        left_coords_fbumper = left_coords.astype(np.float)
+        right_coords_fbumper = right_coords.astype(np.float)
+        left_coords_fbumper[0, :] = left_coords_fbumper[0, :] / self.px_per_meters_x
+        left_coords_fbumper[1, :] = left_coords_fbumper[1, :] / self.px_per_meters_y
+        right_coords_fbumper[0, :] = right_coords_fbumper[0, :] / self.px_per_meters_x
+        right_coords_fbumper[1, :] = right_coords_fbumper[1, :] / self.px_per_meters_y
+
+        # Convert to coordinates wrt front bumper
+        left_coords_fbumper[0, :] += self.dist_fbumper_to_intersect
+        right_coords_fbumper[0, :] += self.dist_fbumper_to_intersect
 
         if __debug__:
             # Plot detected marking points on dilated edge image
@@ -236,18 +249,18 @@ class LaneMarkingDetector(object):
                        right_pts_in_image[1], '.', ms=0.5)
             ax[0].set_title('Extracted Marking Pixels')
 
-            ax[1].plot(left_coords_ego[1], left_coords_ego[0], '.', ms=0.5)
-            ax[1].plot(right_coords_ego[1], right_coords_ego[0], '.', ms=0.5)
+            ax[1].plot(left_coords_fbumper[1], left_coords_fbumper[0], '.', ms=0.5)
+            ax[1].plot(right_coords_fbumper[1], right_coords_fbumper[0], '.', ms=0.5)
             ax[1].set_xlim(-self.warped_size[0]/2 / self.px_per_meters_y,
                            self.warped_size[0]/2 / self.px_per_meters_y)
             ax[1].set_ylim(-2, self.warped_size[1] / self.px_per_meters_x)
             ax[1].invert_xaxis()
-            ax[1].set_title('Extracted Marking Points in Ego Frame')
+            ax[1].set_title('Marking Points in Front Bumper Frame')
             ax[1].set_xlabel('y (m)')
-            ax[1].set_ylabel('x(m)')
+            ax[1].set_ylabel('x (m)')
             plt.show(block=False)
 
-        return left_coords_ego, right_coords_ego
+        return left_coords_fbumper, right_coords_fbumper
 
     def _get_bev_image(self, image):
         """ 
@@ -437,11 +450,12 @@ class LaneMarkingDetector(object):
         # Find at most 2 peaks from the middle towards left and towards right
         # Return None if no peaks found
         half_idx = histogram.shape[0]/2
-        left_base_bin = peaks[peaks < half_idx][-1] if peaks[peaks <
-                                                             half_idx].size != 0 else None
-        right_base_bin = peaks[peaks >= half_idx][0] if peaks[peaks >=
-                                                              half_idx].size != 0 else None
 
+        # Note that the passed-in histogram is in reverse order (Larger bin number, more left)
+        left_base_bin = peaks[peaks >= half_idx][0] if peaks[peaks >=
+                                                              half_idx].size != 0 else None
+        right_base_bin = peaks[peaks < half_idx][-1] if peaks[peaks <
+                                                             half_idx].size != 0 else None
         return left_base_bin, right_base_bin
 
     def _sliding_window_search(self, edge_coords_ego, left_base, right_base):
@@ -601,11 +615,15 @@ class LaneMarkingDetector(object):
 def loop(folder_name):
     argparser = argparse.ArgumentParser(
         description='Lane Detection using Semantic Images')
+    argparser.add_argument('config', type=argparse.FileType(
+        'r'), help='configuration yaml file for carla env setup')
     argparser.add_argument('vision_config', type=argparse.FileType(
         'r'), help='configuration yaml file for vision algorithms')
     args = argparser.parse_args()
 
     # Read configurations from yaml file to config_args
+    with args.config as config_file:
+        config_args = yaml.safe_load(config_file)
     with args.vision_config as vision_config_file:
         vision_config_args = yaml.safe_load(vision_config_file)
 
@@ -616,6 +634,13 @@ def loop(folder_name):
     valid_mask = perspective_tform_data['valid_mask']
     px_per_meter_x = float(perspective_tform_data['px_per_meter_x'])
     px_per_meter_y = float(perspective_tform_data['px_per_meter_y'])
+    dist_cam_to_intersect = float(perspective_tform_data['dist_to_intersect'])
+
+    dist_cam_to_fbumper = (config_args['ego_veh']['raxle_to_fbumper']
+                           - config_args['sensor']['front_camera']['pos_x']
+                           - config_args['ego_veh']['raxle_to_cg'])
+
+    dist_fbumper_to_intersect = dist_cam_to_intersect - dist_cam_to_fbumper
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
@@ -624,8 +649,10 @@ def loop(folder_name):
     with open(os.path.join(mydir, 'yaw_rate'), 'rb') as yaw_rate_file:
         yaw_rates = pickle.load(yaw_rate_file)
 
-    lane_detector = LaneMarkingDetector(
-        M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, vision_config_args['lane'])
+    lane_detector = LaneMarkingDetector(M, px_per_meter_x, px_per_meter_y,
+                                        warped_size, valid_mask,
+                                        dist_fbumper_to_intersect,
+                                        vision_config_args['lane'])
 
     fig, ax = plt.subplots(1, 1)
     im = ax.imshow(
@@ -655,7 +682,10 @@ def loop(folder_name):
             for idx, coeff in enumerate(reversed(coeffs)):
                 y += coeff * x**idx
 
-            v_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
+            # x-y are wrt front bumper
+            # Must convert back to BEV's coordinate
+            v_img = edge_image.shape[0] - \
+                (x - dist_fbumper_to_intersect) * lane_detector.px_per_meters_x
             u_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
             left_lane.set_data(u_img, v_img)
@@ -668,7 +698,10 @@ def loop(folder_name):
             for idx, coeff in enumerate(reversed(coeffs)):
                 y += coeff * x**idx
 
-            v_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
+            # x-y are wrt front bumper
+            # Must convert back to BEV's coordinate
+            v_img = edge_image.shape[0] - \
+                (x - dist_fbumper_to_intersect) * lane_detector.px_per_meters_x
             u_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
             right_lane.set_data(u_img, v_img)
@@ -684,10 +717,15 @@ def loop(folder_name):
 def single(folder_name, image_idx):
     argparser = argparse.ArgumentParser(
         description='Lane Detection using Semantic Images')
+    argparser.add_argument('config', type=argparse.FileType(
+        'r'), help='configuration yaml file for carla env setup')
     argparser.add_argument('vision_config', type=argparse.FileType(
         'r'), help='configuration yaml file for vision algorithms')
     args = argparser.parse_args()
 
+    # Read configurations from yaml file to config_args
+    with args.config as config_file:
+        config_args = yaml.safe_load(config_file)
     # Read configurations from yaml file
     with args.vision_config as vision_config_file:
         vision_config_args = yaml.safe_load(vision_config_file)
@@ -699,6 +737,13 @@ def single(folder_name, image_idx):
     valid_mask = perspective_tform_data['valid_mask']
     px_per_meter_x = float(perspective_tform_data['px_per_meter_x'])
     px_per_meter_y = float(perspective_tform_data['px_per_meter_y'])
+    dist_cam_to_intersect = float(perspective_tform_data['dist_to_intersect'])
+
+    dist_cam_to_fbumper = (config_args['ego_veh']['raxle_to_fbumper']
+                           - config_args['sensor']['front_camera']['pos_x']
+                           - config_args['ego_veh']['raxle_to_cg'])
+
+    dist_fbumper_to_intersect = dist_cam_to_intersect - dist_cam_to_fbumper
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
@@ -711,8 +756,10 @@ def single(folder_name, image_idx):
     ss_image = ss_images[image_idx]
     lane_image = (ss_image == 6) | (ss_image == 8).astype(np.uint8)
 
-    lane_detector = LaneMarkingDetector(
-        M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, vision_config_args['lane'])
+    lane_detector = LaneMarkingDetector(M, px_per_meter_x, px_per_meter_y,
+                                        warped_size, valid_mask,
+                                        dist_fbumper_to_intersect,
+                                        vision_config_args['lane'])
 
     lane_detector.update_lane_coeffs(lane_image, yaw_rates[image_idx])
 
@@ -736,7 +783,10 @@ def single(folder_name, image_idx):
         for idx, coeff in enumerate(reversed(coeffs)):
             y += coeff * x**idx
 
-        v_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
+        # x-y are wrt front bumper
+        # Must convert back to BEV's coordinate
+        v_img = edge_image.shape[0] - \
+            (x - dist_fbumper_to_intersect) * lane_detector.px_per_meters_x
         u_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
         left_lane.set_data(u_img, v_img)
@@ -747,7 +797,10 @@ def single(folder_name, image_idx):
         for idx, coeff in enumerate(reversed(coeffs)):
             y += coeff * x**idx
 
-        v_img = edge_image.shape[0] - x * lane_detector.px_per_meters_x
+        # x-y are wrt front bumper
+        # Must convert back to BEV's coordinate
+        v_img = edge_image.shape[0] - \
+            (x - dist_fbumper_to_intersect) * lane_detector.px_per_meters_x
         u_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
         right_lane.set_data(u_img, v_img)
@@ -758,5 +811,5 @@ def single(folder_name, image_idx):
 
 
 if __name__ == "__main__":
-    # single('small_roundabout', 250)
-    loop('true_highway')
+    single('small_roundabout', 250)
+    # loop('small_roundabout')
