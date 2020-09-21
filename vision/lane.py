@@ -624,6 +624,9 @@ def loop(folder_name):
     with open(os.path.join(mydir, 'yaw_rate'), 'rb') as yaw_rate_file:
         yaw_rates = pickle.load(yaw_rate_file)
 
+    lane_detector = LaneMarkingDetector(
+        M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, vision_config_args['lane'])
+
     fig, ax = plt.subplots(1, 1)
     im = ax.imshow(
         255*np.ones((warped_size[1], warped_size[0])).astype(np.uint8), vmin=0, vmax=1.0)
@@ -634,9 +637,6 @@ def loop(folder_name):
     for image_idx, ss_image in enumerate(ss_images):
         # Extract lane-relevant semantic labels (road line and sidewalk)
         lane_image = (ss_image == 6) | (ss_image == 8).astype(np.uint8)
-
-        lane_detector = LaneMarkingDetector(
-            M, px_per_meter_x, px_per_meter_y, warped_size, valid_mask, vision_config_args['lane'])
 
         lane_detector.update_lane_coeffs(lane_image, yaw_rates[image_idx])
 
@@ -759,4 +759,4 @@ def single(folder_name, image_idx):
 
 if __name__ == "__main__":
     # single('small_roundabout', 250)
-    loop('highway_lane_change')
+    loop('true_highway')
