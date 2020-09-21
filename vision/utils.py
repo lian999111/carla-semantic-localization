@@ -23,7 +23,7 @@ def decode_depth(depth_buffer):
     return depth_image
 
 
-def find_pole_bases(pole_image, max_width, min_height, use_bbox_center=True, horizon=None):
+def find_pole_bases(pole_image, min_width, max_width, min_height, use_bbox_center=True, horizon=None):
     """
     Find bases of poles in the given image.
 
@@ -41,7 +41,7 @@ def find_pole_bases(pole_image, max_width, min_height, use_bbox_center=True, hor
                          If False, the pixel with the largest v coordinate (lowest in image) is used.
         horizon: Position of the horizon in the image (wrt the top of image). If not given, half point of image is used.
     Output:
-        pole_bases_uv: Image coordiantes (u-v) of detected pole bases.
+        pole_bases_uv: Image coordiantes (u-v) of detected pole bases. None if no bases detected.
     """
     # Use half height of image is horizon not given
     if not horizon:
@@ -51,10 +51,14 @@ def find_pole_bases(pole_image, max_width, min_height, use_bbox_center=True, hor
         pole_image[horizon:, :])
 
     # Find components fulfilling the criteria
-    selected = np.logical_and(
-        stats[:, 2] < max_width, stats[:, 3] > min_height)
+    selected = np.logical_and.reduce((
+        stats[:, 2] > min_width, stats[:, 2] < max_width, stats[:, 3] > min_height))
 
     n_pole_detected = sum(selected)
+
+    if n_pole_detected == 0:
+        return None
+
     # Coordinates of pole bases in image (2-by-N)
     pole_bases_uv = np.zeros((2, n_pole_detected))
 
@@ -76,9 +80,9 @@ def find_pole_bases(pole_image, max_width, min_height, use_bbox_center=True, hor
             bbox_v_high = bbox_v_low + stat[3]
 
             # Get mask in the bbox
-            mask = np.logical_and.reduce((bbox_u_low < nonzerou,
+            mask = np.logical_and.reduce((bbox_u_low <= nonzerou,
                                           nonzerou < bbox_u_high,
-                                          bbox_v_low < nonzerov,
+                                          bbox_v_low <= nonzerov,
                                           nonzerov < bbox_v_high))
 
             # Get the base coordinate
