@@ -401,7 +401,11 @@ class LaneMarkingDetector(object):
             # HoughLinesP
             x1, y1, x2, y2 = lines[:, :, 0], lines[:,
                                                    :, 1], lines[:, :, 2], lines[:, :, 3]
-            rot_angle = -np.median(np.arctan((x2 - x1)/(y2 - y1)))
+            angles = np.arctan2((x2 - x1), (y2 - y1))
+            angles[angles > np.pi/2] -= np.pi
+            angles[angles < -np.pi/2] += np.pi
+
+            rot_angle = -np.median(angles)
         else:
             rot_angle = None
 
@@ -479,7 +483,7 @@ class LaneMarkingDetector(object):
 
         if edge_coords_ego.size == 0:
             return left_idc, right_idc
-            
+
         # x and y are aligned with the ego frame in this method!!!
         min_x = min(edge_coords_ego[0])
 
