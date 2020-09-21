@@ -623,10 +623,6 @@ def loop(folder_name):
         ss_images = pickle.load(image_file)
     with open(os.path.join(mydir, 'yaw_rate'), 'rb') as yaw_rate_file:
         yaw_rates = pickle.load(yaw_rate_file)
-    with open(os.path.join(mydir, 'vx'), 'rb') as vx_file:
-        vx = pickle.load(vx_file)
-    with open(os.path.join(mydir, 'in_junction'), 'rb') as in_junction_file:
-        in_junction = pickle.load(in_junction_file)
 
     fig, ax = plt.subplots(1, 1)
     im = ax.imshow(
@@ -710,10 +706,6 @@ def single(folder_name, image_idx):
         ss_images = pickle.load(image_file)
     with open(os.path.join(mydir, 'yaw_rate'), 'rb') as yaw_rate_file:
         yaw_rates = pickle.load(yaw_rate_file)
-    with open(os.path.join(mydir, 'vx'), 'rb') as vx_file:
-        vx = pickle.load(vx_file)
-    with open(os.path.join(mydir, 'in_junction'), 'rb') as in_junction_file:
-        in_junction = pickle.load(in_junction_file)
 
     # Extract lane-relevant semantic labels (road line and sidewalk)
     ss_image = ss_images[image_idx]
@@ -728,7 +720,7 @@ def single(folder_name, image_idx):
         plt.show()
 
     # Verify lane marking results
-    fig, ax = plt.subplots(1, 1)
+    _, ax = plt.subplots(1, 1)
     im = ax.imshow(
         255*np.ones((warped_size[1], warped_size[0])).astype(np.uint8), vmin=0, vmax=1.0)
     left_lane = ax.plot([], [])[0]
