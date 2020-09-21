@@ -473,16 +473,19 @@ class LaneMarkingDetector(object):
             left_idc: Indices of possible left marking points.
             right_idc: Indices of possible right marking points.
         """
+        # Create empty lists to store left and right lane pixel indices
+        left_idc = []
+        right_idc = []
+
+        if edge_coords_ego.size == 0:
+            return left_idc, right_idc
+            
         # x and y are aligned with the ego frame in this method!!!
         min_x = min(edge_coords_ego[0])
 
         # Set height of windows
         window_height = int(
             self.warped_size[1] * self._search_region / self._n_windows)
-
-        # Create empty lists to store left and right lane pixel indices
-        left_idc = []
-        right_idc = []
 
         # The shift to recenter the next window
         shift = 0
