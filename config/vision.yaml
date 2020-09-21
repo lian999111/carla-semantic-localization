@@ -85,5 +85,7 @@ pole:
   # The pole detection algorithm finds bounding boxes aroung connected pole labels beneath the vanish point
   # Minimum height of the bounding box around a pole
   min_height: 20
+  # Minimum width of the bounding box around a pole
+  min_width: 0
   # Maximum width of the bounding box around a pole
   max_width: 50
