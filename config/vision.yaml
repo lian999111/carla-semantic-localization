@@ -23,7 +23,7 @@ lane:
   rotation:
     # Scale to decrease image height considered based on yaw rate
     # Decrease vertical region with increasing yaw rate
-    yaw_rate_scale_h: 200
+    yaw_rate_scale_h: 250
     # Scale to increase horizontal image region considered based on yaw rate
     # Increase left when yaw rate is positive. Increase right when yaw rate is negative.
     yaw_rate_scale_w: 120

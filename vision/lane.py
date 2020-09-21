@@ -654,11 +654,16 @@ def loop(folder_name):
                                         dist_fbumper_to_intersect,
                                         vision_config_args['lane'])
 
-    fig, ax = plt.subplots(1, 1)
-    im = ax.imshow(
+    fig, ax = plt.subplots(1, 2)
+    im = ax[0].imshow(
         255*np.ones((warped_size[1], warped_size[0])).astype(np.uint8), vmin=0, vmax=1.0)
-    left_lane = ax.plot([], [])[0]
-    right_lane = ax.plot([], [])[0]
+    left_lane = ax[0].plot([], [])[0]
+    right_lane = ax[0].plot([], [])[0]
+    left_lane_fbumper = ax[1].plot([], [])[0]
+    right_lane_fbumper = ax[1].plot([], [])[0]
+    ax[1].set_xlim((6, -6))
+    ax[1].set_ylim((0, 20))
+    ax[1].set_title('In Front Bumper Frame')
     plt.show(block=False)
 
     for image_idx, ss_image in enumerate(ss_images):
@@ -689,8 +694,10 @@ def loop(folder_name):
             u_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
             left_lane.set_data(u_img, v_img)
+            left_lane_fbumper.set_data(y, x)
         else:
             left_lane.set_data([], [])
+            left_lane_fbumper.set_data([], [])
 
         if lane_detector.right_coeffs is not None:
             coeffs = lane_detector.right_coeffs
@@ -705,10 +712,12 @@ def loop(folder_name):
             u_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
             right_lane.set_data(u_img, v_img)
+            right_lane_fbumper.set_data(y, x)
         else:
             right_lane.set_data([], [])
+            right_lane_fbumper.set_data([], [])
 
-        ax.set_title(image_idx)
+        ax[0].set_title(image_idx)
         fig.canvas.draw()
         fig.canvas.flush_events()
         print(yaw_rates[image_idx])
@@ -767,11 +776,15 @@ def single(folder_name, image_idx):
         plt.show()
 
     # Verify lane marking results
-    _, ax = plt.subplots(1, 1)
-    im = ax.imshow(
+    _, ax = plt.subplots(1, 2)
+    im = ax[0].imshow(
         255*np.ones((warped_size[1], warped_size[0])).astype(np.uint8), vmin=0, vmax=1.0)
-    left_lane = ax.plot([], [])[0]
-    right_lane = ax.plot([], [])[0]
+    left_lane = ax[0].plot([], [])[0]
+    right_lane = ax[0].plot([], [])[0]
+    left_lane_fbumper = ax[1].plot([], [])[0]
+    right_lane_fbumper = ax[1].plot([], [])[0]
+    ax[1].set_xlim((6, -6))
+    ax[1].set_ylim((0, 20))
 
     edge_image = lane_detector._get_bev_image(lane_image)
     im.set_data(edge_image)
@@ -790,6 +803,7 @@ def single(folder_name, image_idx):
         u_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
         left_lane.set_data(u_img, v_img)
+        left_lane_fbumper.set_data(y, x)
 
     if lane_detector.right_coeffs is not None:
         coeffs = lane_detector.right_coeffs
@@ -804,12 +818,14 @@ def single(folder_name, image_idx):
         u_img = edge_image.shape[1]//2 - y * lane_detector.px_per_meters_y
 
         right_lane.set_data(u_img, v_img)
+        right_lane_fbumper.set_data(y, x)
 
-    ax.set_title(image_idx)
+    ax[0].set_title(image_idx)
+    ax[1].set_title('In Front Bumper Frame')
     plt.show()
     print(yaw_rates[image_idx])
 
 
 if __name__ == "__main__":
-    single('small_roundabout', 250)
-    # loop('small_roundabout')
+    # single('small_roundabout', 215)
+    loop('small_roundabout')
