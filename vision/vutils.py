@@ -4,6 +4,30 @@ import numpy as np
 import cv2
 
 
+def convert_semantic_color(ss_image):
+    """
+    Convert semantic segmentation image's color into CityScape's color coding.
+    """
+    # RGB
+    converted = np.zeros((ss_image.shape[0], ss_image.shape[1], 3), dtype=np.uint8)
+    
+    converted[ss_image == 0] = (0, 0, 0)
+    converted[ss_image == 1] = (70, 70, 70)
+    converted[ss_image == 2] = (190, 153, 153)
+    converted[ss_image == 3] = (250, 170, 160)
+    converted[ss_image == 4] = (220, 20, 60)
+    converted[ss_image == 5] = (153, 153, 153)
+    converted[ss_image == 6] = (157, 234, 50)
+    converted[ss_image == 7] = (128, 64, 128)
+    converted[ss_image == 8] = (244, 35, 232)
+    converted[ss_image == 9] = (107, 142, 35)
+    converted[ss_image == 10] = (0, 0, 142)
+    converted[ss_image == 11] = (102, 102, 156)
+    converted[ss_image == 12] = (220, 220, 0)
+
+    return converted
+
+
 def decode_depth(depth_buffer):
     """
     Decode the depth buffer into a depth image.
