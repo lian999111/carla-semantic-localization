@@ -551,7 +551,7 @@ class DepthCamera(CarlaSensor):
         self.depth_buffer = np_img[:, :, 0:3].copy()    # get just BGR channels
 
 
-# %% ================= Front Camera =================
+# %% ================= Front Smart Camera =================
 
 
 class FrontSmartCamera(object):
@@ -559,6 +559,8 @@ class FrontSmartCamera(object):
     Class for front smart camera that provides high-level detections.
 
     It uses a semantic image to extract high-level detections, such as lane markings and poles.
+    This class is suppoesed run in parallel with World, which acts like an interface to Carla.
+    This class then use raw sensor data in World to do further process.
     """
 
     def __init__(self, semantic_camera, imu, vision_params, calib_data, ipm_data):
