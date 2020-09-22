@@ -139,10 +139,11 @@ def single(folder_name, image_idx):
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'ss_images.pkl'), 'rb') as image_file:
-        ss_images = pickle.load(image_file)
-    with open(os.path.join(mydir, 'depth_buffers.pkl'), 'rb') as image_file:
-        depth_buffers = pickle.load(image_file)
+    with open(os.path.join(mydir, 'data.pkl'), 'rb') as f:
+        data = pickle.load(f)
+        
+    ss_images = data['ss_images']
+    depth_buffers = data['depth_buffers']
 
     # Extract pole-relevant semantic labels
     ss_image = ss_images[image_idx]
@@ -211,12 +212,13 @@ def loop(folder_name):
     R = calib_data['R']
     x0 = calib_data['x0']
 
-    # Load data
+    # Load data\
     mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'ss_images.pkl'), 'rb') as image_file:
-        ss_images = pickle.load(image_file)
-    with open(os.path.join(mydir, 'depth_buffers.pkl'), 'rb') as image_file:
-        depth_buffers = pickle.load(image_file)
+    with open(os.path.join(mydir, 'data.pkl'), 'rb') as f:
+        data = pickle.load(f)
+
+    ss_images = data['ss_images']
+    depth_buffers = data['depth_buffers']
 
     pole_detector = PoleDetector(K, R, x0, vision_params['pole'])
 
@@ -274,4 +276,4 @@ def loop(folder_name):
 
 if __name__ == "__main__":
     # single('true_highway', 193)
-    loop('true_highway')
+    loop('pole_gt')

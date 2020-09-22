@@ -76,11 +76,12 @@ def main():
                       config['world']['delta_seconds'])
 
         if args.record:
-            ss_images = []
-            depth_buffers = []
-            vx = []
-            yaw_rate = []
-            in_junction = []
+            data = {}
+            data['ss_images'] = []
+            data['depth_buffers'] = []
+            data['raxle_gt_loc'] = []
+            data['raxle_gt_ori'] = []
+            data['yaw_rate'] = []
 
         # Simulation loop
         to_left = True
@@ -89,11 +90,11 @@ def main():
             world.see_ego_veh()
 
             if args.record:
-                ss_images.append(world.semantic_camera.ss_image)
-                depth_buffers.append(world.depth_camera.depth_buffer)
-                vx.append(world.imu.vx)
-                yaw_rate.append(world.imu.gyro_z)
-                in_junction.append(world.ground_truth.in_junction)
+                data['ss_images'].append(world.semantic_camera.ss_image)
+                data['depth_buffers'].append(world.depth_camera.depth_buffer)
+                data['raxle_gt_loc'].append(world.ground_truth.raxle_gt_location)
+                data['raxle_gt_ori'].append(world.ground_truth.raxle_gt_orientation)
+                data['yaw_rate'].append(world.imu.gyro_z)
 
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
                 world.imu.vx, world.imu.vy, world.imu.gyro_z * 180 / pi))
@@ -127,17 +128,8 @@ def main():
             mydir = os.path.join(os.getcwd(), 'recordings',
                                  datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
             os.makedirs(mydir)
-
-            with open(os.path.join(mydir, 'ss_images.pkl'), 'wb') as image_file:
-                pickle.dump(ss_images, image_file)
-            with open(os.path.join(mydir, 'depth_buffers.pkl'), 'wb') as depth_file:
-                pickle.dump(depth_buffers, depth_file)
-            with open(os.path.join(mydir, 'vx.pkl'), 'wb') as vx_file:
-                pickle.dump(vx, vx_file)
-            with open(os.path.join(mydir, 'yaw_rate.pkl'), 'wb') as yaw_rate_file:
-                pickle.dump(yaw_rate, yaw_rate_file)
-            with open(os.path.join(mydir, 'in_junction'), 'wb') as in_junction_file:
-                pickle.dump(in_junction, in_junction_file)
+            with open(os.path.join(mydir, 'data.pkl'), 'wb') as f:
+                pickle.dump(data, f)
 
 
 # %%
