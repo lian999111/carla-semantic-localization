@@ -137,6 +137,12 @@ class LaneMarkingDetector(object):
         else:
             self.right_coeffs = None
 
+        # In debug mode, show figures plotted at each step finally
+        # If this method is called in a loop in debug mode and the figures are not shown to block,
+        # figures created at each loop will accumulate and drive the system to hang
+        if __debug__:
+            plt.show()
+
     def find_marking_points(self, lane_image, yaw_rate):
         """
         Find marking points using the lane semantic image.
@@ -679,9 +685,6 @@ def loop(folder_name):
 
         lane_detector.update_lane_coeffs(lane_image, yaw_rates[image_idx])
 
-        if __debug__:
-            plt.show()
-
         # Verify lane marking results
         edge_image = lane_detector._get_bev_image(lane_image)
         im.set_data(edge_image)
@@ -778,9 +781,6 @@ def single(folder_name, image_idx):
                                         vision_config_args['lane'])
 
     lane_detector.update_lane_coeffs(lane_image, yaw_rates[image_idx])
-
-    if __debug__:
-        plt.show()
 
     # Verify lane marking results
     _, ax = plt.subplots(1, 2)
