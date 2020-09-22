@@ -128,13 +128,13 @@ def main():
                                  datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
             os.makedirs(mydir)
 
-            with open(os.path.join(mydir, 'ss_images'), 'wb') as image_file:
+            with open(os.path.join(mydir, 'ss_images.pkl'), 'wb') as image_file:
                 pickle.dump(ss_images, image_file)
-            with open(os.path.join(mydir, 'depth_buffers'), 'wb') as depth_file:
+            with open(os.path.join(mydir, 'depth_buffers.pkl'), 'wb') as depth_file:
                 pickle.dump(depth_buffers, depth_file)
-            with open(os.path.join(mydir, 'vx'), 'wb') as vx_file:
+            with open(os.path.join(mydir, 'vx.pkl'), 'wb') as vx_file:
                 pickle.dump(vx, vx_file)
-            with open(os.path.join(mydir, 'yaw_rate'), 'wb') as yaw_rate_file:
+            with open(os.path.join(mydir, 'yaw_rate.pkl'), 'wb') as yaw_rate_file:
                 pickle.dump(yaw_rate, yaw_rate_file)
             with open(os.path.join(mydir, 'in_junction'), 'wb') as in_junction_file:
                 pickle.dump(in_junction, in_junction_file)

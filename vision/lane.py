@@ -653,9 +653,9 @@ def loop(folder_name):
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'ss_images'), 'rb') as image_file:
+    with open(os.path.join(mydir, 'ss_images.pkl'), 'rb') as image_file:
         ss_images = pickle.load(image_file)
-    with open(os.path.join(mydir, 'yaw_rate'), 'rb') as yaw_rate_file:
+    with open(os.path.join(mydir, 'yaw_rate.pkl'), 'rb') as yaw_rate_file:
         yaw_rates = pickle.load(yaw_rate_file)
 
     lane_detector = LaneMarkingDetector(M, px_per_meter_x, px_per_meter_y,
@@ -752,9 +752,9 @@ def single(folder_name, image_idx):
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'ss_images'), 'rb') as image_file:
+    with open(os.path.join(mydir, 'ss_images.pkl'), 'rb') as image_file:
         ss_images = pickle.load(image_file)
-    with open(os.path.join(mydir, 'yaw_rate'), 'rb') as yaw_rate_file:
+    with open(os.path.join(mydir, 'yaw_rate.pkl'), 'rb') as yaw_rate_file:
         yaw_rates = pickle.load(yaw_rate_file)
 
     # Extract lane-relevant semantic labels (road line and sidewalk)

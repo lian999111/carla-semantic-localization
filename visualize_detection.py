@@ -71,11 +71,11 @@ def visualize(folder_name):
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'ss_images'), 'rb') as image_file:
+    with open(os.path.join(mydir, 'ss_images.pkl'), 'rb') as image_file:
         ss_images = pickle.load(image_file)
-    with open(os.path.join(mydir, 'depth_buffers'), 'rb') as image_file:
+    with open(os.path.join(mydir, 'depth_buffers.pkl'), 'rb') as image_file:
         depth_buffers = pickle.load(image_file)
-    with open(os.path.join(mydir, 'yaw_rate'), 'rb') as yaw_rate_file:
+    with open(os.path.join(mydir, 'yaw_rate.pkl'), 'rb') as yaw_rate_file:
         yaw_rates = pickle.load(yaw_rate_file)
 
     # Detector objects

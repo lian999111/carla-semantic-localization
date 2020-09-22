@@ -139,9 +139,9 @@ def single(folder_name, image_idx):
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'ss_images'), 'rb') as image_file:
+    with open(os.path.join(mydir, 'ss_images.pkl'), 'rb') as image_file:
         ss_images = pickle.load(image_file)
-    with open(os.path.join(mydir, 'depth_buffers'), 'rb') as image_file:
+    with open(os.path.join(mydir, 'depth_buffers.pkl'), 'rb') as image_file:
         depth_buffers = pickle.load(image_file)
 
     # Extract pole-relevant semantic labels
@@ -213,9 +213,9 @@ def loop(folder_name):
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'ss_images'), 'rb') as image_file:
+    with open(os.path.join(mydir, 'ss_images.pkl'), 'rb') as image_file:
         ss_images = pickle.load(image_file)
-    with open(os.path.join(mydir, 'depth_buffers'), 'rb') as image_file:
+    with open(os.path.join(mydir, 'depth_buffers.pkl'), 'rb') as image_file:
         depth_buffers = pickle.load(image_file)
 
     pole_detector = PoleDetector(K, R, x0, vision_params['pole'])
