@@ -507,7 +507,7 @@ class SemanticCamera(CarlaSensor):
 
 
 class DepthCamera(CarlaSensor):
-    """ Class for semantic camera. """
+    """ Class for depth camera. """
 
     def __init__(self, parent_actor, depth_cam_config_args):
         """ Constructor method. """
@@ -523,7 +523,7 @@ class DepthCamera(CarlaSensor):
             'image_size_y', depth_cam_config_args['res_v'])
         depth_cam_bp.set_attribute('fov', depth_cam_config_args['fov'])
 
-        print("Spawning semantic camera sensor.")
+        print("Spawning depth camera sensor.")
         self.sensor = world.spawn_actor(depth_cam_bp,
                                         carla.Transform(
                                             carla.Location(x=depth_cam_config_args['pos_x'], z=depth_cam_config_args['pos_z'])),
@@ -532,7 +532,7 @@ class DepthCamera(CarlaSensor):
         self.sensor.listen(lambda image: self._queue.put(image))
 
     def update(self):
-        """ Wait for semantic image and update data. """
+        """ Wait for depth image and update data. """
         image = self._queue.get()
         self.timestamp = image.timestamp
         np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
