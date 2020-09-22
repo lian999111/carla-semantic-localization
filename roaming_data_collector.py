@@ -567,7 +567,7 @@ def main():
     spawn_point = None
     # Assign spawn point for ego vehicle
     spawn_point = carla.Transform(carla.Location(
-        229.67, 80.99, 0.59), carla.Rotation(yaw=91.39))
+        218.67, 59.18, 0.59), carla.Rotation(yaw=180))
     try:
         client = carla.Client('localhost', 2000)
         client.set_timeout(5.0)
@@ -618,6 +618,13 @@ def main():
             if (idx+1) % int(3/config_args['world']['delta_seconds']) == 0:
                 world.force_lane_change(to_left=to_left)
                 to_left = not to_left
+        
+    finally:
+        if world:
+            world.set_ego_autopilot(False)
+            world.destroy()
+            # Allow carla engine to run freely so it doesn't just hang there
+            world.allow_free_run()
 
         # Store data
         if args.record:
@@ -635,13 +642,6 @@ def main():
                 pickle.dump(yaw_rate, yaw_rate_file)
             with open(os.path.join(mydir, 'in_junction'), 'wb') as in_junction_file:
                 pickle.dump(in_junction, in_junction_file)
-
-    finally:
-        if world:
-            world.set_ego_autopilot(False)
-            world.destroy()
-            # Allow carla engine to run freely so it doesn't just hang there
-            world.allow_free_run()
 
 
 # %%
