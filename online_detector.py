@@ -22,7 +22,7 @@ import yaml
 import pickle
 from math import pi
 
-from roaming_data_collector import World, FrontSmartCamera
+from carlasim.data_collect import World, FrontSmartCamera
 
 
 def main():

@@ -17,7 +17,9 @@ except IndexError:
 import carla
 from enum import Enum
 import numpy as np
+import queue
 from carlatform import CarlaW2ETform
+from vision.vutils import decode_depth
 
 
 class Direction(Enum):
@@ -31,13 +33,13 @@ class Direction(Enum):
 class GroundTruthExtractor(object):
     """ Class for ground truth extraction. """
 
-    def __init__(self, ego_veh, carla_map, actor_list, config_args):
+    def __init__(self, ego_veh, carla_map, actor_list, config):
         """ Constructor method. """
         # Ego vehicle
         # Distance from rear axle to front bumper
-        self.raxle_to_fbumper = config_args['ego_veh']['raxle_to_fbumper']
+        self.raxle_to_fbumper = config['ego_veh']['raxle_to_fbumper']
         # Distance from rear axle to center of gravity
-        self.raxle_to_cg = config_args['ego_veh']['raxle_to_cg']
+        self.raxle_to_cg = config['ego_veh']['raxle_to_cg']
 
         self.ego_veh = ego_veh
         self.ego_veh_tform = ego_veh.get_transform()
@@ -71,13 +73,11 @@ class GroundTruthExtractor(object):
 
         # Lanes
         # Search radius
-        self._radius = config_args['gt']['lane']['radius']
-        # In some OpenDrive definitions, ego lane may have no visible lane boundaries.
-        # Ground truth extractor then tries to get closest visible lane markings towards both sides and store the
-        # corresponding waypoints into waypoint_left_marking and waypoint_right_marking. These 2 waypoints
-        # are just for the convenience to extract closes left and right markings.
-        self.waypoint = None
+        self._radius = config['gt']['lane']['radius']
 
+        # Current waypoint
+        self.waypoint = None
+        # Carla.LaneMarking object of each marking
         self.left_marking = None
         self.next_left_marking = None
         self.right_marking = None
@@ -227,7 +227,7 @@ class GroundTruthExtractor(object):
         """
         fbumper_transform = carla.Transform(
             self._fbumper_location, self.ego_veh.get_transform().rotation)
-        # Object for transforming a carla.Location in carla's world frame (left-handed z-up) 
+        # Object for transforming a carla.Location in carla's world frame (left-handed z-up)
         # into our front bumper's frame (right-handed z-up)
         tform_w2e = CarlaW2ETform(fbumper_transform)
         waypt_ego_frame = tform_w2e.tform_world_to_ego(
@@ -319,7 +319,7 @@ class GroundTruthExtractor(object):
         def get_lane_marking_pt_in_ego_frame(waypoint_of_interest):
             """ 
             Get the corresponding marking point in ego frame given a waypoint of interest. 
-            
+
             It obtains the point of lane marking by projecting the half lane width.
             """
             if self._check_same_direction_as_ego_lane(waypoint_of_interest):
@@ -369,7 +369,8 @@ class GroundTruthExtractor(object):
 
         # Containers for lane marking points and their types
         # Stored in ascending order (from back to forth)
-        lane_pts_in_ego = []    # a list 3D points in ego frame (right-handed z-up)
+        # a list 3D points in ego frame (right-handed z-up)
+        lane_pts_in_ego = []
         lane_markings = []      # a list of carla.LaneMarking of each point
         # Previous waypointes of the given waypoint
         # carla's waypoint.previous_until_lane_start() has bugs with lane type like Border and Parking.
@@ -450,6 +451,103 @@ class GroundTruthExtractor(object):
             else:
                 return waypoint_of_interest.left_lane_marking
 
-    def _get_poles(self):
-        # TODO: use semantic lidar or just actors?
+
+class ObjectGTExtractor(object):
+    """
+    Class for object ground truth extraction.
+
+    It uses semantic segmentation together depth cameras that can freely move around the environment 
+    to extract ground truth of objects of interest.
+    """
+
+    def __init__(self, carla_world, transform, obj_gt_config, attach_to=None):
+        """
+        Constructor method.
+
+        Input:
+            carla_world: Carla.World object of the simulation environment.
+            transform: Carla.Transform representating the location and orientation 
+                       the caremras will be spawned with..
+            obj_gt_config: Configurations for object ground truth extraction.
+            attach_to: Parent actor that the camera will follow around.
+        """
+        # Queues to store images from Carla cameras 
+        self._ss_queue = queue.Queue()
+        self._depth_queue = queue.Queue()
+
+        # Images
+        self.ss_image = None
+        self.depth_image = None  
+
+        # xyz coordinates of poles wrt the reference frame
+        # The relation ship
+        self.poles_xyz = None         
+
+        # Initialize semantic camera
+        ss_cam_bp = carla_world.get_blueprint_library().find(
+            'sensor.camera.semantic_segmentation')
+        ss_cam_bp.set_attribute('image_size_x', obj_gt_config['res_h'])
+        ss_cam_bp.set_attribute('image_size_y', obj_gt_config['res_v'])
+        ss_cam_bp.set_attribute('fov', obj_gt_config['fov'])
+
+        print("Spawning semantic camera sensor for ground truth.")
+        self.sensor = carla_world.spawn_actor(ss_cam_bp, transform, attach_to=attach_to)
+        self.sensor.listen(lambda image: self._ss_queue.put(image))
+
+        # Initialize depth camera
+        depth_cam_bp = carla_world.get_blueprint_library().find(
+            'sensor.camera.depth')
+        depth_cam_bp.set_attribute(
+            'image_size_x', obj_gt_config['res_h'])
+        depth_cam_bp.set_attribute(
+            'image_size_y', obj_gt_config['res_v'])
+        depth_cam_bp.set_attribute('fov', obj_gt_config['fov'])
+
+        print("Spawning depth camera sensor for ground truth.")
+        self.sensor = carla_world.spawn_actor(depth_cam_bp, transform, attach_to=attach_to)
+        self.sensor.listen(lambda image: self._depth_queue.put(image))
+
+    def update(self):
+        """
+        Update object-related ground truth.
+
+        This method first calls _update_images() then use the new images to extract object ground truth. 
+        """
+
+
+    def _update_images(self):
+        """
+        Update semantic and depth images at the current tick.
+
+        Must be called at each Carla tick to get the latest images.
+        """
+        # Update semantic image
+        image = self._ss_queue.get()
+        np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
+        # Reshap to BGRA format
+        np_img = np.reshape(np_img, (image.height, image.width, -1))
+        # Semantic info is stored only in the R channel
+        # Since np_img is from the buffer, which is reused by Carla
+        # Making a copy makes sure ss_img is not subject to side-effect when the underlying buffer is modified
+        self.ss_img = np_img[:, :, 2].copy()
+
+        # Update depth image
+        image = self._depth_queue.get()
+        np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
+        # Reshap to BGRA format
+        # The depth info is encoded by the BGR channels using the so-called depth buffer.
+        # Decoding is required before use.
+        # Ref: https://carla.readthedocs.io/en/latest/ref_sensors/#depth-camera
+        np_img = np.reshape(np_img, (image.height, image.width, -1))
+        # Since np_img is from the buffer, which is reused by Carla
+        # Making a copy makes sure depth_buffer is not subject to side-effect when the underlying buffer is modified
+        depth_buffer = np_img[:, :, 0:3]    # get just BGR channels
+        self.depth_image = decode_depth(depth_buffer)
+
+    def _update_poles_xyz(self):
+        """
+        Update xyz coordinates of poles.
+
+        Must be called at each Carla tick to get the latest images.
+        """
         pass

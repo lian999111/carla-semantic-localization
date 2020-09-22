@@ -1,3 +1,5 @@
+""" Implements world-to-ego transformations. """
+
 # %%
 # The following boilerplate is required if .egg is not installed
 # See: https://carla.readthedocs.io/en/latest/build_system/
@@ -16,8 +18,6 @@ except IndexError:
 import carla
 import numpy as np
 from scipy.spatial.transform import Rotation
-
-
 
 
 class CarlaW2ETform:
@@ -104,4 +104,3 @@ class CarlaW2ETform:
                           -self._ego_veh_transform.location.z]).T
         self._tform_w2e[0:3, 3] = - self._rotm_w2e.dot(trvec)
 
-# %%
