@@ -44,12 +44,11 @@ class GroundTruthExtractor(object):
         self.ego_veh = ego_veh
         self.ego_veh_tform = ego_veh.get_transform()
 
+        # TODO: Try put this frame at the intersect of camera FOV and ground surface?
         # Front bumper location in Carla's coordinate system (left-handed z-up) as a carla.Vector3D object
         # It's in carla's left-handed world frame so querying waypoints using carla's APIs is more straightforward
         self._fbumper_location = self.ego_veh_tform.transform(
             carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))
-        # A flag indicating ego vehicle is in junction
-        self.in_junction = False
 
         # Rear axle in Carla's coordinate system (left-handed z-up) as a carla.Vector3D object
         raxle_location = self.ego_veh_tform.transform(
@@ -77,6 +76,10 @@ class GroundTruthExtractor(object):
 
         # Current waypoint
         self.waypoint = None
+        # Flag indicating ego vehicle is in junction
+        self.in_junction = False
+        # Current lane id (to know the order of double marking types)
+        self.lane_id = None
         # Carla.LaneMarking object of each marking
         self.left_marking = None
         self.next_left_marking = None
@@ -113,8 +116,8 @@ class GroundTruthExtractor(object):
         self.waypoint = self.map.get_waypoint(
             self._fbumper_location, lane_type=carla.LaneType.Any)
 
-        # Update in_junction flag if current waypoint is junction
         self.in_junction = self.waypoint.is_junction
+        self.lane_id = self.waypoint.lane_id
 
         # When the query point (front bumper) is farther from the obtained waypoint than searching radius,
         # the ego vehicle is likely  to be off road, then no lane info is further extracted.
