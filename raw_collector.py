@@ -1,4 +1,4 @@
-# This implements a raw data collectior car.
+# This implements a raw data (no high-level detection) collectior car.
 
 # The following boilerplate is required if .egg is not installed
 # See: https://carla.readthedocs.io/en/latest/build_system/
