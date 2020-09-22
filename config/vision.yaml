@@ -1,3 +1,5 @@
+## Defines parameters for vision algorithms
+
 ## Parameters for lane detection
 lane:
   arrow_removal:

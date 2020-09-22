@@ -1,3 +1,5 @@
+## Defines configurations of Carla simulation
+
 ## World
 world:
   # Rendering must be on for semantic segmentation output
@@ -92,5 +94,5 @@ gt:
     radius: 9      # (m) Search radius for lane markings
 
 ## Setups
-sim_duration: 600  # sec
+sim_duration: 60  # sec
 recording: False
