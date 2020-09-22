@@ -22,7 +22,7 @@ class PoleDetector(object):
     This relationship is embedded in the extrinsic parameters already.
     """
 
-    def __init__(self, K, R, x0, pole_config_args):
+    def __init__(self, K, R, x0, pole_detect_params):
         """ 
         Constructor method. 
 
@@ -30,7 +30,7 @@ class PoleDetector(object):
             K: Numpy.array of 3x3 matrix for intrinsic calibration matrix.
             R: Numpy.array of 3x3 matrix for rotation matrix of the reference frame wrt the camera frame.
             x0: 3-by-1 Numpy.array representing camera's origin (principal point) wrt the front bumper's frame.
-            pole_config_args: Dict object storing algorithm related parameters.
+            pole_detect_params: Dict object storing pole detection algorithm parameters.
             vp: Array-like representing 2D vanish point in the image. If not given, image center is used.
         """
         self.K = K
@@ -47,11 +47,11 @@ class PoleDetector(object):
 
         # For finding valid bounding boxes around pole-labelled pixels
         # Minimum bound box height (to ignore those too short)
-        self._min_height = pole_config_args['min_height']
+        self._min_height = pole_detect_params['min_height']
         # Minimum bound box width (to ignore those too thin)
-        self._min_width = pole_config_args['min_width']
+        self._min_width = pole_detect_params['min_width']
         # Maximum bound box width (to ignore those too wide)
-        self._max_width = pole_config_args['max_width']
+        self._max_width = pole_detect_params['max_width']
 
     def update_poles(self, pole_image, upper_lim=None, z=0):
         """
@@ -115,20 +115,20 @@ def single(folder_name, image_idx):
     argparser = argparse.ArgumentParser(
         description='Pole Detection using Semantic Images')
     argparser.add_argument('config', type=argparse.FileType(
-        'r'), help='configuration yaml file for carla env setup')
-    argparser.add_argument('vision_config', type=argparse.FileType(
-        'r'), help='configuration yaml file for vision algorithms')
+        'r'), help='yaml file for carla configuration')
+    argparser.add_argument('vision_params', type=argparse.FileType(
+        'r'), help='yaml file for vision algorithm parameters')
     args = argparser.parse_args()
 
     # Read configurations from yaml file
     with args.config as config_file:
-        config_args = yaml.safe_load(config_file)
-    with args.vision_config as vision_config_file:
-        vision_config_args = yaml.safe_load(vision_config_file)
+        carla_config = yaml.safe_load(config_file)
+    with args.vision_params as vision_params_file:
+        vision_params = yaml.safe_load(vision_params_file)
 
-    dist_cam_to_fbumper = (config_args['ego_veh']['raxle_to_fbumper']
-                           - config_args['sensor']['front_camera']['pos_x']
-                           - config_args['ego_veh']['raxle_to_cg'])
+    dist_cam_to_fbumper = (carla_config['ego_veh']['raxle_to_fbumper']
+                           - carla_config['sensor']['front_camera']['pos_x']
+                           - carla_config['ego_veh']['raxle_to_cg'])
 
     # Load camera parameters
     with open('vision/calib_data.pkl', 'rb') as f:
@@ -151,7 +151,7 @@ def single(folder_name, image_idx):
     depth_buffer = depth_buffers[image_idx]
     depth_image = vutils.decode_depth(depth_buffer)
 
-    pole_detector = PoleDetector(K, R, x0, vision_config_args['pole'])
+    pole_detector = PoleDetector(K, R, x0, vision_params['pole'])
     pole_detector.update_poles(pole_image, upper_lim=310, z=0)
     poles_xy_z0 = pole_detector.pole_bases_xy
     pole_detector.update_poles(pole_image, upper_lim=310, z=0.1)
@@ -189,20 +189,20 @@ def loop(folder_name):
     argparser = argparse.ArgumentParser(
         description='Pole Detection using Semantic Images')
     argparser.add_argument('config', type=argparse.FileType(
-        'r'), help='configuration yaml file for carla env setup')
-    argparser.add_argument('vision_config', type=argparse.FileType(
-        'r'), help='configuration yaml file for vision algorithms')
+        'r'), help='yaml file for carla configuration')
+    argparser.add_argument('vision_params', type=argparse.FileType(
+        'r'), help='yaml file for vision algorithm parameters')
     args = argparser.parse_args()
 
     # Read configurations from yaml file
     with args.config as config_file:
-        config_args = yaml.safe_load(config_file)
-    with args.vision_config as vision_config_file:
-        vision_config_args = yaml.safe_load(vision_config_file)
+        carla_config = yaml.safe_load(config_file)
+    with args.vision_params as vision_params_file:
+        vision_params = yaml.safe_load(vision_params_file)
 
-    dist_cam_to_fbumper = (config_args['ego_veh']['raxle_to_fbumper']
-                           - config_args['sensor']['front_camera']['pos_x']
-                           - config_args['ego_veh']['raxle_to_cg'])
+    dist_cam_to_fbumper = (carla_config['ego_veh']['raxle_to_fbumper']
+                           - carla_config['sensor']['front_camera']['pos_x']
+                           - carla_config['ego_veh']['raxle_to_cg'])
 
     # Load camera parameters
     with open('vision/calib_data.pkl', 'rb') as f:
@@ -218,7 +218,7 @@ def loop(folder_name):
     with open(os.path.join(mydir, 'depth_buffers'), 'rb') as image_file:
         depth_buffers = pickle.load(image_file)
 
-    pole_detector = PoleDetector(K, R, x0, vision_config_args['pole'])
+    pole_detector = PoleDetector(K, R, x0, vision_params['pole'])
 
     _, ax = plt.subplots(1, 2)
     im = ax[0].imshow(np.ones(ss_images[0].shape).astype(

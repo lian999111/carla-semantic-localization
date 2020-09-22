@@ -49,7 +49,7 @@ class LaneMarkingDetector(object):
                  warped_size,
                  valid_mask,
                  dist_fbumper_to_intersect,
-                 lane_config_args):
+                 lane_detect_params):
         """ 
         Constructor method. 
 
@@ -60,7 +60,7 @@ class LaneMarkingDetector(object):
             warped_size: Image size tuple of IPM image (width, height).
             valid_mask: Numpy.array of booleans to mask out edge pixels caused by the border of the FOV.
             dist_fbumper_to_intersect: Meters from front bumper to the point where vertical FOV intersects the flat ground in x.
-            lane_config_args: Dict object storing algorithm related parameters.
+            lane_detect_params: Dict object storing lane detection algorithm parameters.
         """
 
         # IPM related data
@@ -73,36 +73,36 @@ class LaneMarkingDetector(object):
 
         # Algorithm related parameters
         # Arrow Removal
-        self._min_box_area = lane_config_args['arrow_removal']['min_box_area']
-        self._max_box_area = lane_config_args['arrow_removal']['max_box_area']
-        self._min_w2h_ratio = lane_config_args['arrow_removal']['min_w2h_ratio']
-        self._max_w2h_ratio = lane_config_args['arrow_removal']['max_w2h_ratio']
-        self._min_area = lane_config_args['arrow_removal']['min_area']
-        self._min_occup_ratio = lane_config_args['arrow_removal']['min_occup_ratio']
-        self._max_occup_ratio = lane_config_args['arrow_removal']['max_occup_ratio']
+        self._min_box_area = lane_detect_params['arrow_removal']['min_box_area']
+        self._max_box_area = lane_detect_params['arrow_removal']['max_box_area']
+        self._min_w2h_ratio = lane_detect_params['arrow_removal']['min_w2h_ratio']
+        self._max_w2h_ratio = lane_detect_params['arrow_removal']['max_w2h_ratio']
+        self._min_area = lane_detect_params['arrow_removal']['min_area']
+        self._min_occup_ratio = lane_detect_params['arrow_removal']['min_occup_ratio']
+        self._max_occup_ratio = lane_detect_params['arrow_removal']['max_occup_ratio']
         # Dilation
-        self._dilation_iter = lane_config_args['dilation']['n_iters']
+        self._dilation_iter = lane_detect_params['dilation']['n_iters']
         # Rotation
-        self._yaw_rate_scale_h = lane_config_args['rotation']['yaw_rate_scale_h']
-        self._yaw_rate_scale_w = lane_config_args['rotation']['yaw_rate_scale_w']
-        self._hough_region_h = lane_config_args['rotation']['hough_region_h']
-        self._hough_region_w = lane_config_args['rotation']['hough_region_w']
-        self._hough_thres = lane_config_args['rotation']['hough_thres']
-        self._rot_thres = lane_config_args['rotation']['rot_thres']
+        self._yaw_rate_scale_h = lane_detect_params['rotation']['yaw_rate_scale_h']
+        self._yaw_rate_scale_w = lane_detect_params['rotation']['yaw_rate_scale_w']
+        self._hough_region_h = lane_detect_params['rotation']['hough_region_h']
+        self._hough_region_w = lane_detect_params['rotation']['hough_region_w']
+        self._hough_thres = lane_detect_params['rotation']['hough_thres']
+        self._rot_thres = lane_detect_params['rotation']['rot_thres']
         # Histogram
-        self._histo_region = lane_config_args['histo']['histo_region']
-        self._required_height = lane_config_args['histo']['required_height']
-        self._n_bins = lane_config_args['histo']['n_bins']
+        self._histo_region = lane_detect_params['histo']['histo_region']
+        self._required_height = lane_detect_params['histo']['required_height']
+        self._n_bins = lane_detect_params['histo']['n_bins']
         # Sliding window
-        self._search_region = lane_config_args['sliding_window']['search_region']
-        self._n_windows = lane_config_args['sliding_window']['n_windows']
-        self._margin = lane_config_args['sliding_window']['margin']
-        self._recenter_minpix = lane_config_args['sliding_window']['recenter_minpix']
-        self._recenter_h_gap = lane_config_args['sliding_window']['recenter_h_gap']
-        self._recenter_v_gap = lane_config_args['sliding_window']['recenter_v_gap']
+        self._search_region = lane_detect_params['sliding_window']['search_region']
+        self._n_windows = lane_detect_params['sliding_window']['n_windows']
+        self._margin = lane_detect_params['sliding_window']['margin']
+        self._recenter_minpix = lane_detect_params['sliding_window']['recenter_minpix']
+        self._recenter_h_gap = lane_detect_params['sliding_window']['recenter_h_gap']
+        self._recenter_v_gap = lane_detect_params['sliding_window']['recenter_v_gap']
         # Fitting
-        self._sampling_ratio = lane_config_args['fitting']['sampling_ratio']
-        self.order = lane_config_args['fitting']['order']
+        self._sampling_ratio = lane_detect_params['fitting']['sampling_ratio']
+        self.order = lane_detect_params['fitting']['order']
 
         # TODO: Front bumper as reference frame
 
@@ -633,17 +633,13 @@ class LaneMarkingDetector(object):
 def loop(folder_name):
     argparser = argparse.ArgumentParser(
         description='Lane Detection using Semantic Images')
-    argparser.add_argument('config', type=argparse.FileType(
-        'r'), help='configuration yaml file for carla env setup')
-    argparser.add_argument('vision_config', type=argparse.FileType(
-        'r'), help='configuration yaml file for vision algorithms')
+    argparser.add_argument('vision_params', type=argparse.FileType(
+        'r'), help='yaml file for vision algorithm parameters')
     args = argparser.parse_args()
 
-    # Read configurations from yaml file to config_args
-    with args.config as config_file:
-        config_args = yaml.safe_load(config_file)
-    with args.vision_config as vision_config_file:
-        vision_config_args = yaml.safe_load(vision_config_file)
+    # Read parameters from yaml file
+    with args.vision_params as vision_params_file:
+        vision_params = yaml.safe_load(vision_params_file)
 
     # Load parameters for bird's eye view projection
     with open('vision/ipm_data.pkl', 'rb') as f:
@@ -653,15 +649,7 @@ def loop(folder_name):
     valid_mask = ipm_data['valid_mask']
     px_per_meter_x = ipm_data['px_per_meter_x']
     px_per_meter_y = ipm_data['px_per_meter_y']
-    dist_cam_to_intersect = ipm_data['dist_to_intersect']
-
-    # Calculate distance from camera to front bumper
-    dist_cam_to_fbumper = (config_args['ego_veh']['raxle_to_fbumper']
-                           - config_args['sensor']['front_camera']['pos_x']
-                           - config_args['ego_veh']['raxle_to_cg'])
-
-    # Calculate distance from front bumper to intersection point of FOV and ground surface
-    dist_fbumper_to_intersect = dist_cam_to_intersect - dist_cam_to_fbumper
+    dist_fbumper_to_intersect = ipm_data['dist_fbumper_to_intersect']
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
@@ -673,7 +661,7 @@ def loop(folder_name):
     lane_detector = LaneMarkingDetector(M, px_per_meter_x, px_per_meter_y,
                                         warped_size, valid_mask,
                                         dist_fbumper_to_intersect,
-                                        vision_config_args['lane'])
+                                        vision_params['lane'])
 
     fig, ax = plt.subplots(1, 2)
     im = ax[0].imshow(
@@ -744,18 +732,13 @@ def loop(folder_name):
 def single(folder_name, image_idx):
     argparser = argparse.ArgumentParser(
         description='Lane Detection using Semantic Images')
-    argparser.add_argument('config', type=argparse.FileType(
-        'r'), help='configuration yaml file for carla env setup')
-    argparser.add_argument('vision_config', type=argparse.FileType(
-        'r'), help='configuration yaml file for vision algorithms')
+    argparser.add_argument('vision_params', type=argparse.FileType(
+        'r'), help='yaml file for vision algorithm parameters')
     args = argparser.parse_args()
 
-    # Read configurations from yaml file to config_args
-    with args.config as config_file:
-        config_args = yaml.safe_load(config_file)
-    # Read configurations from yaml file
-    with args.vision_config as vision_config_file:
-        vision_config_args = yaml.safe_load(vision_config_file)
+    # Read parameters from yaml file
+    with args.vision_params as vision_params_file:
+        vision_params = yaml.safe_load(vision_params_file)
 
     # Load parameters for bird's eye view projection
     with open('vision/ipm_data.pkl', 'rb') as f:
@@ -765,15 +748,7 @@ def single(folder_name, image_idx):
     valid_mask = ipm_data['valid_mask']
     px_per_meter_x = ipm_data['px_per_meter_x']
     px_per_meter_y = ipm_data['px_per_meter_y']
-    dist_cam_to_intersect = ipm_data['dist_to_intersect']
-
-    # Calculate distance from camera to front bumper
-    dist_cam_to_fbumper = (config_args['ego_veh']['raxle_to_fbumper']
-                           - config_args['sensor']['front_camera']['pos_x']
-                           - config_args['ego_veh']['raxle_to_cg'])
-
-    # Calculate distance from front bumper to intersection point of FOV and ground surface
-    dist_fbumper_to_intersect = dist_cam_to_intersect - dist_cam_to_fbumper
+    dist_fbumper_to_intersect = ipm_data['dist_fbumper_to_intersect']
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
@@ -789,7 +764,7 @@ def single(folder_name, image_idx):
     lane_detector = LaneMarkingDetector(M, px_per_meter_x, px_per_meter_y,
                                         warped_size, valid_mask,
                                         dist_fbumper_to_intersect,
-                                        vision_config_args['lane'])
+                                        vision_params['lane'])
 
     lane_detector.update_lane_coeffs(lane_image, yaw_rates[image_idx])
 
@@ -845,5 +820,5 @@ def single(folder_name, image_idx):
 
 
 if __name__ == "__main__":
-    single('small_roundabout', 215)
-    # loop('small_roundabout')
+    # single('small_roundabout', 215)
+    loop('small_roundabout')

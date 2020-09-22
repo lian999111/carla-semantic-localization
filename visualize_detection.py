@@ -25,21 +25,21 @@ def visualize(folder_name):
     argparser = argparse.ArgumentParser(
         description='Visualize detection process on recorded data.')
     argparser.add_argument('config', type=argparse.FileType(
-        'r'), help='configuration yaml file for carla env setup')
-    argparser.add_argument('vision_config', type=argparse.FileType(
-        'r'), help='configuration yaml file for vision algorithms')
+        'r'), help='yaml file for carla configuration')
+    argparser.add_argument('vision_params', type=argparse.FileType(
+        'r'), help='yaml file for vision algorithm parameters')
     args = argparser.parse_args()
 
     # Read configurations from yaml file
     with args.config as config_file:
-        config_args = yaml.safe_load(config_file)
-    with args.vision_config as vision_config_file:
-        vision_config_args = yaml.safe_load(vision_config_file)
+        carla_config = yaml.safe_load(config_file)
+    with args.vision_params as vision_params_file:
+        vision_params = yaml.safe_load(vision_params_file)
 
     # For correcting pole ground truth
-    dist_cam_to_fbumper = (config_args['ego_veh']['raxle_to_fbumper']
-                           - config_args['sensor']['front_camera']['pos_x']
-                           - config_args['ego_veh']['raxle_to_cg'])
+    dist_cam_to_fbumper = (carla_config['ego_veh']['raxle_to_fbumper']
+                           - carla_config['sensor']['front_camera']['pos_x']
+                           - carla_config['ego_veh']['raxle_to_cg'])
 
     # Load camera parameters
     with open('vision/calib_data.pkl', 'rb') as f:
@@ -61,9 +61,9 @@ def visualize(folder_name):
     dist_cam_to_intersect = ipm_data['dist_to_intersect']
 
     # Calculate distance from camera to front bumper
-    dist_cam_to_fbumper = (config_args['ego_veh']['raxle_to_fbumper']
-                           - config_args['sensor']['front_camera']['pos_x']
-                           - config_args['ego_veh']['raxle_to_cg'])
+    dist_cam_to_fbumper = (carla_config['ego_veh']['raxle_to_fbumper']
+                           - carla_config['sensor']['front_camera']['pos_x']
+                           - carla_config['ego_veh']['raxle_to_cg'])
 
     # For lane detector
     # Calculate distance from front bumper to intersection point of FOV and ground surface
@@ -79,11 +79,11 @@ def visualize(folder_name):
         yaw_rates = pickle.load(yaw_rate_file)
 
     # Detector objects
-    pole_detector = PoleDetector(K, R, x0, vision_config_args['pole'])
+    pole_detector = PoleDetector(K, R, x0, vision_params['pole'])
     lane_detector = LaneMarkingDetector(M, px_per_meter_x, px_per_meter_y,
                                         warped_size, valid_mask,
                                         dist_fbumper_to_intersect,
-                                        vision_config_args['lane'])
+                                        vision_params['lane'])
 
     # Init figure
     fig, ax = plt.subplots(1, 2)
