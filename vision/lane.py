@@ -646,19 +646,21 @@ def loop(folder_name):
         vision_config_args = yaml.safe_load(vision_config_file)
 
     # Load parameters for bird's eye view projection
-    # Strangely, if scalar values are loaded as an array of size 1, debugger stops working.
-    ipm_data = np.load('vision/ipm_data.npz')
+    with open('vision/ipm_data.pkl', 'rb') as f:
+        ipm_data = pickle.load(f)
     M = ipm_data['M']
-    warped_size = tuple(ipm_data['bev_size'])
+    warped_size = ipm_data['bev_size']
     valid_mask = ipm_data['valid_mask']
-    px_per_meter_x = np.asscalar(ipm_data['px_per_meter_x'])
-    px_per_meter_y = np.asscalar(ipm_data['px_per_meter_y'])
-    dist_cam_to_intersect = np.asscalar(ipm_data['dist_to_intersect'])
+    px_per_meter_x = ipm_data['px_per_meter_x']
+    px_per_meter_y = ipm_data['px_per_meter_y']
+    dist_cam_to_intersect = ipm_data['dist_to_intersect']
 
+    # Calculate distance from camera to front bumper
     dist_cam_to_fbumper = (config_args['ego_veh']['raxle_to_fbumper']
                            - config_args['sensor']['front_camera']['pos_x']
                            - config_args['ego_veh']['raxle_to_cg'])
 
+    # Calculate distance from front bumper to intersection point of FOV and ground surface
     dist_fbumper_to_intersect = dist_cam_to_intersect - dist_cam_to_fbumper
 
     # Load data
@@ -755,20 +757,22 @@ def single(folder_name, image_idx):
     with args.vision_config as vision_config_file:
         vision_config_args = yaml.safe_load(vision_config_file)
 
-    # Load parameters for inverse projection
-    # Strangely, if scalar values are loaded as an array of size 1, debugger stops working.
-    ipm_data = np.load('vision/ipm_data.npz')
+    # Load parameters for bird's eye view projection
+    with open('vision/ipm_data.pkl', 'rb') as f:
+        ipm_data = pickle.load(f)
     M = ipm_data['M']
-    warped_size = tuple(ipm_data['bev_size'])
+    warped_size = ipm_data['bev_size']
     valid_mask = ipm_data['valid_mask']
-    px_per_meter_x = np.asscalar(ipm_data['px_per_meter_x'])
-    px_per_meter_y = np.asscalar(ipm_data['px_per_meter_y'])
-    dist_cam_to_intersect = np.asscalar(ipm_data['dist_to_intersect'])
+    px_per_meter_x = ipm_data['px_per_meter_x']
+    px_per_meter_y = ipm_data['px_per_meter_y']
+    dist_cam_to_intersect = ipm_data['dist_to_intersect']
 
+    # Calculate distance from camera to front bumper
     dist_cam_to_fbumper = (config_args['ego_veh']['raxle_to_fbumper']
                            - config_args['sensor']['front_camera']['pos_x']
                            - config_args['ego_veh']['raxle_to_cg'])
 
+    # Calculate distance from front bumper to intersection point of FOV and ground surface
     dist_fbumper_to_intersect = dist_cam_to_intersect - dist_cam_to_fbumper
 
     # Load data
@@ -841,5 +845,5 @@ def single(folder_name, image_idx):
 
 
 if __name__ == "__main__":
-    # single('small_roundabout', 215)
-    loop('small_roundabout')
+    single('small_roundabout', 215)
+    # loop('small_roundabout')

@@ -41,24 +41,32 @@ def visualize(folder_name):
                            - config_args['sensor']['front_camera']['pos_x']
                            - config_args['ego_veh']['raxle_to_cg'])
 
-    # Load camera parameters for pole detection
-    calib_data = np.load('vision/calib_data.npz')
+    # Load camera parameters
+    with open('vision/calib_data.pkl', 'rb') as f:
+        calib_data = pickle.load(f)
     K = calib_data['K']
     R = calib_data['R']
     x0 = calib_data['x0']
     # 3-by-4 calibration matrix
     P = K @ R @ np.concatenate((np.eye(3), -x0), axis=1)
 
-    # Load bird's eye view projection parameters for lane detection
-    perspective_tform_data = np.load('vision/ipm_data.npz')
-    M = perspective_tform_data['M']
-    warped_size = tuple(perspective_tform_data['bev_size'])
-    valid_mask = perspective_tform_data['valid_mask']
-    px_per_meter_x = float(perspective_tform_data['px_per_meter_x'])
-    px_per_meter_y = float(perspective_tform_data['px_per_meter_y'])
-    dist_cam_to_intersect = float(perspective_tform_data['dist_to_intersect'])
+    # Load parameters for bird's eye view projection
+    with open('vision/ipm_data.pkl', 'rb') as f:
+        ipm_data = pickle.load(f)
+    M = ipm_data['M']
+    warped_size = ipm_data['bev_size']
+    valid_mask = ipm_data['valid_mask']
+    px_per_meter_x = ipm_data['px_per_meter_x']
+    px_per_meter_y = ipm_data['px_per_meter_y']
+    dist_cam_to_intersect = ipm_data['dist_to_intersect']
+
+    # Calculate distance from camera to front bumper
+    dist_cam_to_fbumper = (config_args['ego_veh']['raxle_to_fbumper']
+                           - config_args['sensor']['front_camera']['pos_x']
+                           - config_args['ego_veh']['raxle_to_cg'])
 
     # For lane detector
+    # Calculate distance from front bumper to intersection point of FOV and ground surface
     dist_fbumper_to_intersect = dist_cam_to_intersect - dist_cam_to_fbumper
 
     # Load data

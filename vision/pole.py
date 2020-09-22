@@ -131,7 +131,8 @@ def single(folder_name, image_idx):
                            - config_args['ego_veh']['raxle_to_cg'])
 
     # Load camera parameters
-    calib_data = np.load('vision/calib_data.npz')
+    with open('vision/calib_data.pkl', 'rb') as f:
+        calib_data = pickle.load(f)
     K = calib_data['K']
     R = calib_data['R']
     x0 = calib_data['x0']
@@ -203,8 +204,9 @@ def loop(folder_name):
                            - config_args['sensor']['front_camera']['pos_x']
                            - config_args['ego_veh']['raxle_to_cg'])
 
-    # Load parameters for inverse projection
-    calib_data = np.load('vision/calib_data.npz')
+    # Load camera parameters
+    with open('vision/calib_data.pkl', 'rb') as f:
+        calib_data = pickle.load(f)
     K = calib_data['K']
     R = calib_data['R']
     x0 = calib_data['x0']
@@ -271,5 +273,5 @@ def loop(folder_name):
 
 
 if __name__ == "__main__":
-    # single('depth', 193)
+    # single('true_highway', 193)
     loop('true_highway')
