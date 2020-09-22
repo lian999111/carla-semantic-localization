@@ -94,6 +94,8 @@ class PoleDetector(object):
         the pole bases in the image to the 3D world. The obtained world coordinates are
         wrt the frame at the center of the front bumper.
 
+        If no u-v coordinates of pole bases extracted, set pole_bases_xy to None.
+
         Input:
             z: Assumed z coordinates perpendicular to ground of corresponding points
         """
