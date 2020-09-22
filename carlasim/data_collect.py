@@ -28,6 +28,8 @@ import queue
 
 from carlasim.groundtruth import GroundTruthExtractor
 from carlasim.carla_tform import CarlaW2ETform
+from vision.pole import PoleDetector
+from vision.lane import LaneMarkingDetector
 
 # %% ================= Global function =================
 
