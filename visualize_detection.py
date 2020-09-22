@@ -108,12 +108,16 @@ def visualize(folder_name):
 
         # Pole detection
         pole_detector.update_poles(pole_image, z=0)
-        poles_xy_z0 = pole_detector.pole_bases_xy
+
+        # Lane detection
+        lane_detector.update_lane_coeffs(lane_image, yaw_rates[image_idx])
 
         pole_bases_uv = pole_detector.pole_bases_uv
 
         # Visualize poles
         if pole_bases_uv is not None:
+            poles_xy_z0 = pole_detector.pole_bases_xy
+            
             # Ground truth
             x_world = depth_image[pole_bases_uv[1],
                                   pole_bases_uv[0]] - dist_cam_to_fbumper
@@ -131,10 +135,8 @@ def visualize(folder_name):
             pole0.set_data([], [])
             pole_gt.set_data([], [])
 
-        # Lane detection
-        # TODO: Disable plt.show() in debug mode!
-        lane_detector.update_lane_coeffs(lane_image, yaw_rates[image_idx])
-
+        # Visualize lane
+        # Left marking
         if lane_detector.left_coeffs is not None:
             coeffs = lane_detector.left_coeffs
             y = np.zeros(x.shape)
@@ -153,6 +155,7 @@ def visualize(folder_name):
             left_lane.set_data([], [])
             left_lane_bev.set_data([], [])
 
+        # Right marking
         if lane_detector.right_coeffs is not None:
             coeffs = lane_detector.right_coeffs
             y = np.zeros(x.shape)
