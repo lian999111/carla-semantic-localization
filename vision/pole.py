@@ -43,7 +43,7 @@ class PoleDetector(object):
         # u-v coordinates of pole bases in image
         self.pole_bases_uv = None
         # x-y coordinates of pole bases wrt the front bumper
-        self.poles_xy = None
+        self.pole_bases_xy = None
 
         # For finding valid bounding boxes around pole-labelled pixels
         # Minimum bound box height (to ignore those too short)
@@ -63,9 +63,12 @@ class PoleDetector(object):
             upper_lim:  Position of the upper_lim in the image (wrt the top of image). If not given, half point of image is used.
                         Note that larger upper_lim value means lower in image since it's the v coordinate.
             z: Assumed z coordinates perpendicular to ground of corresponding points
+        Output:
+            x-y coordinates of pole bases wrt the front bumper.
         """
         self._find_pole_bases(pole_image, upper_lim)
         self._get_pole_xy_fbumper(z)
+        return self.pole_bases_xy
 
     def _find_pole_bases(self, pole_image, upper_lim=None):
         """
@@ -85,6 +88,7 @@ class PoleDetector(object):
         """
         self.pole_bases_uv = vutils.find_pole_bases(
             pole_image, self._min_width, self._max_width, self._min_height, use_bbox_center=False, upper_lim=upper_lim)
+        return self.pole_bases_uv
 
     def _get_pole_xy_fbumper(self, z=0):
         """

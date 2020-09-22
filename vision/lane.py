@@ -121,6 +121,9 @@ class LaneMarkingDetector(object):
             lane_image: OpenCV image with supported data type (e.g. np.uint8). The image should have non-zero values only
                         at lane-related pixels, which is easy to obtained from a semantic image.
             yaw_rate: Yaw rate of the ego vehicle. (in rad/s)
+        Output:
+            left_coeffs: Polynomial coefficients of left marking.
+            right_coeffs: Polynomial coefficients of right marking.
         """
         left_coords_fbumper, right_coords_fbumper = self.find_marking_points(
             lane_image, yaw_rate)
@@ -142,6 +145,8 @@ class LaneMarkingDetector(object):
         # figures created at each loop will accumulate and drive the system to hang
         if __debug__:
             plt.show()
+        
+        return self.left_coeffs, self.right_coeffs
 
     def find_marking_points(self, lane_image, yaw_rate):
         """

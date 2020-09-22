@@ -107,17 +107,16 @@ def visualize(folder_name):
         depth_image = vutils.decode_depth(depth_buffer)
 
         # Pole detection
-        pole_detector.update_poles(pole_image, z=0)
+        poles_xy_z0 = pole_detector.update_poles(pole_image, z=0)
 
         # Lane detection
-        lane_detector.update_lane_coeffs(lane_image, yaw_rates[image_idx])
+        left_coeffs, right_coeffs = lane_detector.update_lane_coeffs(
+            lane_image, yaw_rates[image_idx])
 
         pole_bases_uv = pole_detector.pole_bases_uv
 
         # Visualize poles
-        if pole_bases_uv is not None:
-            poles_xy_z0 = pole_detector.pole_bases_xy
-            
+        if poles_xy_z0 is not None:
             # Ground truth
             x_world = depth_image[pole_bases_uv[1],
                                   pole_bases_uv[0]] - dist_cam_to_fbumper
@@ -137,10 +136,9 @@ def visualize(folder_name):
 
         # Visualize lane
         # Left marking
-        if lane_detector.left_coeffs is not None:
-            coeffs = lane_detector.left_coeffs
+        if left_coeffs is not None:
             y = np.zeros(x.shape)
-            for idx, coeff in enumerate(reversed(coeffs)):
+            for idx, coeff in enumerate(reversed(left_coeffs)):
                 y += coeff * x**idx
 
             # Project lane marking to image
@@ -156,10 +154,9 @@ def visualize(folder_name):
             left_lane_bev.set_data([], [])
 
         # Right marking
-        if lane_detector.right_coeffs is not None:
-            coeffs = lane_detector.right_coeffs
+        if right_coeffs is not None:
             y = np.zeros(x.shape)
-            for idx, coeff in enumerate(reversed(coeffs)):
+            for idx, coeff in enumerate(reversed(right_coeffs)):
                 y += coeff * x**idx
 
             # Project lane marking to image
@@ -176,7 +173,8 @@ def visualize(folder_name):
 
         im.set_data(ss_image_copy)
         ax[1].set_title(image_idx)
-        plt.pause(0.001)
+        fig.canvas.draw()
+        fig.canvas.flush_events()
 
 
 if __name__ == "__main__":
