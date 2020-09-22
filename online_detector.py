@@ -59,8 +59,8 @@ def main():
     world = None
     spawn_point = None
     # Assign spawn point for ego vehicle
-    spawn_point = carla.Transform(carla.Location(
-        218.67, 59.18, 0.59), carla.Rotation(yaw=180))
+    # spawn_point = carla.Transform(carla.Location(
+    #     218.67, 59.18, 0.59), carla.Rotation(yaw=180))
     try:
         client = carla.Client('localhost', 2000)
         client.set_timeout(5.0)
@@ -107,7 +107,17 @@ def main():
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
                 world.imu.vx, world.imu.vy, world.imu.gyro_z * 180 / pi))
             print('in junction: {}'.format(world.ground_truth.in_junction))
-            # c0
+            # c0 from vision
+            if front_smart_camera.lane_detector.left_coeffs is not None:
+                left_c0 = front_smart_camera.lane_detector.left_coeffs[-1]
+            else:
+                left_c0 = -10
+            if front_smart_camera.lane_detector.right_coeffs is not None:
+                right_c0 = front_smart_camera.lane_detector.right_coeffs[-1]
+            else:
+                right_c0 = -10
+            print('        {:.2f}   {:.2f}'.format(left_c0, right_c0))
+            # c0 ground truth
             print('{:.2f}   {:.2f}   {:.2f}   {:.2f}'.format(
                 world.ground_truth.next_left_marking_param[0] if world.ground_truth.next_left_marking else -10,
                 world.ground_truth.left_marking_param[0] if world.ground_truth.left_marking else -10,
