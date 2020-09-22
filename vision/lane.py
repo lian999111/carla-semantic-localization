@@ -646,13 +646,14 @@ def loop(folder_name):
         vision_config_args = yaml.safe_load(vision_config_file)
 
     # Load parameters for bird's eye view projection
-    perspective_tform_data = np.load('vision/ipm_data.npz')
-    M = perspective_tform_data['M']
-    warped_size = tuple(perspective_tform_data['bev_size'])
-    valid_mask = perspective_tform_data['valid_mask']
-    px_per_meter_x = float(perspective_tform_data['px_per_meter_x'])
-    px_per_meter_y = float(perspective_tform_data['px_per_meter_y'])
-    dist_cam_to_intersect = float(perspective_tform_data['dist_to_intersect'])
+    # Strangely, if scalar values are loaded as an array of size 1, debugger stops working.
+    ipm_data = np.load('vision/ipm_data.npz')
+    M = ipm_data['M']
+    warped_size = tuple(ipm_data['bev_size'])
+    valid_mask = ipm_data['valid_mask']
+    px_per_meter_x = np.asscalar(ipm_data['px_per_meter_x'])
+    px_per_meter_y = np.asscalar(ipm_data['px_per_meter_y'])
+    dist_cam_to_intersect = np.asscalar(ipm_data['dist_to_intersect'])
 
     dist_cam_to_fbumper = (config_args['ego_veh']['raxle_to_fbumper']
                            - config_args['sensor']['front_camera']['pos_x']
@@ -755,13 +756,14 @@ def single(folder_name, image_idx):
         vision_config_args = yaml.safe_load(vision_config_file)
 
     # Load parameters for inverse projection
-    perspective_tform_data = np.load('vision/ipm_data.npz')
-    M = perspective_tform_data['M']
-    warped_size = tuple(perspective_tform_data['bev_size'])
-    valid_mask = perspective_tform_data['valid_mask']
-    px_per_meter_x = float(perspective_tform_data['px_per_meter_x'])
-    px_per_meter_y = float(perspective_tform_data['px_per_meter_y'])
-    dist_cam_to_intersect = float(perspective_tform_data['dist_to_intersect'])
+    # Strangely, if scalar values are loaded as an array of size 1, debugger stops working.
+    ipm_data = np.load('vision/ipm_data.npz')
+    M = ipm_data['M']
+    warped_size = tuple(ipm_data['bev_size'])
+    valid_mask = ipm_data['valid_mask']
+    px_per_meter_x = np.asscalar(ipm_data['px_per_meter_x'])
+    px_per_meter_y = np.asscalar(ipm_data['px_per_meter_y'])
+    dist_cam_to_intersect = np.asscalar(ipm_data['dist_to_intersect'])
 
     dist_cam_to_fbumper = (config_args['ego_veh']['raxle_to_fbumper']
                            - config_args['sensor']['front_camera']['pos_x']
