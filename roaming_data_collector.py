@@ -22,10 +22,14 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 import queue
-from groundtruth import GroundTruthExtractor
-from carlatform import CarlaW2ETform
 from math import pi
 import pickle
+
+from groundtruth import GroundTruthExtractor
+from carlatform import CarlaW2ETform
+from vision.vutils import decode_depth
+from vision.lane import LaneMarkingDetector
+from vision.pole import PoleDetector
 
 # %% ================= Global function =================
 
@@ -45,7 +49,7 @@ def find_weather_presets():
 
 class Geo2Location(object):
     """
-    Helper class for homogeneous transform from geolocation 
+    Helper class for homogeneous transform from geolocation
 
     This class is used by GNSS class to transform from carla.GeoLocation to carla.Location.
     This transform is not provided by Carla, but it can be solved using 4 chosen points.
@@ -80,7 +84,7 @@ class Geo2Location(object):
         self._tform = np.linalg.inv(g.dot(np.linalg.inv(l)))
 
     def transform(self, geolocation):
-        """ 
+        """
         Transform from carla.GeoLocation to carla.Location.
 
         Numerical error may exist. Experiments show error is about under 1 cm in Town03.
@@ -99,11 +103,11 @@ class Geo2Location(object):
 
 
 class World(object):
-    """ Class representing the surrounding environment. """
+    """ Class representing the simulation environment. """
 
-    def __init__(self, carla_world, traffic_manager, config_args, spawn_point=None):
-        """ 
-        Constructor method. 
+    def __init__(self, carla_world, traffic_manager, config, vision_params, fcam_calib_data, fcam_ipm_data, spawn_point=None):
+        """
+        Constructor method.
 
         If spawn_point not given, choose random spawn point recommended by the map.
         """
@@ -119,23 +123,24 @@ class World(object):
                 '  Make sure it exists, has the same name of your town, and is correct.')
             sys.exit(1)
         self._weather_presets = find_weather_presets()
-        self._weather_index = config_args['world']['weather']
+        self._weather_index = config['world']['weather']
         self.carla_world.set_weather(
             self._weather_presets[self._weather_index][0])
         self.ego_veh = None
         self.imu = None
         self.gnss = None
-        self.semantic_camera = None
+        self.front_camera = None
         self.depth_camera = None
 
         self.ground_truth = None
 
         # Start simuation
-        self.restart(config_args, spawn_point)
+        self.restart(config, vision_params,
+                     fcam_calib_data, fcam_ipm_data, spawn_point)
         # Tick the world to bring the actors into effect
         self.step_forward()
 
-    def restart(self, config_args, spawn_point=None):
+    def restart(self, config, vision_params, fcam_calib_data, fcam_ipm_data, spawn_point=None):
         """
         Start the simulation with the configuration arguments.
 
@@ -144,9 +149,9 @@ class World(object):
         """
         # Set up carla engine using config
         settings = self.carla_world.get_settings()
-        settings.no_rendering_mode = config_args['world']['no_rendering']
-        settings.synchronous_mode = config_args['world']['sync_mode']
-        settings.fixed_delta_seconds = config_args['world']['delta_seconds']
+        settings.no_rendering_mode = config['world']['no_rendering']
+        settings.synchronous_mode = config['world']['sync_mode']
+        settings.fixed_delta_seconds = config['world']['delta_seconds']
         self.carla_world.apply_settings(settings)
 
         # Spawn a Mustang as the ego vehicle (not stolen from John Wick, don't panic)
@@ -190,33 +195,36 @@ class World(object):
         self.see_ego_veh()
 
         # Spawn the sensors
-        self.gnss = GNSS(self.ego_veh, config_args['sensor']['gnss'])
-        self.imu = IMU(self.ego_veh, config_args['sensor']['imu'])
-        self.semantic_camera = SemanticCamera(
-            self.ego_veh, config_args['sensor']['front_camera'])
+        self.gnss = GNSS(self.ego_veh, config['sensor']['gnss'])
+        self.imu = IMU(self.ego_veh, config['sensor']['imu'])
+        self.front_camera = FrontSmartCamera(self.ego_veh,
+                                             config['sensor']['front_camera'],
+                                             vision_params,
+                                             fcam_calib_data,
+                                             fcam_ipm_data)
         self.depth_camera = DepthCamera(
-            self.ego_veh, config_args['sensor']['front_camera'])
+            self.ego_veh, config['sensor']['front_camera'])
 
         # Ground truth extractor
         self.ground_truth = GroundTruthExtractor(
-            self.ego_veh, self.map, actor_list=None, config_args=config_args)
+            self.ego_veh, self.map, actor_list=None, config=config)
 
-    def set_ego_autopilot(self, active, autopilot_config_args=None):
+    def set_ego_autopilot(self, active, autopilot_config=None):
         """ Set traffic manager and register ego vehicle to it. """
-        if autopilot_config_args:
+        if autopilot_config:
             self.tm.auto_lane_change(
-                self.ego_veh, autopilot_config_args['auto_lane_change'])
+                self.ego_veh, autopilot_config['auto_lane_change'])
             self.tm.ignore_lights_percentage(
-                self.ego_veh, autopilot_config_args['ignore_lights_percentage'])
+                self.ego_veh, autopilot_config['ignore_lights_percentage'])
             self.tm.vehicle_percentage_speed_difference(
-                self.ego_veh, autopilot_config_args['vehicle_percentage_speed_difference'])
+                self.ego_veh, autopilot_config['vehicle_percentage_speed_difference'])
         self.ego_veh.set_autopilot(active, self.tm.get_port())
 
     def force_lane_change(self, to_left):
-        """ 
-        Force ego vehicle to change the lane regardless collision with other vehicles. 
+        """
+        Force ego vehicle to change the lane regardless collision with other vehicles.
 
-        It only allows lane changes in the possible direction. 
+        It only allows lane changes in the possible direction.
         Performing a left lane change on the left-most lane is not possible.
         Carla's traffic manager doesn't seem to make car change to a left turn lane in built-in town (tested in Town03)
         """
@@ -228,7 +236,7 @@ class World(object):
         self.carla_world.tick()
         self.imu.update()
         self.gnss.update()
-        self.semantic_camera.update()
+        self.front_camera.update(self.imu.gyro_z)
         self.depth_camera.update()
         self.ground_truth.update()
 
@@ -262,10 +270,10 @@ class World(object):
             print("Destroying gnss sensor.")
             self.gnss.destroy()
             self.gnss = None
-        if self.semantic_camera:
-            print("Destroying semantic camera sensor.")
-            self.semantic_camera.destroy()
-            self.semantic_camera = None
+        if self.front_camera:
+            print("Destroying front camera sensor.")
+            self.front_camera.destroy()
+            self.front_camera = None
         if self.depth_camera:
             print("Destroying depth camera sensor.")
             self.depth_camera.destroy()
@@ -303,20 +311,20 @@ class CarlaSensor(object):
 
 
 class IMU(CarlaSensor):
-    """ 
-    Class for IMU sensor. 
+    """
+    Class for IMU sensor.
 
     This class wraps the IMU sensor provided by Carla that gives accelerations and angular velocities in each axis.
     To fulfill the need for also velocities, the actor's velocities are extracted. Experiments show that actor's dynamics
     lag the IMU sensor by one simulation tick, so a compensation using the acceleration multiplied with the time step is added.
 
         Important note:
-        Carla uses left-handed (x-forward, y-right, z-up) coordinate system for locations 
+        Carla uses left-handed (x-forward, y-right, z-up) coordinate system for locations
         and right-handed z-down (airplane-like) coordinate system for rotations (roll-pitch-yaw).
         This wrapper class automatically convert to right-handed z-up coordinate system to match our convention.
     """
 
-    def __init__(self, parent_actor, imu_config_args):
+    def __init__(self, parent_actor, imu_config):
         """ Constructor method. """
         super().__init__(parent_actor)
         # In right-handed z-up coordinate system
@@ -335,39 +343,39 @@ class IMU(CarlaSensor):
         # Virtual odometry uses velocities of ego vehicle's actor directly,
         # which is found to lag behind Carla's IMU by 1 simulation step.
         # To recover that, virtual odometry's velocities are added with acceleration times simulation step
-        self._delta_seconds = imu_config_args['delta_seconds']
+        self._delta_seconds = imu_config['delta_seconds']
 
         world = self._parent.get_world()
         imu_bp = world.get_blueprint_library().find('sensor.other.imu')
 
         imu_bp.set_attribute('noise_accel_stddev_x',
-                             imu_config_args['noise_accel_stddev_x'])
+                             imu_config['noise_accel_stddev_x'])
         imu_bp.set_attribute('noise_accel_stddev_y',
-                             imu_config_args['noise_accel_stddev_y'])
+                             imu_config['noise_accel_stddev_y'])
         imu_bp.set_attribute('noise_accel_stddev_z',
-                             imu_config_args['noise_accel_stddev_z'])
+                             imu_config['noise_accel_stddev_z'])
         imu_bp.set_attribute('noise_gyro_bias_x',
-                             imu_config_args['noise_gyro_bias_x'])
+                             imu_config['noise_gyro_bias_x'])
         imu_bp.set_attribute('noise_gyro_bias_y',
-                             imu_config_args['noise_gyro_bias_y'])
+                             imu_config['noise_gyro_bias_y'])
         imu_bp.set_attribute('noise_gyro_bias_z',
-                             imu_config_args['noise_gyro_bias_z'])
+                             imu_config['noise_gyro_bias_z'])
         imu_bp.set_attribute('noise_gyro_stddev_x',
-                             imu_config_args['noise_gyro_stddev_x'])
+                             imu_config['noise_gyro_stddev_x'])
         imu_bp.set_attribute('noise_gyro_stddev_y',
-                             imu_config_args['noise_gyro_stddev_y'])
+                             imu_config['noise_gyro_stddev_y'])
         imu_bp.set_attribute('noise_gyro_stddev_z',
-                             imu_config_args['noise_gyro_stddev_z'])
+                             imu_config['noise_gyro_stddev_z'])
 
-        self._noise_vx_bias = imu_config_args['noise_vx_bias']
-        self._noise_vy_bias = imu_config_args['noise_vy_bias']
-        self._noise_vx_stddev = imu_config_args['noise_vx_stddev']
-        self._noise_vy_stddev = imu_config_args['noise_vy_stddev']
+        self._noise_vx_bias = imu_config['noise_vx_bias']
+        self._noise_vy_bias = imu_config['noise_vy_bias']
+        self._noise_vx_stddev = imu_config['noise_vx_stddev']
+        self._noise_vy_stddev = imu_config['noise_vy_stddev']
 
         print("Spawning IMU sensor.")
         self.sensor = world.spawn_actor(imu_bp,
                                         carla.Transform(carla.Location(
-                                            x=imu_config_args['pos_x'], z=0.0)),
+                                            x=imu_config['pos_x'], z=0.0)),
                                         attach_to=self._parent)
 
         self.sensor.listen(lambda event: self._queue.put(event))
@@ -404,7 +412,7 @@ class IMU(CarlaSensor):
 
 
 class GNSS(CarlaSensor):
-    """ 
+    """
     Class for GNSS sensor.
 
     Carla uses left-handed coordinate system  while we use right-handed coordinate system.
@@ -412,7 +420,7 @@ class GNSS(CarlaSensor):
     This class already converts the GNSS measurements into our right-handed z-up coordinate system.
     """
 
-    def __init__(self, parent_actor, gnss_config_args):
+    def __init__(self, parent_actor, gnss_config):
         """ Constructor method. """
         super().__init__(parent_actor)
         self.lat = 0.0
@@ -426,22 +434,22 @@ class GNSS(CarlaSensor):
         gnss_bp = world.get_blueprint_library().find('sensor.other.gnss')
 
         gnss_bp.set_attribute(
-            'noise_alt_bias', gnss_config_args['noise_alt_bias'])
+            'noise_alt_bias', gnss_config['noise_alt_bias'])
         gnss_bp.set_attribute('noise_alt_stddev',
-                              gnss_config_args['noise_alt_stddev'])
+                              gnss_config['noise_alt_stddev'])
         gnss_bp.set_attribute(
-            'noise_lat_bias', gnss_config_args['noise_lat_bias'])
+            'noise_lat_bias', gnss_config['noise_lat_bias'])
         gnss_bp.set_attribute('noise_lat_stddev',
-                              gnss_config_args['noise_lat_stddev'])
+                              gnss_config['noise_lat_stddev'])
         gnss_bp.set_attribute(
-            'noise_lon_bias', gnss_config_args['noise_lon_bias'])
+            'noise_lon_bias', gnss_config['noise_lon_bias'])
         gnss_bp.set_attribute('noise_lon_stddev',
-                              gnss_config_args['noise_lon_stddev'])
+                              gnss_config['noise_lon_stddev'])
 
         print("Spawning GNSS sensor.")
         self.sensor = world.spawn_actor(gnss_bp,
                                         carla.Transform(carla.Location(
-                                            x=gnss_config_args['pos_x'], z=0.0)),
+                                            x=gnss_config['pos_x'], z=0.0)),
                                         attach_to=self._parent)
         self._geo2location = Geo2Location(world.get_map())
 
@@ -471,7 +479,7 @@ class GNSS(CarlaSensor):
 class SemanticCamera(CarlaSensor):
     """ Class for semantic camera. """
 
-    def __init__(self, parent_actor, ss_cam_config_args):
+    def __init__(self, parent_actor, ss_cam_config):
         """ Constructor method. """
         super().__init__(parent_actor)
         self.ss_img = None
@@ -479,14 +487,14 @@ class SemanticCamera(CarlaSensor):
         world = self._parent.get_world()
         ss_cam_bp = world.get_blueprint_library().find(
             'sensor.camera.semantic_segmentation')
-        ss_cam_bp.set_attribute('image_size_x', ss_cam_config_args['res_h'])
-        ss_cam_bp.set_attribute('image_size_y', ss_cam_config_args['res_v'])
-        ss_cam_bp.set_attribute('fov', ss_cam_config_args['fov'])
+        ss_cam_bp.set_attribute('image_size_x', ss_cam_config['res_h'])
+        ss_cam_bp.set_attribute('image_size_y', ss_cam_config['res_v'])
+        ss_cam_bp.set_attribute('fov', ss_cam_config['fov'])
 
         print("Spawning semantic camera sensor.")
         self.sensor = world.spawn_actor(ss_cam_bp,
                                         carla.Transform(
-                                            carla.Location(x=ss_cam_config_args['pos_x'], z=ss_cam_config_args['pos_z'])),
+                                            carla.Location(x=ss_cam_config['pos_x'], z=ss_cam_config['pos_z'])),
                                         attach_to=self._parent)
 
         self.sensor.listen(lambda image: self._queue.put(image))
@@ -509,7 +517,7 @@ class SemanticCamera(CarlaSensor):
 class DepthCamera(CarlaSensor):
     """ Class for depth camera. """
 
-    def __init__(self, parent_actor, depth_cam_config_args):
+    def __init__(self, parent_actor, depth_cam_config):
         """ Constructor method. """
         super().__init__(parent_actor)
         self.depth_buffer = None
@@ -518,15 +526,15 @@ class DepthCamera(CarlaSensor):
         depth_cam_bp = world.get_blueprint_library().find(
             'sensor.camera.depth')
         depth_cam_bp.set_attribute(
-            'image_size_x', depth_cam_config_args['res_h'])
+            'image_size_x', depth_cam_config['res_h'])
         depth_cam_bp.set_attribute(
-            'image_size_y', depth_cam_config_args['res_v'])
-        depth_cam_bp.set_attribute('fov', depth_cam_config_args['fov'])
+            'image_size_y', depth_cam_config['res_v'])
+        depth_cam_bp.set_attribute('fov', depth_cam_config['fov'])
 
         print("Spawning depth camera sensor.")
         self.sensor = world.spawn_actor(depth_cam_bp,
                                         carla.Transform(
-                                            carla.Location(x=depth_cam_config_args['pos_x'], z=depth_cam_config_args['pos_z'])),
+                                            carla.Location(x=depth_cam_config['pos_x'], z=depth_cam_config['pos_z'])),
                                         attach_to=self._parent)
 
         self.sensor.listen(lambda image: self._queue.put(image))
@@ -545,22 +553,98 @@ class DepthCamera(CarlaSensor):
         # Making a copy makes sure depth_buffer is not subject to side-effect when the underlying buffer is modified
         self.depth_buffer = np_img[:, :, 0:3].copy()    # get just BGR channels
 
+
+# %% ================= Front Camera =================
+
+
+class FrontSmartCamera(object):
+    """
+    Class for front smart camera that provides high-level features.
+
+    It uses a semantic camera to extract high-level features, such as lane markings and poles.
+    """
+
+    def __init__(self, parent_actor, front_cam_config, vision_params, calib_data, ipm_data):
+        """
+        Constructor method.
+
+        Input:
+            parent_actor: Parent Carla actor to attach to.
+            front_cam_config: Front camera Carla simulation configurations.
+            vision_params: Vision-algorithm-related parameters.
+            calib_data: Dict of camera calibration parameters.
+            ipm_data: Dict of inverse persepective mapping parameters.
+        """
+        self.semantic_camera = SemanticCamera(
+            parent_actor, front_cam_config)
+
+        # Images
+        self.ss_image = None
+
+        # Detectors
+        self.pole_detector = PoleDetector(calib_data['K'],
+                                          calib_data['R'],
+                                          calib_data['x0'],
+                                          vision_params['pole'])
+        self.lane_detector = LaneMarkingDetector(ipm_data['M'],
+                                                 ipm_data['px_per_meter_x'],
+                                                 ipm_data['px_per_meter_y'],
+                                                 ipm_data['bev_size'],
+                                                 ipm_data['valid_mask'],
+                                                 ipm_data['dist_fbumper_to_intersect'],
+                                                 vision_params['lane'])
+
+    def update(self, yaw_rate):
+        """ Update data at the current tick. """
+        # Update Carla semantic camera
+        self.semantic_camera.update()
+        self.ss_image = self.semantic_camera.ss_img
+
+        pole_image = (self.ss_image == 5).astype(np.uint8)
+        lane_image = ((self.ss_image == 6) | (
+            self.ss_image == 8)).astype(np.uint8)
+
+        self.pole_detector.update_poles(pole_image)
+        self.lane_detector.update_lane_coeffs(lane_image, yaw_rate)
+
+    def destroy(self):
+        self.semantic_camera.destroy()
+
+# TODO: make carlatform vectorized
 # TODO: stop sign measurement
 
 # %%
+
+
 def main():
     # Parse passed-in config yaml file
     argparser = argparse.ArgumentParser(
         description='CARLA Roaming Data Collector')
     argparser.add_argument('config', type=argparse.FileType(
         'r'), help='configuration yaml file for carla env setup')
+    argparser.add_argument('vision_params', type=argparse.FileType(
+        'r'), help='yaml file for vision algorithm parameters')
     argparser.add_argument('-r', '--record', default=False,
                            action='store_true', help='record collected data')
     args = argparser.parse_args()
 
-    # Read configurations from yaml file to config_args
+    # Read configurations from yaml file to config
     with args.config as config_file:
-        config_args = yaml.safe_load(config_file)
+        config = yaml.safe_load(config_file)
+    with args.vision_params as vision_params_file:
+        vision_params = yaml.safe_load(vision_params_file)
+
+    # Load camera parameters
+    with open('vision/calib_data.pkl', 'rb') as f:
+        calib_data = pickle.load(f)
+    # Load parameters for bird's eye view projection
+    with open('vision/ipm_data.pkl', 'rb') as f:
+        ipm_data = pickle.load(f)
+
+    # Calculate distance from camera to front bumper
+    dist_cam_to_fbumper = (config['ego_veh']['raxle_to_fbumper']
+                           - config['sensor']['front_camera']['pos_x']
+                           - config['ego_veh']['raxle_to_cg'])
 
     # Initialize world
     world = None
@@ -572,20 +656,25 @@ def main():
         client = carla.Client('localhost', 2000)
         client.set_timeout(5.0)
         # Create a World obj with a built-in map
-        world = World(client.load_world(
-            config_args['world']['map']), client.get_trafficmanager(), config_args, spawn_point=spawn_point)
+        world = World(client.load_world(config['world']['map']),
+                      client.get_trafficmanager(),
+                      config,
+                      vision_params,
+                      calib_data, ipm_data,
+                      spawn_point=spawn_point)
 
         # Launch autopilot for ego vehicle
-        world.set_ego_autopilot(True, config_args['autopilot'])
+        world.set_ego_autopilot(True, config['autopilot'])
 
-        n_ticks = int(config_args['sim_duration'] /
-                      config_args['world']['delta_seconds'])
+        n_ticks = int(config['sim_duration'] /
+                      config['world']['delta_seconds'])
 
-        ss_images = []
-        depth_buffers = []
-        vx = []
-        yaw_rate = []
-        in_junction = []
+        if args.record:
+            ss_images = []
+            depth_buffers = []
+            vx = []
+            yaw_rate = []
+            in_junction = []
 
         # Simulation loop
         to_left = True
@@ -593,21 +682,25 @@ def main():
             world.step_forward()
             world.see_ego_veh()
 
-            ss_images.append(world.semantic_camera.ss_img)
-            depth_buffers.append(world.depth_camera.depth_buffer)
-            vx.append(world.imu.vx)
-            yaw_rate.append(world.imu.gyro_z)
-            in_junction.append(world.ground_truth.in_junction)
+            if args.record:
+                ss_images.append(world.front_camera.ss_image)
+                depth_buffers.append(world.depth_camera.depth_buffer)
+                vx.append(world.imu.vx)
+                yaw_rate.append(world.imu.gyro_z)
+                in_junction.append(world.ground_truth.in_junction)
 
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
                 world.imu.vx, world.imu.vy, world.imu.gyro_z * 180 / pi))
             print('in junction: {}'.format(world.ground_truth.in_junction))
+            print('         {:.2f}   {:.2f}'.format(
+                world.front_camera.lane_detector.left_coeffs[-1] if  world.front_camera.lane_detector.left_coeffs is not None else -10,
+                world.front_camera.lane_detector.right_coeffs[-1] if world.front_camera.lane_detector.right_coeffs is not None else -10))
             # c0
-            print('{}   {}   {}   {}'.format(
-                world.ground_truth.next_left_marking_param[0] if world.ground_truth.next_left_marking else None,
-                world.ground_truth.left_marking_param[0] if world.ground_truth.left_marking else None,
-                world.ground_truth.right_marking_param[0] if world.ground_truth.right_marking else None,
-                world.ground_truth.next_right_marking_param[0] if world.ground_truth.next_right_marking else None))
+            print('{:.2f}   {:.2f}   {:.2f}   {:.2f}'.format(
+                world.ground_truth.next_left_marking_param[0] if world.ground_truth.next_left_marking else -10,
+                world.ground_truth.left_marking_param[0] if world.ground_truth.left_marking else -10,
+                world.ground_truth.right_marking_param[0] if world.ground_truth.right_marking else -10,
+                world.ground_truth.next_right_marking_param[0] if world.ground_truth.next_right_marking else -10))
             # Marking type
             print('{}   {}   {}   {}'.format(
                 world.ground_truth.next_left_marking.type if world.ground_truth.next_left_marking else None,
@@ -615,10 +708,10 @@ def main():
                 world.ground_truth.right_marking.type if world.ground_truth.right_marking else None,
                 world.ground_truth.next_right_marking.type if world.ground_truth.next_right_marking else None))
 
-            if (idx+1) % int(3/config_args['world']['delta_seconds']) == 0:
+            if (idx+1) % int(3/config['world']['delta_seconds']) == 0:
                 world.force_lane_change(to_left=to_left)
                 to_left = not to_left
-        
+
     finally:
         if world:
             world.set_ego_autopilot(False)
