@@ -29,9 +29,7 @@ def main():
     argparser = argparse.ArgumentParser(
         description='CARLA Roaming Data Collector')
     argparser.add_argument('config', type=argparse.FileType(
-        'r'), help='configuration yaml file for carla env setup')
-    argparser.add_argument('vision_params', type=argparse.FileType(
-        'r'), help='yaml file for vision algorithm parameters')
+        'r'), help='yaml file for carla world configuration')
     argparser.add_argument('-r', '--record', default=False,
                            action='store_true', help='record collected data')
     args = argparser.parse_args()
@@ -39,20 +37,6 @@ def main():
     # Read configurations from yaml file to config
     with args.config as config_file:
         config = yaml.safe_load(config_file)
-    with args.vision_params as vision_params_file:
-        vision_params = yaml.safe_load(vision_params_file)
-
-    # Load camera parameters
-    with open('vision/calib_data.pkl', 'rb') as f:
-        calib_data = pickle.load(f)
-    # Load parameters for bird's eye view projection
-    with open('vision/ipm_data.pkl', 'rb') as f:
-        ipm_data = pickle.load(f)
-
-    # Calculate distance from camera to front bumper
-    dist_cam_to_fbumper = (config['ego_veh']['raxle_to_fbumper']
-                           - config['sensor']['front_camera']['pos_x']
-                           - config['ego_veh']['raxle_to_cg'])
 
     # Initialize world
     world = None
@@ -79,9 +63,9 @@ def main():
             data = {}
             data['ss_images'] = []
             data['depth_buffers'] = []
-            data['raxle_gt_loc'] = []
-            data['raxle_gt_ori'] = []
-            data['yaw_rate'] = []
+            data['raxle_gt_locs'] = []
+            data['raxle_gt_oris'] = []
+            data['yaw_rates'] = []
 
         # Simulation loop
         to_left = True
@@ -92,9 +76,9 @@ def main():
             if args.record:
                 data['ss_images'].append(world.semantic_camera.ss_image)
                 data['depth_buffers'].append(world.depth_camera.depth_buffer)
-                data['raxle_gt_loc'].append(world.ground_truth.raxle_gt_location)
-                data['raxle_gt_ori'].append(world.ground_truth.raxle_gt_orientation)
-                data['yaw_rate'].append(world.imu.gyro_z)
+                data['raxle_gt_locs'].append(world.ground_truth.raxle_gt_location)
+                data['raxle_gt_oris'].append(world.ground_truth.raxle_gt_orientation)
+                data['yaw_rates'].append(world.imu.gyro_z)
 
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
                 world.imu.vx, world.imu.vy, world.imu.gyro_z * 180 / pi))
