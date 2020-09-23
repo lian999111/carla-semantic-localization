@@ -1,5 +1,5 @@
-# This implements a data collection car with camera detection algorithms running online.
-# IMPORTANT: This can run very slow.
+# This implements a data collection car with camera's detection algorithms running online.
+# IMPORTANT: This can run very slowly.
 
 # The following boilerplate is required if .egg is not installed
 # See: https://carla.readthedocs.io/en/latest/build_system/
