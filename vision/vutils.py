@@ -1,5 +1,4 @@
-# Implementations of vision-related utilities functions
-# that can be used from different modules
+# Implementations of vision-related utility functions
 import numpy as np
 import cv2
 
