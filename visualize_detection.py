@@ -114,8 +114,8 @@ def visualize(folder_name):
         ss_image_copy = vutils.convert_semantic_color(ss_image)
         pole_image = (ss_image == 5).astype(np.uint8)
         lane_image = (ss_image == 6) | (ss_image == 8).astype(np.uint8)
-        depth_image = vutils.decode_depth(depth_buffer)
 
+        # Tried multi-threading here, the overhead had worsen the speed
         # Pole detection
         poles_xy_z0 = pole_detector.update_poles(pole_image, z=0)
 
@@ -128,6 +128,7 @@ def visualize(folder_name):
         # Visualize poles
         if poles_xy_z0 is not None:
             # Ground truth
+            depth_image = vutils.decode_depth(depth_buffer)
             x_world = depth_image[pole_bases_uv[1],
                                   pole_bases_uv[0]] - dist_cam_to_fbumper
             poles_gt_xyz = im2world_known_x(
@@ -183,8 +184,9 @@ def visualize(folder_name):
 
         im.set_data(ss_image_copy)
         ax[1].set_title(image_idx)
-        fig.canvas.draw()
-        fig.canvas.flush_events()
+        plt.pause(0.001)
+
+        print(image_idx)
 
 
 if __name__ == "__main__":
