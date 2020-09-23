@@ -49,7 +49,8 @@ class LaneMarkingDetector(object):
                  warped_size,
                  valid_mask,
                  dist_fbumper_to_intersect,
-                 lane_detect_params):
+                 lane_detect_params,
+                 visualize=False):
         """ 
         Constructor method. 
 
@@ -61,6 +62,8 @@ class LaneMarkingDetector(object):
             valid_mask: Numpy.array of booleans to mask out edge pixels caused by the border of the FOV.
             dist_fbumper_to_intersect: Meters from front bumper to the point where vertical FOV intersects the flat ground in x.
             lane_detect_params: Dict object storing lane detection algorithm parameters.
+            visualize: Bool whether to visualize the lane detection process. Mainly used for debug.
+                       If -O flag is used for the Python intepreter, this flag is ignored.
         """
 
         # IPM related data
@@ -104,11 +107,12 @@ class LaneMarkingDetector(object):
         self._sampling_ratio = lane_detect_params['fitting']['sampling_ratio']
         self.order = lane_detect_params['fitting']['order']
 
-        # TODO: Front bumper as reference frame
-
         # Lane marking data
         self.left_coeffs = None
         self.right_coeffs = None
+
+        # Flag to visualize lane detection process
+        self._visualize = visualize
 
     def update_lane_coeffs(self, lane_image, yaw_rate=0.):
         """ 
@@ -144,7 +148,8 @@ class LaneMarkingDetector(object):
         # If this method is called in a loop in debug mode and the figures are not shown to block,
         # figures created at each loop will accumulate and drive the system to hang
         if __debug__:
-            plt.show()
+            if self.visualize:
+                plt.show()
         
         return self.left_coeffs, self.right_coeffs
 
@@ -173,9 +178,10 @@ class LaneMarkingDetector(object):
             edge_image, kernel=np.ones((3, 3), np.uint8), iterations=self._dilation_iter)
 
         if __debug__:
-            image_side_by_side(edge_image, 'Edge Image',
-                               dilated_edge_image, 'Dilated Edge Image')
-            plt.show(block=False)
+            if self._visualize:
+                image_side_by_side(edge_image, 'Edge Image',
+                                dilated_edge_image, 'Dilated Edge Image')
+                plt.show(block=False)
 
         # Sliding window approach
         # When the heading angle difference between ego vehicle and lane is too high, using histogram to find
@@ -190,14 +196,15 @@ class LaneMarkingDetector(object):
         histo, bin_width = self._get_histo(edge_coords_ego)
 
         if __debug__:
-            # Plot histogram with edge pixels
-            _, ax = plt.subplots(1, 1)
-            # ax.plot(edge_coords_ego[1], edge_coords_ego[0], '.')
-            ax.plot(histo)
-            ax.set_title('Histogram of (possibly) rotated edge pixels')
-            ax.set_xlabel('bin')
-            ax.invert_xaxis()
-            plt.show(block=False)
+            if self._visualize:
+                # Plot histogram with edge pixels
+                _, ax = plt.subplots(1, 1)
+                # ax.plot(edge_coords_ego[1], edge_coords_ego[0], '.')
+                ax.plot(histo)
+                ax.set_title('Histogram of (possibly) rotated edge pixels')
+                ax.set_xlabel('bin')
+                ax.invert_xaxis()
+                plt.show(block=False)
 
         left_base_bin, right_base_bin = self._find_histo_peaks(histo)
         # Recover real base positions from bin numbers
@@ -225,8 +232,8 @@ class LaneMarkingDetector(object):
 
         # Rotate coordinates back to the original orientation if pixels were rotated
         if rot_angle is not None:
-            sin_minus_rot_angle = sin(-rot_angle)
-            cos_minus_rot_angle = cos(-rot_angle)
+            sin_minus_rot_angle = sin(0-rot_angle)  # 0 before minus sign to stop pylint from whining
+            cos_minus_rot_angle = cos(0-rot_angle)
             rotm = np.array([[cos_minus_rot_angle, -sin_minus_rot_angle],
                              [sin_minus_rot_angle, cos_minus_rot_angle]])
             left_coords = rotm @ left_coords
@@ -245,31 +252,32 @@ class LaneMarkingDetector(object):
         right_coords_fbumper[0, :] += self.dist_fbumper_to_intersect
 
         if __debug__:
-            # Plot detected marking points on dilated edge image
-            left_pts_in_image = np.zeros(left_coords.shape)
-            right_pts_in_image = np.zeros(right_coords.shape)
-            left_pts_in_image[0] = self.warped_size[0]//2 - left_coords[1]
-            left_pts_in_image[1] = self.warped_size[1] - left_coords[0]
-            right_pts_in_image[0] = self.warped_size[0]//2 - right_coords[1]
-            right_pts_in_image[1] = self.warped_size[1] - right_coords[0]
+            if self._visualize:
+                # Plot detected marking points on dilated edge image
+                left_pts_in_image = np.zeros(left_coords.shape)
+                right_pts_in_image = np.zeros(right_coords.shape)
+                left_pts_in_image[0] = self.warped_size[0]//2 - left_coords[1]
+                left_pts_in_image[1] = self.warped_size[1] - left_coords[0]
+                right_pts_in_image[0] = self.warped_size[0]//2 - right_coords[1]
+                right_pts_in_image[1] = self.warped_size[1] - right_coords[0]
 
-            _, ax = plt.subplots(ncols=2)
-            ax[0].imshow(dilated_edge_image)
-            ax[0].plot(left_pts_in_image[0], left_pts_in_image[1], '.', ms=0.5)
-            ax[0].plot(right_pts_in_image[0],
-                       right_pts_in_image[1], '.', ms=0.5)
-            ax[0].set_title('Extracted Marking Pixels')
+                _, ax = plt.subplots(ncols=2)
+                ax[0].imshow(dilated_edge_image)
+                ax[0].plot(left_pts_in_image[0], left_pts_in_image[1], '.', ms=0.5)
+                ax[0].plot(right_pts_in_image[0],
+                        right_pts_in_image[1], '.', ms=0.5)
+                ax[0].set_title('Extracted Marking Pixels')
 
-            ax[1].plot(left_coords_fbumper[1], left_coords_fbumper[0], '.', ms=0.5)
-            ax[1].plot(right_coords_fbumper[1], right_coords_fbumper[0], '.', ms=0.5)
-            ax[1].set_xlim(-self.warped_size[0]/2 / self.px_per_meters_y,
-                           self.warped_size[0]/2 / self.px_per_meters_y)
-            ax[1].set_ylim(-2, self.warped_size[1] / self.px_per_meters_x)
-            ax[1].invert_xaxis()
-            ax[1].set_title('Marking Points in Front Bumper Frame')
-            ax[1].set_xlabel('y (m)')
-            ax[1].set_ylabel('x (m)')
-            plt.show(block=False)
+                ax[1].plot(left_coords_fbumper[1], left_coords_fbumper[0], '.', ms=0.5)
+                ax[1].plot(right_coords_fbumper[1], right_coords_fbumper[0], '.', ms=0.5)
+                ax[1].set_xlim(-self.warped_size[0]/2 / self.px_per_meters_y,
+                            self.warped_size[0]/2 / self.px_per_meters_y)
+                ax[1].set_ylim(-2, self.warped_size[1] / self.px_per_meters_x)
+                ax[1].invert_xaxis()
+                ax[1].set_title('Marking Points in Front Bumper Frame')
+                ax[1].set_xlabel('y (m)')
+                ax[1].set_ylabel('x (m)')
+                plt.show(block=False)
 
         return left_coords_fbumper, right_coords_fbumper
 
@@ -392,19 +400,20 @@ class LaneMarkingDetector(object):
             edge_image[upper_idx:, left_idx:right_idx], 1, np.pi / 180, threshold=50, minLineLength=50, maxLineGap=50)
 
         if __debug__:
-            # Plot hough lines on the cropped edge image
-            edge_image_crop = edge_image[upper_idx:,
-                                         left_idx:right_idx].copy() * 255
+            if self._visualize:
+                # Plot hough lines on the cropped edge image
+                edge_image_crop = edge_image[upper_idx:,
+                                            left_idx:right_idx].copy() * 255
 
-            if lines is not None:
-                for line in lines:
-                    x1, y1, x2, y2 = line[0][0], line[0][1], line[0][2], line[0][3]
-                    cv2.line(edge_image_crop, (x1, y1),
-                             (x2, y2), 100, 2)
+                if lines is not None:
+                    for line in lines:
+                        x1, y1, x2, y2 = line[0][0], line[0][1], line[0][2], line[0][3]
+                        cv2.line(edge_image_crop, (x1, y1),
+                                (x2, y2), 100, 2)
 
-            _, ax = plt.subplots(1, 1)
-            ax.imshow(edge_image_crop)
-            ax.set_title('Hough segments on cropped edge image')
+                _, ax = plt.subplots(1, 1)
+                ax.imshow(edge_image_crop)
+                ax.set_title('Hough segments on cropped edge image')
 
         # TODO: When hough transform can't find lines in the lower half of image,
         # it's an indication that there is no good lines to detect
@@ -521,9 +530,10 @@ class LaneMarkingDetector(object):
             search_right = False
 
         if __debug__:
-            # List to store tuples (x, y, width, height)
-            boxs = []
-            window_width = 2 * self._margin
+            if self._visualize:
+                # List to store tuples (x, y, width, height)
+                boxs = []
+                window_width = 2 * self._margin
 
         for win_count in range(self._n_windows):
             # Left markings
@@ -539,9 +549,10 @@ class LaneMarkingDetector(object):
                                  (edge_coords_ego[1] >= win_h_left_low) & (edge_coords_ego[1] < win_h_left_high)).nonzero()[0]
 
                 if __debug__:
-                    # Store boxes for visualization
-                    boxs.append((win_h_left_low, win_v_left_low,
-                                 window_width, window_height))
+                    if self._visualize:
+                        # Store boxes for visualization
+                        boxs.append((win_h_left_low, win_v_left_low,
+                                    window_width, window_height))
 
                 left_idc += list(good_left_idc)
 
@@ -579,9 +590,10 @@ class LaneMarkingDetector(object):
                                   (edge_coords_ego[1] >= win_h_right_low) & (edge_coords_ego[1] < win_h_right_high)).nonzero()[0]
 
                 if __debug__:
-                    # Store boxes for visualization
-                    boxs.append((win_h_right_low, win_v_right_low,
-                                 window_width, window_height))
+                    if self._visualize:
+                        # Store boxes for visualization
+                        boxs.append((win_h_right_low, win_v_right_low,
+                                    window_width, window_height))
 
                 right_idc += list(good_right_idc)
 
@@ -606,26 +618,26 @@ class LaneMarkingDetector(object):
                     right_win_h_curr += shift
 
         if __debug__:
-            # Plot extracted points on (possibly) rotated edge pixels
-            _, ax = plt.subplots(1, 1)
-            ax.plot(edge_coords_ego[1], edge_coords_ego[0], '.', ms=1)
+            if self._visualize:
+                # Plot extracted points on (possibly) rotated edge pixels
+                _, ax = plt.subplots(1, 1)
+                ax.plot(edge_coords_ego[1], edge_coords_ego[0], '.', ms=1)
 
-            if __debug__:
                 for box in boxs:
                     ax.add_patch(patches.Rectangle(
                         box[0:2], box[2], box[3], fill=False))
 
-            ax.plot(edge_coords_ego[1, left_idc],
-                    edge_coords_ego[0, left_idc], '.', ms=0.5)
-            ax.plot(edge_coords_ego[1, right_idc],
-                    edge_coords_ego[0, right_idc], '.', ms=0.5)
-            ax.invert_xaxis()
-            ax.set_title('Extracted points from (possibly) rotated pixels')
-            ax.set_xlabel('(px)')
-            ax.set_ylabel('(px)')
-            plt.axis('equal')
+                ax.plot(edge_coords_ego[1, left_idc],
+                        edge_coords_ego[0, left_idc], '.', ms=0.5)
+                ax.plot(edge_coords_ego[1, right_idc],
+                        edge_coords_ego[0, right_idc], '.', ms=0.5)
+                ax.invert_xaxis()
+                ax.set_title('Extracted points from (possibly) rotated pixels')
+                ax.set_xlabel('(px)')
+                ax.set_ylabel('(px)')
+                plt.axis('equal')
 
-            plt.show(block=False)
+                plt.show(block=False)
 
         return left_idc, right_idc
 
@@ -662,7 +674,8 @@ def loop(folder_name):
     lane_detector = LaneMarkingDetector(M, px_per_meter_x, px_per_meter_y,
                                         warped_size, valid_mask,
                                         dist_fbumper_to_intersect,
-                                        vision_params['lane'])
+                                        vision_params['lane'],
+                                        visualize=True)
 
     fig, ax = plt.subplots(1, 2)
     im = ax[0].imshow(
@@ -766,7 +779,8 @@ def single(folder_name, image_idx):
     lane_detector = LaneMarkingDetector(M, px_per_meter_x, px_per_meter_y,
                                         warped_size, valid_mask,
                                         dist_fbumper_to_intersect,
-                                        vision_params['lane'])
+                                        vision_params['lane'],
+                                        visualize=True)
 
     lane_detector.update_lane_coeffs(lane_image, yaw_rates[image_idx])
 
