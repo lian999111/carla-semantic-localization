@@ -55,14 +55,14 @@ class GroundTruthExtractor(object):
             carla.Location(x=-self.raxle_to_cg))
         # Rear axle's location in our coordinate system (right-handed z-up) as a numpy array
         # This is the ground truth of the rear axle's location
-        self.raxle_gt_location = np.array([raxle_location.x,
+        self.raxle_location = np.array([raxle_location.x,
                                            -raxle_location.y,
                                            raxle_location.z])
         # Rear axle's orientation in our coordinate system (right-handed z-up) as a numpy array (roll, pitch, yaw)
-        # This is the ground truth of the rear axle's orientation
-        self.raxle_gt_orientation = np.array([self.ego_veh_tform.rotation.roll,
+        # This is the ground truth of the rear axle's orientation (rad)
+        self.raxle_orientation = np.array([self.ego_veh_tform.rotation.roll,
                                               -self.ego_veh_tform.rotation.pitch,
-                                              -self.ego_veh_tform.rotation.yaw])
+                                              -self.ego_veh_tform.rotation.yaw]) * np.pi / 180
 
         # Simulation environment
         self.map = carla_map
@@ -86,10 +86,10 @@ class GroundTruthExtractor(object):
         self.right_marking = None
         self.next_right_marking = None
         # c0 and c1 of lane markings
-        self.left_marking_param = [0, 0]
-        self.next_left_marking_param = [0, 0]
-        self.right_marking_param = [0, 0]
-        self.next_right_marking_param = [0, 0]
+        self.left_marking_coeffs = [0, 0]
+        self.next_left_marking_coeffs = [0, 0]
+        self.right_marking_coeffs = [0, 0]
+        self.next_right_marking_coeffs = [0, 0]
 
     def update(self):
         """ Update ground truth at the current tick. """
@@ -102,10 +102,10 @@ class GroundTruthExtractor(object):
         # Update rear axle's location and orientation (np.array in right-handed z-up frame)
         raxle_location = self.ego_veh_tform.transform(
             carla.Location(x=-self.raxle_to_cg))
-        self.raxle_gt_location = np.array([raxle_location.x,
+        self.raxle_location = np.array([raxle_location.x,
                                            -raxle_location.y,
                                            raxle_location.z])
-        self.raxle_gt_orientation = np.array([self.ego_veh_tform.rotation.roll,
+        self.raxle_orientation = np.array([self.ego_veh_tform.rotation.roll,
                                               -self.ego_veh_tform.rotation.pitch,
                                               -self.ego_veh_tform.rotation.yaw])
 
@@ -193,16 +193,16 @@ class GroundTruthExtractor(object):
                 next_right_idx = (right_idx+1) if (right_idx +
                                                    1 < len(candidates)) else None
 
-            self.left_marking_param = candidates[left_idx][0] if left_idx is not None else [
+            self.left_marking_coeffs = candidates[left_idx][0] if left_idx is not None else [
                 0, 0]
             self.left_marking = candidates[left_idx][1] if left_idx is not None else None
-            self.next_left_marking_param = candidates[next_left_idx][0] if next_left_idx is not None else [
+            self.next_left_marking_coeffs = candidates[next_left_idx][0] if next_left_idx is not None else [
                 0, 0]
             self.next_left_marking = candidates[next_left_idx][1] if next_left_idx is not None else None
-            self.right_marking_param = candidates[right_idx][0] if right_idx is not None else [
+            self.right_marking_coeffs = candidates[right_idx][0] if right_idx is not None else [
                 0, 0]
             self.right_marking = candidates[right_idx][1] if right_idx is not None else None
-            self.next_right_marking_param = candidates[next_right_idx][0] if next_right_idx is not None else [
+            self.next_right_marking_coeffs = candidates[next_right_idx][0] if next_right_idx is not None else [
                 0, 0]
             self.next_right_marking = candidates[next_right_idx][1] if next_right_idx is not None else None
 
@@ -211,10 +211,10 @@ class GroundTruthExtractor(object):
             self.right_marking = None
             self.next_left_marking = None
             self.next_right_marking = None
-            self.left_marking_param = [0, 0]
-            self.next_left_marking_param = [0, 0]
-            self.right_marking_param = [0, 0]
-            self.next_right_marking_param = [0, 0]
+            self.left_marking_coeffs = [0, 0]
+            self.next_left_marking_coeffs = [0, 0]
+            self.right_marking_coeffs = [0, 0]
+            self.next_right_marking_coeffs = [0, 0]
 
     def _find_candidate_markings(self):
         """ 
@@ -474,17 +474,17 @@ class ObjectGTExtractor(object):
             obj_gt_config: Configurations for object ground truth extraction.
             attach_to: Parent actor that the camera will follow around.
         """
-        # Queues to store images from Carla cameras 
+        # Queues to store images from Carla cameras
         self._ss_queue = queue.Queue()
         self._depth_queue = queue.Queue()
 
         # Images
         self.ss_image = None
-        self.depth_image = None  
+        self.depth_image = None
 
         # xyz coordinates of poles wrt the reference frame
         # The relation ship
-        self.poles_xyz = None         
+        self.poles_xyz = None
 
         # Initialize semantic camera
         ss_cam_bp = carla_world.get_blueprint_library().find(
@@ -494,7 +494,8 @@ class ObjectGTExtractor(object):
         ss_cam_bp.set_attribute('fov', obj_gt_config['fov'])
 
         print("Spawning semantic camera sensor for ground truth.")
-        self.sensor = carla_world.spawn_actor(ss_cam_bp, transform, attach_to=attach_to)
+        self.sensor = carla_world.spawn_actor(
+            ss_cam_bp, transform, attach_to=attach_to)
         self.sensor.listen(lambda image: self._ss_queue.put(image))
 
         # Initialize depth camera
@@ -507,7 +508,8 @@ class ObjectGTExtractor(object):
         depth_cam_bp.set_attribute('fov', obj_gt_config['fov'])
 
         print("Spawning depth camera sensor for ground truth.")
-        self.sensor = carla_world.spawn_actor(depth_cam_bp, transform, attach_to=attach_to)
+        self.sensor = carla_world.spawn_actor(
+            depth_cam_bp, transform, attach_to=attach_to)
         self.sensor.listen(lambda image: self._depth_queue.put(image))
 
     def update(self):
@@ -516,7 +518,6 @@ class ObjectGTExtractor(object):
 
         This method first calls _update_images() then use the new images to extract object ground truth. 
         """
-
 
     def _update_images(self):
         """
