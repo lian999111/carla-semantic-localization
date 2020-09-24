@@ -30,7 +30,7 @@ def main():
     argparser = argparse.ArgumentParser(
         description='CARLA Roaming Data Collector')
     argparser.add_argument('config', type=argparse.FileType(
-        'r'), help='configuration yaml file for carla env setup')
+        'r'), help='yaml file for carla world configuration')
     argparser.add_argument('vision_params', type=argparse.FileType(
         'r'), help='yaml file for vision algorithm parameters')
     argparser.add_argument('-r', '--record', default=False,
@@ -121,10 +121,10 @@ def main():
             print('        {:.2f}   {:.2f}'.format(left_c0, right_c0))
             # c0 ground truth
             print('{:.2f}   {:.2f}   {:.2f}   {:.2f}'.format(
-                world.ground_truth.next_left_marking_param[0] if world.ground_truth.next_left_marking else -10,
-                world.ground_truth.left_marking_param[0] if world.ground_truth.left_marking else -10,
-                world.ground_truth.right_marking_param[0] if world.ground_truth.right_marking else -10,
-                world.ground_truth.next_right_marking_param[0] if world.ground_truth.next_right_marking else -10))
+                world.ground_truth.next_left_marking_coeffs[0] if world.ground_truth.next_left_marking else -10,
+                world.ground_truth.left_marking_coeffs[0] if world.ground_truth.left_marking else -10,
+                world.ground_truth.right_marking_coeffs[0] if world.ground_truth.right_marking else -10,
+                world.ground_truth.next_right_marking_coeffs[0] if world.ground_truth.next_right_marking else -10))
             # Marking type
             print('{}   {}   {}   {}'.format(
                 world.ground_truth.next_left_marking.type if world.ground_truth.next_left_marking else None,
@@ -150,7 +150,7 @@ def main():
             os.makedirs(mydir)
 
             with open(os.path.join(mydir, 'data.pkl'), 'wb') as f:
-                pickle.dump(data, image_file)
+                pickle.dump(data, f)
 
 
 if __name__ == "__main__":

@@ -76,8 +76,8 @@ def main():
             if args.record:
                 data['ss_images'].append(world.semantic_camera.ss_image)
                 data['depth_buffers'].append(world.depth_camera.depth_buffer)
-                data['raxle_gt_locs'].append(world.ground_truth.raxle_gt_location)
-                data['raxle_gt_oris'].append(world.ground_truth.raxle_gt_orientation)
+                data['raxle_gt_locs'].append(world.ground_truth.raxle_location)
+                data['raxle_gt_oris'].append(world.ground_truth.raxle_orientation)
                 data['yaw_rates'].append(world.imu.gyro_z)
 
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
@@ -85,10 +85,10 @@ def main():
             print('in junction: {}'.format(world.ground_truth.in_junction))
             # c0
             print('{:.2f}   {:.2f}   {:.2f}   {:.2f}'.format(
-                world.ground_truth.next_left_marking_param[0] if world.ground_truth.next_left_marking else -10,
-                world.ground_truth.left_marking_param[0] if world.ground_truth.left_marking else -10,
-                world.ground_truth.right_marking_param[0] if world.ground_truth.right_marking else -10,
-                world.ground_truth.next_right_marking_param[0] if world.ground_truth.next_right_marking else -10))
+                world.ground_truth.next_left_marking_coeffs[0] if world.ground_truth.next_left_marking else -10,
+                world.ground_truth.left_marking_coeffs[0] if world.ground_truth.left_marking else -10,
+                world.ground_truth.right_marking_coeffs[0] if world.ground_truth.right_marking else -10,
+                world.ground_truth.next_right_marking_coeffs[0] if world.ground_truth.next_right_marking else -10))
             # Marking type
             print('{}   {}   {}   {}'.format(
                 world.ground_truth.next_left_marking.type if world.ground_truth.next_left_marking else None,
