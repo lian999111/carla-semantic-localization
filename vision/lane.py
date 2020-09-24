@@ -148,7 +148,7 @@ class LaneMarkingDetector(object):
         # If this method is called in a loop in debug mode and the figures are not shown to block,
         # figures created at each loop will accumulate and drive the system to hang
         if __debug__:
-            if self.visualize:
+            if self._visualize:
                 plt.show()
         
         return self.left_coeffs, self.right_coeffs
