@@ -28,6 +28,7 @@ import queue
 
 from carlasim.groundtruth import GroundTruthExtractor
 from carlasim.carla_tform import CarlaW2ETform
+from carlasim.record import Recorder
 from vision.pole import PoleDetector
 from vision.lane import LaneMarkingDetector
 
@@ -107,10 +108,10 @@ class World(object):
 
     def __init__(self,
                  carla_world: carla.World,
-                 traffic_manager: carla.TrafficManag,
+                 traffic_manager: carla.TrafficManager,
                  config: dict,
-                 spawn_point:
-                 carla.Transform = None):
+                 record_config: dict,
+                 spawn_point: carla.Transform = None):
         """
         Constructor method.
 
@@ -145,6 +146,7 @@ class World(object):
         # Each sensor and ground truth extractor has to register their data in this dict.
         # When sensor data are updated, the content in this dict is updated automatically since they are just pointers.
         self._data_collection = {}
+        self.recorder = Recorder(sim_world=self, record_config=record_config)
 
         # Start simuation
         self.restart(config, spawn_point)
