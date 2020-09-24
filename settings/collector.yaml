@@ -1,5 +1,8 @@
 ## Defines configurations of Carla simulation
 
+## Carla simulation recorder toggle
+carla_recorder: Off
+
 ## World
 world:
   # Rendering must be on for semantic segmentation output
@@ -10,7 +13,7 @@ world:
   delta_seconds: &delta_seconds 0.1  # seconds per tick
   
   # Built-in map
-  map: Town03
+  map: Town04
   
   # Carla weathers (in alphabetic order)
   # 0 - ClearNoon
@@ -43,8 +46,8 @@ ego_veh:
   # Carla's Mustang:
   #   CG to rear axle: 1.4
   #   CG to front bumper: 2.4   
-  raxle_to_cg: 1.4         # (m) Distance from rear axle to center of gravity in x
-  raxle_to_fbumper: 3.8    # (m) Distance from rear axle to front bumper in x
+  raxle_to_cg: &raxle_to_cg 1.4         # (m) Distance from rear axle to center of gravity in x
+  raxle_to_fbumper: &raxle_to_fbumper 3.8    # (m) Distance from rear axle to front bumper in x
 
 
 ## Sensors
@@ -59,6 +62,7 @@ sensor:
     noise_lat_stddev: '0.0'  # Standard deviation parameter in the noise model for latitude.
     noise_lon_bias: '0.0'    # Mean parameter in the noise model for longitude.
     noise_lon_stddev: '0.0'  # Standard deviation parameter in the noise model for longitude.
+
   imu:
     pos_x: -1.4                  # Installation position x with respect to center of gravity
     noise_accel_stddev_x: '0.0'  # Standard deviation parameter in the noise model for acceleration (X axis).
@@ -80,6 +84,7 @@ sensor:
     # which is found to lag behind Carla's IMU by 1 simulation step.
     # To recover that, virtual odometry's velocities are added with acceleration times simulation step 
     delta_seconds: *delta_seconds  # Simulation time step
+
   front_camera:
     # Semantic segmentation image
     pos_x: 0.6    # Installation position x with respect to center of gravity
@@ -90,9 +95,11 @@ sensor:
 
 ## Ground truth extraction
 gt:
+  pose:
+    raxle_to_cg: *raxle_to_cg              # (m) Distance from rear axle to center of gravity in x
+    raxle_to_fbumper: *raxle_to_fbumper    # (m) Distance from rear axle to front bumper in x
   lane:
     radius: 9      # (m) Search radius for lane markings
 
 ## Setups
-sim_duration: 60  # sec
-recording: False
+sim_duration: 10  # sec
