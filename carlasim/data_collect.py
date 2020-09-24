@@ -85,7 +85,7 @@ class Geo2Location(object):
 
     def transform(self, geolocation):
         """
-        Transform from carla.GeoLocation to carla.Location.
+        Transform from carla.GeoLocation to carla.Location (left_handed z-up).
 
         Numerical error may exist. Experiments show error is about under 1 cm in Town03.
         """
@@ -105,7 +105,12 @@ class Geo2Location(object):
 class World(object):
     """ Class representing the simulation environment. """
 
-    def __init__(self, carla_world, traffic_manager, config, spawn_point=None):
+    def __init__(self,
+                 carla_world: carla.World,
+                 traffic_manager: carla.TrafficManag,
+                 config: dict,
+                 spawn_point:
+                 carla.Transform = None):
         """
         Constructor method.
 
@@ -132,7 +137,14 @@ class World(object):
         self.semantic_camera = None
         self.depth_camera = None
 
+        # For ground truth extractor
         self.ground_truth = None
+
+        # This dict will store references to all sensor and ground truth data.
+        # It is to facilitate the recording mechanism, so the recorder only needs to query this one-stop container.
+        # Each sensor and ground truth extractor has to register their data in this dict.
+        # When sensor data are updated, the content in this dict is updated automatically since they are just pointers.
+        self._data_collection = {}
 
         # Start simuation
         self.restart(config, spawn_point)
@@ -194,16 +206,18 @@ class World(object):
         self.see_ego_veh()
 
         # Spawn the sensors
-        self.gnss = GNSS(self.ego_veh, config['sensor']['gnss'])
-        self.imu = IMU(self.ego_veh, config['sensor']['imu'])
-        self.semantic_camera = SemanticCamera(self.ego_veh,
-                                              config['sensor']['front_camera'])
-        self.depth_camera = DepthCamera(self.ego_veh,
-                                        config['sensor']['front_camera'])
+        self.gnss = GNSS('gnss', config['sensor']['gnss'], self.ego_veh, self)
+        self.imu = IMU('imu', config['sensor']['imu'], self.ego_veh, self)
+        self.semantic_camera = SemanticCamera('semantic_camera',
+                                              config['sensor']['front_camera'],
+                                              self.ego_veh, self)
+        self.depth_camera = DepthCamera('depth_camera',
+                                        config['sensor']['front_camera'],
+                                        self.ego_veh, self)
 
         # Ground truth extractor
         self.ground_truth = GroundTruthExtractor(
-            self.ego_veh, self.map, actor_list=None, config=config)
+            self.ego_veh, self.map, config, parent_world=self)
 
     def set_ego_autopilot(self, active, autopilot_config=None):
         """ Set traffic manager and register ego vehicle to it. """
@@ -274,7 +288,7 @@ class World(object):
             print("Destroying depth camera sensor.")
             self.depth_camera.destroy()
             self.depth_camera = None
-        
+
 
 # %% ================= Sensor Base =================
 
@@ -282,11 +296,25 @@ class World(object):
 class CarlaSensor(object):
     """ Base class for sensors provided by carla. """
 
-    def __init__(self, parent_actor):
-        """ Constructor method. """
-        self.sensor = None
-        self.timestamp = 0.0
+    def __init__(self, name, parent_actor=None, parent_world=None):
+        """ 
+        Constructor method. 
+
+        Input:
+            name: Str of sensor name.
+            parent_actor: Carla.Actor of parent actor that this sensor is attached to.
+            parent_world: Carla.World of the world where this sensor is spawned.
+        """
+        self.name = name
         self._parent = parent_actor
+        self._parent_world = parent_world
+        self.sensor = None
+        # Dict to store sensor data
+        self.data = {}
+        # Register sensor data to parent_world's _data_collection if parent_world given
+        # _data_collection gets updated automatically when self.data is updated since it's just a pointer
+        if self._parent_world:
+            self._parent_world._data_collection[self.name] = self.data
         # The callback method in listen() to retrieve data used widely in official tutorials has a data race problem.
         # The callback will likely not finish before data get accessed from the main loop, causing inconsistent data.
         # Here the queue is expected to be used in listen() instead. The callback simply puts the sensor data into the queue,
@@ -321,29 +349,31 @@ class IMU(CarlaSensor):
         This wrapper class automatically convert to right-handed z-up coordinate system to match our convention.
     """
 
-    def __init__(self, parent_actor, imu_config):
+    def __init__(self, name, imu_config, parent_actor=None, parent_world=None):
         """ Constructor method. """
-        super().__init__(parent_actor)
+        super().__init__(name, parent_actor, parent_world)
+        self.data['timestamp'] = 0.0
         # In right-handed z-up coordinate system
         # Accelerations
-        self.accel_x = 0.0      # m/s^2
-        self.accel_y = 0.0      # m/s^2
-        self.accel_z = 0.0      # m/s^2
+        self.data['accel_x'] = 0.0      # m/s^2
+        self.data['accel_y'] = 0.0      # m/s^2
+        self.data['accel_z'] = 0.0      # m/s^2
         # Angular velocities
-        self.gyro_x = 0.0       # rad/s
-        self.gyro_y = 0.0       # rad/s
-        self.gyro_z = 0.0       # rad/s
+        self.data['gyro_x'] = 0.0       # rad/s
+        self.data['gyro_y'] = 0.0       # rad/s
+        self.data['gyro_z'] = 0.0       # rad/s
 
         # Velocities (virtual odometry)
-        self.vx = 0.0           # m/s
-        self.vy = 0.0           # m/s
+        self.data['vx'] = 0.0           # m/s
+        self.data['vy'] = 0.0           # m/s
+
         # Virtual odometry uses velocities of ego vehicle's actor directly,
         # which is found to lag behind Carla's IMU by 1 simulation step.
         # To recover that, virtual odometry's velocities are added with acceleration times simulation step
         self._delta_seconds = imu_config['delta_seconds']
 
-        world = self._parent.get_world()
-        imu_bp = world.get_blueprint_library().find('sensor.other.imu')
+        carla_world = self._parent.get_world()
+        imu_bp = carla_world.get_blueprint_library().find('sensor.other.imu')
 
         imu_bp.set_attribute('noise_accel_stddev_x',
                              imu_config['noise_accel_stddev_x'])
@@ -370,10 +400,10 @@ class IMU(CarlaSensor):
         self._noise_vy_stddev = imu_config['noise_vy_stddev']
 
         print("Spawning IMU sensor.")
-        self.sensor = world.spawn_actor(imu_bp,
-                                        carla.Transform(carla.Location(
-                                            x=imu_config['pos_x'], z=0.0)),
-                                        attach_to=self._parent)
+        self.sensor = carla_world.spawn_actor(imu_bp,
+                                              carla.Transform(carla.Location(
+                                                  x=imu_config['pos_x'], z=0.0)),
+                                              attach_to=self._parent)
 
         self.sensor.listen(lambda event: self._queue.put(event))
 
@@ -383,26 +413,30 @@ class IMU(CarlaSensor):
         event = self._queue.get()
 
         # Convert to right-handed z-up frame
-        self.timestamp = event.timestamp
-        self.accel_x = event.accelerometer.x
-        self.accel_y = - event.accelerometer.y
-        self.accel_z = event.accelerometer.z
-        self.gyro_x = event.gyroscope.x
-        self.gyro_y = - event.gyroscope.y
-        self.gyro_z = - event.gyroscope.z
+        self.data['timestamp'] = event.timestamp
+        self.data['accel_x'] = event.accelerometer.x
+        self.data['accel_y'] = - event.accelerometer.y
+        self.data['accel_z'] = event.accelerometer.z
+        self.data['gyro_x'] = event.gyroscope.x
+        self.data['gyro_y'] = - event.gyroscope.y
+        self.data['gyro_z'] = - event.gyroscope.z
 
         # Velocities
         vel = self._parent.get_velocity()
         tform_w2e = CarlaW2ETform(self._parent.get_transform())
         # Transform velocities from Carla world frame (left-handed) to ego frame (right-handed)
         ego_vel = tform_w2e.rotm_world_to_ego(vel)  # an np 3D vector
-        self.vx = ego_vel[0] + self._delta_seconds * self.accel_x
-        self.vy = ego_vel[1] + self._delta_seconds * self.accel_y
+        self.data['vx'] = ego_vel[0] + \
+            self._delta_seconds * self.data['accel_x']
+        self.data['vy'] = ego_vel[1] + \
+            self._delta_seconds * self.data['accel_y']
         self._add_velocity_noise()
 
     def _add_velocity_noise(self):
-        self.vx += np.random.normal(self._noise_vx_bias, self._noise_vx_stddev)
-        self.vy += np.random.normal(self._noise_vy_bias, self._noise_vy_stddev)
+        self.data['vx'] += np.random.normal(self._noise_vx_bias,
+                                            self._noise_vx_stddev)
+        self.data['vy'] += np.random.normal(self._noise_vy_bias,
+                                            self._noise_vy_stddev)
 
 
 # %% ================= GNSS Sensor =================
@@ -417,18 +451,18 @@ class GNSS(CarlaSensor):
     This class already converts the GNSS measurements into our right-handed z-up coordinate system.
     """
 
-    def __init__(self, parent_actor, gnss_config):
+    def __init__(self, name, gnss_config, parent_actor=None, parent_world=None):
         """ Constructor method. """
-        super().__init__(parent_actor)
-        self.lat = 0.0
-        self.lon = 0.0
-        self.alt = 0.0
-        self.x = 0.0
-        self.y = 0.0
-        self.z = 0.0
+        super().__init__(name, parent_actor, parent_world)
+        self.data['lat'] = 0.0
+        self.data['lon'] = 0.0
+        self.data['alt'] = 0.0
+        self.data['x'] = 0.0
+        self.data['y'] = 0.0
+        self.data['z'] = 0.0
 
-        world = self._parent.get_world()
-        gnss_bp = world.get_blueprint_library().find('sensor.other.gnss')
+        carla_world = self._parent.get_world()
+        gnss_bp = carla_world.get_blueprint_library().find('sensor.other.gnss')
 
         gnss_bp.set_attribute(
             'noise_alt_bias', gnss_config['noise_alt_bias'])
@@ -444,31 +478,32 @@ class GNSS(CarlaSensor):
                               gnss_config['noise_lon_stddev'])
 
         print("Spawning GNSS sensor.")
-        self.sensor = world.spawn_actor(gnss_bp,
-                                        carla.Transform(carla.Location(
-                                            x=gnss_config['pos_x'], z=0.0)),
-                                        attach_to=self._parent)
-        self._geo2location = Geo2Location(world.get_map())
-
+        self.sensor = carla_world.spawn_actor(gnss_bp,
+                                              carla.Transform(carla.Location(
+                                                  x=gnss_config['pos_x'], z=0.0)),
+                                              attach_to=self._parent)
         self.sensor.listen(lambda event: self._queue.put(event))
+
+        # Object to transform from geo location to carla location
+        self._geo2location = Geo2Location(carla_world.get_map())
 
     def update(self):
         """ Wait for GNSS measurement and update data. """
         # get() blocks the script so synchronization is guaranteed
         event = self._queue.get()
-        self.timestamp = event.timestamp
-        self.lat = event.latitude
-        self.lon = event.longitude
-        self.alt = event.altitude
+        self.data['timestamp'] = event.timestamp
+        self.data['lat'] = event.latitude
+        self.data['lon'] = event.longitude
+        self.data['alt'] = event.altitude
 
         # Get transform from geolocation to location
         location = self._geo2location.transform(
-            carla.GeoLocation(self.lat, self.lon, self.alt))
+            carla.GeoLocation(self.data['lat'], self.data['lon'], self.data['alt']))
 
         # y must be flipped to match the right-handed convention we use.
-        self.x = location.x
-        self.y = - location.y
-        self.z = location.z
+        self.data['x'] = location.x
+        self.data['y'] = - location.y
+        self.data['z'] = location.z
 
 # %% ================= Semantic Camera =================
 
@@ -476,37 +511,38 @@ class GNSS(CarlaSensor):
 class SemanticCamera(CarlaSensor):
     """ Class for semantic camera. """
 
-    def __init__(self, parent_actor, ss_cam_config):
+    def __init__(self, name, ss_cam_config, parent_actor=None, parent_world=None):
         """ Constructor method. """
-        super().__init__(parent_actor)
-        self.ss_image = None
+        super().__init__(name, parent_actor, parent_world)
+        self.data['ss_image'] = None
 
-        world = self._parent.get_world()
-        ss_cam_bp = world.get_blueprint_library().find(
+        carla_world = self._parent.get_world()
+        ss_cam_bp = carla_world.get_blueprint_library().find(
             'sensor.camera.semantic_segmentation')
         ss_cam_bp.set_attribute('image_size_x', ss_cam_config['res_h'])
         ss_cam_bp.set_attribute('image_size_y', ss_cam_config['res_v'])
         ss_cam_bp.set_attribute('fov', ss_cam_config['fov'])
 
         print("Spawning semantic camera sensor.")
-        self.sensor = world.spawn_actor(ss_cam_bp,
-                                        carla.Transform(
-                                            carla.Location(x=ss_cam_config['pos_x'], z=ss_cam_config['pos_z'])),
-                                        attach_to=self._parent)
+        self.sensor = carla_world.spawn_actor(ss_cam_bp,
+                                              carla.Transform(
+                                                  carla.Location(x=ss_cam_config['pos_x'], z=ss_cam_config['pos_z'])),
+                                              attach_to=self._parent)
 
         self.sensor.listen(lambda image: self._queue.put(image))
 
     def update(self):
         """ Wait for semantic image and update data. """
         image = self._queue.get()
-        self.timestamp = image.timestamp
+        self.data['timestamp'] = image.timestamp
+
         np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
         # Reshap to BGRA format
         np_img = np.reshape(np_img, (image.height, image.width, -1))
         # Semantic info is stored only in the R channel
         # Since np_img is from the buffer, which is reused by Carla
         # Making a copy makes sure ss_image is not subject to side-effect when the underlying buffer is modified
-        self.ss_image = np_img[:, :, 2].copy()
+        self.data['ss_image'] = np_img[:, :, 2].copy()
 
 # %% ================= Depth Camera =================
 
@@ -514,10 +550,10 @@ class SemanticCamera(CarlaSensor):
 class DepthCamera(CarlaSensor):
     """ Class for depth camera. """
 
-    def __init__(self, parent_actor, depth_cam_config):
+    def __init__(self, name, depth_cam_config, parent_actor=None, parent_world=None):
         """ Constructor method. """
-        super().__init__(parent_actor)
-        self.depth_buffer = None
+        super().__init__(name, parent_actor, parent_world)
+        self.data['depth_buffer'] = None
 
         world = self._parent.get_world()
         depth_cam_bp = world.get_blueprint_library().find(
@@ -539,7 +575,8 @@ class DepthCamera(CarlaSensor):
     def update(self):
         """ Wait for depth image and update data. """
         image = self._queue.get()
-        self.timestamp = image.timestamp
+        self.data['timestamp'] = image.timestamp
+
         np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
         # Reshap to BGRA format
         # The depth info is encoded by the BGR channels using the so-called depth buffer.
@@ -548,7 +585,8 @@ class DepthCamera(CarlaSensor):
         np_img = np.reshape(np_img, (image.height, image.width, -1))
         # Since np_img is from the buffer, which is reused by Carla
         # Making a copy makes sure depth_buffer is not subject to side-effect when the underlying buffer is modified
-        self.depth_buffer = np_img[:, :, 0:3].copy()    # get just BGR channels
+        self.data['depth_buffer'] = np_img[:, :,
+                                           0:3].copy()    # get just BGR channels
 
 
 # %% ================= Front Smart Camera =================
@@ -593,11 +631,11 @@ class FrontSmartCamera(object):
     def update(self):
         """ Update data given current semantic image and yaw rate. """
         # Extract high-level objects
-        ss_image = self.semantic_camera.ss_image
+        ss_image = self.semantic_camera.data['ss_image']
         pole_image = (ss_image == 5).astype(np.uint8)
         lane_image = ((ss_image == 6) | (ss_image == 8)).astype(np.uint8)
 
-        yaw_rate = self.imu.gyro_z
+        yaw_rate = self.imu.data['gyro_z']
 
         self.pole_detector.update_poles(pole_image)
         self.lane_detector.update_lane_coeffs(lane_image, yaw_rate)

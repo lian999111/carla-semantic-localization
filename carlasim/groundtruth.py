@@ -18,6 +18,7 @@ import carla
 from enum import Enum
 import numpy as np
 import queue
+from carlasim.data_collect import World
 from carlasim.carla_tform import CarlaW2ETform
 from vision.vutils import decode_depth
 
@@ -33,16 +34,16 @@ class Direction(Enum):
 class GroundTruthExtractor(object):
     """ Class for ground truth extraction. """
 
-    def __init__(self, ego_veh, carla_map, actor_list, config):
+    def __init__(self, ego_veh: carla.Actor, carla_map: carla.Map, config: dict, parent_world: World = None):
         """ Constructor method. """
+        # TODO: Make this class work even without ego_veh. This is useful when used in factors.
         # Ego vehicle
+        self.ego_veh = ego_veh
+        self.ego_veh_tform = ego_veh.get_transform()
         # Distance from rear axle to front bumper
         self.raxle_to_fbumper = config['ego_veh']['raxle_to_fbumper']
         # Distance from rear axle to center of gravity
         self.raxle_to_cg = config['ego_veh']['raxle_to_cg']
-
-        self.ego_veh = ego_veh
-        self.ego_veh_tform = ego_veh.get_transform()
 
         # TODO: Try put this frame at the intersect of camera FOV and ground surface?
         # Front bumper location in Carla's coordinate system (left-handed z-up) as a carla.Vector3D object
@@ -50,46 +51,52 @@ class GroundTruthExtractor(object):
         self._fbumper_location = self.ego_veh_tform.transform(
             carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))
 
+        self.map = carla_map
+        # Ignore landmarks now since Carla's built-in maps don't have them defined
+        # self.landmarks = None
+
+        self._parent_world = parent_world
+
+        # Dict to store ground truth data of interest
+        self.gt = {}
+        # Register ground truth data to parent_world._data_collection
+        if self._parent_world:
+            self._parent_world._data_collection['gt'] = self.gt
+
         # Rear axle in Carla's coordinate system (left-handed z-up) as a carla.Vector3D object
         raxle_location = self.ego_veh_tform.transform(
             carla.Location(x=-self.raxle_to_cg))
         # Rear axle's location in our coordinate system (right-handed z-up) as a numpy array
         # This is the ground truth of the rear axle's location
-        self.raxle_location = np.array([raxle_location.x,
-                                           -raxle_location.y,
-                                           raxle_location.z])
+        self.gt['raxle_location'] = np.array([raxle_location.x,
+                                              -raxle_location.y,
+                                              raxle_location.z])
         # Rear axle's orientation in our coordinate system (right-handed z-up) as a numpy array (roll, pitch, yaw)
         # This is the ground truth of the rear axle's orientation (rad)
-        self.raxle_orientation = np.array([self.ego_veh_tform.rotation.roll,
-                                              -self.ego_veh_tform.rotation.pitch,
-                                              -self.ego_veh_tform.rotation.yaw]) * np.pi / 180
-
-        # Simulation environment
-        self.map = carla_map
-        self.actor_list = actor_list
-        # Ignore landmarks now since carla built-in maps don't have them defined
-        # self.landmarks = None
+        self.gt['raxle_orientation'] = np.array([self.ego_veh_tform.rotation.roll,
+                                                 -self.ego_veh_tform.rotation.pitch,
+                                                 -self.ego_veh_tform.rotation.yaw]) * np.pi / 180
 
         # Lanes
         # Search radius
         self._radius = config['gt']['lane']['radius']
 
         # Current waypoint
-        self.waypoint = None
+        self.gt['waypoint'] = None
         # Flag indicating ego vehicle is in junction
-        self.in_junction = False
+        self.gt['in_junction'] = False
         # Current lane id (to know the order of double marking types)
-        self.lane_id = None
+        self.gt['lane_id'] = None
         # Carla.LaneMarking object of each marking
-        self.left_marking = None
-        self.next_left_marking = None
-        self.right_marking = None
-        self.next_right_marking = None
+        self.gt['left_marking'] = None
+        self.gt['next_left_marking'] = None
+        self.gt['right_marking'] = None
+        self.gt['next_right_marking'] = None
         # c0 and c1 of lane markings
-        self.left_marking_coeffs = [0, 0]
-        self.next_left_marking_coeffs = [0, 0]
-        self.right_marking_coeffs = [0, 0]
-        self.next_right_marking_coeffs = [0, 0]
+        self.gt['left_marking_coeffs'] = [0, 0]
+        self.gt['next_left_marking_coeffs'] = [0, 0]
+        self.gt['right_marking_coeffs'] = [0, 0]
+        self.gt['next_right_marking_coeffs'] = [0, 0]
 
     def update(self):
         """ Update ground truth at the current tick. """
@@ -102,31 +109,31 @@ class GroundTruthExtractor(object):
         # Update rear axle's location and orientation (np.array in right-handed z-up frame)
         raxle_location = self.ego_veh_tform.transform(
             carla.Location(x=-self.raxle_to_cg))
-        self.raxle_location = np.array([raxle_location.x,
-                                           -raxle_location.y,
-                                           raxle_location.z])
-        self.raxle_orientation = np.array([self.ego_veh_tform.rotation.roll,
-                                              -self.ego_veh_tform.rotation.pitch,
-                                              -self.ego_veh_tform.rotation.yaw])
+        self.gt['raxle_location'] = np.array([raxle_location.x,
+                                              -raxle_location.y,
+                                              raxle_location.z])
+        self.gt['raxle_orientation'] = np.array([self.ego_veh_tform.rotation.roll,
+                                                 -self.ego_veh_tform.rotation.pitch,
+                                                 -self.ego_veh_tform.rotation.yaw])
 
         # Update lanes
         # Find a waypoint on the nearest lane (any lane type except NONE)
         # So when ego vehicle is driving abnormally (e.g. on shoulder or parking), lane markings can still be obtained.
         # Some strange results may happen in extreme cases though (e.g. car drives on rail or sidewalk).
-        self.waypoint = self.map.get_waypoint(
+        self.gt['waypoint'] = self.map.get_waypoint(
             self._fbumper_location, lane_type=carla.LaneType.Any)
 
-        self.in_junction = self.waypoint.is_junction
-        self.lane_id = self.waypoint.lane_id
+        self.gt['in_junction'] = self.gt['waypoint'].is_junction
+        self.gt['lane_id'] = self.gt['waypoint'].lane_id
 
         # When the query point (front bumper) is farther from the obtained waypoint than searching radius,
         # the ego vehicle is likely  to be off road, then no lane info is further extracted.
         # make a carla.Location object
         fbumper_loc = carla.Location(self._fbumper_location)
-        if fbumper_loc.distance(self.waypoint.transform.location) >= self._radius:
-            self.waypoint = None
+        if fbumper_loc.distance(self.gt['waypoint'].transform.location) >= self._radius:
+            self.gt['waypoint'] = None
 
-        if self.waypoint is not None:
+        if self.gt['waypoint'] is not None:
             # Find candidate visible markings within the specified radius
             # We get a list of 3D points of candidate markings in front bumper's frame (right-handed z-up)
             # as well as a list containing the corresponding marking types.
@@ -193,28 +200,28 @@ class GroundTruthExtractor(object):
                 next_right_idx = (right_idx+1) if (right_idx +
                                                    1 < len(candidates)) else None
 
-            self.left_marking_coeffs = candidates[left_idx][0] if left_idx is not None else [
+            self.gt['left_marking_coeffs'] = candidates[left_idx][0] if left_idx is not None else [
                 0, 0]
-            self.left_marking = candidates[left_idx][1] if left_idx is not None else None
-            self.next_left_marking_coeffs = candidates[next_left_idx][0] if next_left_idx is not None else [
+            self.gt['left_marking'] = candidates[left_idx][1] if left_idx is not None else None
+            self.gt['next_left_marking_coeffs'] = candidates[next_left_idx][0] if next_left_idx is not None else [
                 0, 0]
-            self.next_left_marking = candidates[next_left_idx][1] if next_left_idx is not None else None
-            self.right_marking_coeffs = candidates[right_idx][0] if right_idx is not None else [
+            self.gt['next_left_marking'] = candidates[next_left_idx][1] if next_left_idx is not None else None
+            self.gt['right_marking_coeffs'] = candidates[right_idx][0] if right_idx is not None else [
                 0, 0]
-            self.right_marking = candidates[right_idx][1] if right_idx is not None else None
-            self.next_right_marking_coeffs = candidates[next_right_idx][0] if next_right_idx is not None else [
+            self.gt['right_marking'] = candidates[right_idx][1] if right_idx is not None else None
+            self.gt['next_right_marking_coeffs'] = candidates[next_right_idx][0] if next_right_idx is not None else [
                 0, 0]
-            self.next_right_marking = candidates[next_right_idx][1] if next_right_idx is not None else None
+            self.gt['next_right_marking'] = candidates[next_right_idx][1] if next_right_idx is not None else None
 
         else:
-            self.left_marking = None
-            self.right_marking = None
-            self.next_left_marking = None
-            self.next_right_marking = None
-            self.left_marking_coeffs = [0, 0]
-            self.next_left_marking_coeffs = [0, 0]
-            self.right_marking_coeffs = [0, 0]
-            self.next_right_marking_coeffs = [0, 0]
+            self.gt['left_marking'] = None
+            self.gt['next_left_marking'] = None
+            self.gt['right_marking'] = None
+            self.gt['next_right_marking'] = None
+            self.gt['left_marking_coeffs'] = [0, 0]
+            self.gt['next_left_marking_coeffs'] = [0, 0]
+            self.gt['right_marking_coeffs'] = [0, 0]
+            self.gt['next_right_marking_coeffs'] = [0, 0]
 
     def _find_candidate_markings(self):
         """ 
@@ -234,7 +241,7 @@ class GroundTruthExtractor(object):
         # into our front bumper's frame (right-handed z-up)
         tform_w2e = CarlaW2ETform(fbumper_transform)
         waypt_ego_frame = tform_w2e.tform_world_to_ego(
-            self.waypoint.transform.location)
+            self.gt['waypoint'].transform.location)
 
         # Container lists
         # A list of points of each candidate marking
@@ -245,7 +252,7 @@ class GroundTruthExtractor(object):
 
         # Left
         # Initilization with current waypoint
-        left_marking_waypt = self.waypoint
+        left_marking_waypt = self.gt['waypoint']
         cum_dist = waypt_ego_frame[1] + \
             0.5 * left_marking_waypt.lane_width
         # Search left till cumulative distance exceeds radius or a None waypoint is reached
@@ -275,7 +282,7 @@ class GroundTruthExtractor(object):
 
         # Right
         # Initilization with current waypoint
-        right_marking_waypt = self.waypoint
+        right_marking_waypt = self.gt['waypoint']
         cum_dist = waypt_ego_frame[1] + \
             0.5 * right_marking_waypt.lane_width
         # Search right till cumulative distance exceeds radius or a None waypoint is reached
@@ -422,7 +429,7 @@ class GroundTruthExtractor(object):
         """ Check if the direction of the given waypoint is the same as the ego lane. """
         if waypoint_of_interest is None:
             return None
-        return (self.waypoint.lane_id * waypoint_of_interest.lane_id) > 0
+        return (self.gt['waypoint'].lane_id * waypoint_of_interest.lane_id) > 0
 
     def _get_next_lane(self, waypoint_of_interest, direction):
         """ Get waypoint of next lane in specified direction (left or right) with respect to ego lane. """
@@ -453,105 +460,3 @@ class GroundTruthExtractor(object):
                 return waypoint_of_interest.right_lane_marking
             else:
                 return waypoint_of_interest.left_lane_marking
-
-
-class ObjectGTExtractor(object):
-    """
-    Class for object ground truth extraction.
-
-    It uses semantic segmentation together depth cameras that can freely move around the environment 
-    to extract ground truth of objects of interest.
-    """
-
-    def __init__(self, carla_world, transform, obj_gt_config, attach_to=None):
-        """
-        Constructor method.
-
-        Input:
-            carla_world: Carla.World object of the simulation environment.
-            transform: Carla.Transform representating the location and orientation 
-                       the caremras will be spawned with..
-            obj_gt_config: Configurations for object ground truth extraction.
-            attach_to: Parent actor that the camera will follow around.
-        """
-        # Queues to store images from Carla cameras
-        self._ss_queue = queue.Queue()
-        self._depth_queue = queue.Queue()
-
-        # Images
-        self.ss_image = None
-        self.depth_image = None
-
-        # xyz coordinates of poles wrt the reference frame
-        # The relation ship
-        self.poles_xyz = None
-
-        # Initialize semantic camera
-        ss_cam_bp = carla_world.get_blueprint_library().find(
-            'sensor.camera.semantic_segmentation')
-        ss_cam_bp.set_attribute('image_size_x', obj_gt_config['res_h'])
-        ss_cam_bp.set_attribute('image_size_y', obj_gt_config['res_v'])
-        ss_cam_bp.set_attribute('fov', obj_gt_config['fov'])
-
-        print("Spawning semantic camera sensor for ground truth.")
-        self.sensor = carla_world.spawn_actor(
-            ss_cam_bp, transform, attach_to=attach_to)
-        self.sensor.listen(lambda image: self._ss_queue.put(image))
-
-        # Initialize depth camera
-        depth_cam_bp = carla_world.get_blueprint_library().find(
-            'sensor.camera.depth')
-        depth_cam_bp.set_attribute(
-            'image_size_x', obj_gt_config['res_h'])
-        depth_cam_bp.set_attribute(
-            'image_size_y', obj_gt_config['res_v'])
-        depth_cam_bp.set_attribute('fov', obj_gt_config['fov'])
-
-        print("Spawning depth camera sensor for ground truth.")
-        self.sensor = carla_world.spawn_actor(
-            depth_cam_bp, transform, attach_to=attach_to)
-        self.sensor.listen(lambda image: self._depth_queue.put(image))
-
-    def update(self):
-        """
-        Update object-related ground truth.
-
-        This method first calls _update_images() then use the new images to extract object ground truth. 
-        """
-
-    def _update_images(self):
-        """
-        Update semantic and depth images at the current tick.
-
-        Must be called at each Carla tick to get the latest images.
-        """
-        # Update semantic image
-        image = self._ss_queue.get()
-        np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
-        # Reshap to BGRA format
-        np_img = np.reshape(np_img, (image.height, image.width, -1))
-        # Semantic info is stored only in the R channel
-        # Since np_img is from the buffer, which is reused by Carla
-        # Making a copy makes sure ss_img is not subject to side-effect when the underlying buffer is modified
-        self.ss_img = np_img[:, :, 2].copy()
-
-        # Update depth image
-        image = self._depth_queue.get()
-        np_img = np.frombuffer(image.raw_data, dtype=np.uint8)
-        # Reshap to BGRA format
-        # The depth info is encoded by the BGR channels using the so-called depth buffer.
-        # Decoding is required before use.
-        # Ref: https://carla.readthedocs.io/en/latest/ref_sensors/#depth-camera
-        np_img = np.reshape(np_img, (image.height, image.width, -1))
-        # Since np_img is from the buffer, which is reused by Carla
-        # Making a copy makes sure depth_buffer is not subject to side-effect when the underlying buffer is modified
-        depth_buffer = np_img[:, :, 0:3]    # get just BGR channels
-        self.depth_image = decode_depth(depth_buffer)
-
-    def _update_poles_xyz(self):
-        """
-        Update xyz coordinates of poles.
-
-        Must be called at each Carla tick to get the latest images.
-        """
-        pass
