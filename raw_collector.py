@@ -20,23 +20,30 @@ import argparse
 import yaml
 import pickle
 from math import pi
+from shutil import copyfile
 
 from carlasim.data_collect import World, FrontSmartCamera
 
-
+# TODO: Add Carla recorder
 def main():
     # Parse passed-in config yaml file
     argparser = argparse.ArgumentParser(
         description='CARLA Roaming Data Collector')
     argparser.add_argument('config', type=argparse.FileType(
-        'r'), help='yaml file for carla world configuration')
-    argparser.add_argument('-r', '--record', default=False,
-                           action='store_true', help='record collected data')
+        'r'), help='yaml file for carla world config')
+    argparser.add_argument('-r', '--record_config', type=argparse.FileType(
+        'r'), help='record collected data with recorder config yaml')
     args = argparser.parse_args()
 
     # Read configurations from yaml file to config
-    with args.config as config_file:
-        config = yaml.safe_load(config_file)
+    with args.config as f:
+        config = yaml.safe_load(f)
+
+    if args.record_config:
+        with args.record_config as f:
+            record_config = yaml.safe_load(f)
+    else:
+        record_config = None
 
     # Initialize world
     world = None
@@ -51,6 +58,7 @@ def main():
         world = World(client.load_world(config['world']['map']),
                       client.get_trafficmanager(),
                       config,
+                      record_config,
                       spawn_point=spawn_point)
 
         # Launch autopilot for ego vehicle
@@ -59,46 +67,49 @@ def main():
         n_ticks = int(config['sim_duration'] /
                       config['world']['delta_seconds'])
 
-        if args.record:
-            data = {}
-            data['ss_images'] = []
-            data['depth_buffers'] = []
-            data['raxle_gt_locs'] = []
-            data['raxle_gt_oris'] = []
-            data['yaw_rates'] = []
-
         # Simulation loop
         to_left = True
         for idx in range(n_ticks):
             world.step_forward()
             world.see_ego_veh()
 
-            if args.record:
-                data['ss_images'].append(world.semantic_camera.ss_image)
-                data['depth_buffers'].append(world.depth_camera.depth_buffer)
-                data['raxle_gt_locs'].append(world.ground_truth.raxle_location)
-                data['raxle_gt_oris'].append(world.ground_truth.raxle_orientation)
-                data['yaw_rates'].append(world.imu.gyro_z)
+            lane_gt = world.ground_truth.all_gt['lane']
 
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
-                world.imu.vx, world.imu.vy, world.imu.gyro_z * 180 / pi))
-            print('in junction: {}'.format(world.ground_truth.in_junction))
+                world.imu.data['vx'], world.imu.data['vy'], world.imu.data['gyro_z'] * 180 / pi))
+            print('in junction: {}'.format(
+                lane_gt['in_junction']))
             # c0
             print('{:.2f}   {:.2f}   {:.2f}   {:.2f}'.format(
-                world.ground_truth.next_left_marking_coeffs[0] if world.ground_truth.next_left_marking else -10,
-                world.ground_truth.left_marking_coeffs[0] if world.ground_truth.left_marking else -10,
-                world.ground_truth.right_marking_coeffs[0] if world.ground_truth.right_marking else -10,
-                world.ground_truth.next_right_marking_coeffs[0] if world.ground_truth.next_right_marking else -10))
+                lane_gt['next_left_marking_coeffs'][0] if lane_gt['next_left_marking'] else -10,
+                lane_gt['left_marking_coeffs'][0] if lane_gt['left_marking'] else -10,
+                lane_gt['right_marking_coeffs'][0] if lane_gt['right_marking'] else -10,
+                lane_gt['next_right_marking_coeffs'][0] if lane_gt['next_right_marking'] else -10))
             # Marking type
             print('{}   {}   {}   {}'.format(
-                world.ground_truth.next_left_marking.type if world.ground_truth.next_left_marking else None,
-                world.ground_truth.left_marking.type if world.ground_truth.left_marking else None,
-                world.ground_truth.right_marking.type if world.ground_truth.right_marking else None,
-                world.ground_truth.next_right_marking.type if world.ground_truth.next_right_marking else None))
+                lane_gt['next_left_marking'].type if lane_gt['next_left_marking'] else None,
+                lane_gt['left_marking'].type if lane_gt['left_marking'] else None,
+                lane_gt['right_marking'].type if lane_gt['right_marking'] else None,
+                lane_gt['next_right_marking'].type if lane_gt['next_right_marking'] else None))
 
             if (idx+1) % int(3/config['world']['delta_seconds']) == 0:
                 world.force_lane_change(to_left=to_left)
                 to_left = not to_left
+
+        # Save recorded data
+
+        mydir = os.path.join(os.getcwd(), 'recordings',
+                             datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+        os.makedirs(mydir)
+
+        if args.record_config:
+            world.save_recorded_data(mydir)
+            # Copy config files to folder for future reference
+            config_dir = os.path.join(mydir, 'collector.yaml')
+            copyfile(args.config.name, config_dir)
+            record_config_dir = os.path.join(mydir, 'recorder.yaml')
+            copyfile(args.record_config.name, record_config_dir)
+            
 
     finally:
         if world:
@@ -106,14 +117,6 @@ def main():
             world.destroy()
             # Allow carla engine to run freely so it doesn't just hang there
             world.allow_free_run()
-
-        # Store data
-        if args.record:
-            mydir = os.path.join(os.getcwd(), 'recordings',
-                                 datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
-            os.makedirs(mydir)
-            with open(os.path.join(mydir, 'data.pkl'), 'wb') as f:
-                pickle.dump(data, f)
 
 
 # %%

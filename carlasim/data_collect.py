@@ -110,7 +110,7 @@ class World(object):
                  carla_world: carla.World,
                  traffic_manager: carla.TrafficManager,
                  config: dict,
-                 record_config: dict,
+                 record_config: dict = None,
                  spawn_point: carla.Transform = None):
         """
         Constructor method.
@@ -138,22 +138,23 @@ class World(object):
         self.semantic_camera = None
         self.depth_camera = None
 
-        # For ground truth extractor
+        # Ground truth extractor
         self.ground_truth = None
+        # Data recorder
+        self.recorder = None
 
-        # This dict will store references to all sensor and ground truth data.
-        # It is to facilitate the recording mechanism, so the recorder only needs to query this one-stop container.
-        # Each sensor and ground truth extractor has to register their data in this dict.
+        # This dict will store references to all sensor's data.
+        # It is to facilitate the recording, so the recorder only needs to query this one-stop container.
+        # Each sensor has to register their data in this dict.
         # When sensor data are updated, the content in this dict is updated automatically since they are just pointers.
-        self._data_collection = {}
-        self.recorder = Recorder(sim_world=self, record_config=record_config)
+        self.all_sensor_data = {}
 
         # Start simuation
-        self.restart(config, spawn_point)
+        self.restart(config, record_config, spawn_point)
         # Tick the world to bring the actors into effect
         self.step_forward()
 
-    def restart(self, config, spawn_point=None):
+    def restart(self, config, record_config=None, spawn_point=None):
         """
         Start the simulation with the configuration arguments.
 
@@ -219,7 +220,12 @@ class World(object):
 
         # Ground truth extractor
         self.ground_truth = GroundTruthExtractor(
-            self.ego_veh, self.map, config, parent_world=self)
+            self.ego_veh, self.map, config['gt'])
+
+        # Init data recorder if record_config if provided
+        if record_config is not None:
+            self.recorder = Recorder(
+                self.all_sensor_data, self.ground_truth.all_gt, record_config)
 
     def set_ego_autopilot(self, active, autopilot_config=None):
         """ Set traffic manager and register ego vehicle to it. """
@@ -251,6 +257,8 @@ class World(object):
         self.semantic_camera.update()
         self.depth_camera.update()
         self.ground_truth.update()
+        if self.recorder is not None:
+            self.recorder.record_current_step()
 
     def see_ego_veh(self, following_dist=5, height=5, tilt_ang=-30):
         """ Aim the spectator down to the ego vehicle. """
@@ -267,6 +275,14 @@ class World(object):
         settings.synchronous_mode = False
         settings.fixed_delta_seconds = 0.0
         self.carla_world.apply_settings(settings)
+
+    def save_recorded_data(self, path_to_folder):
+        """ Save recorded data to the designated folder. """
+        if self.recorder is not None:
+            self.recorder.save_data(path_to_folder)
+        else:
+            raise RuntimeError(
+                'Try to save recorded data while recorder was not initialized. Did you pass None as record_config?')
 
     def destroy(self):
         """ Destroy spawned actors in carla world. """
@@ -313,10 +329,10 @@ class CarlaSensor(object):
         self.sensor = None
         # Dict to store sensor data
         self.data = {}
-        # Register sensor data to parent_world's _data_collection if parent_world given
-        # _data_collection gets updated automatically when self.data is updated since it's just a pointer
+        # Register sensor data to parent_world's _aggre_sensor_data if parent_world given
+        # _aggre_sensor_data gets updated automatically when self.data is updated since it's just a pointer
         if self._parent_world:
-            self._parent_world._data_collection[self.name] = self.data
+            self._parent_world.all_sensor_data[self.name] = self.data
         # The callback method in listen() to retrieve data used widely in official tutorials has a data race problem.
         # The callback will likely not finish before data get accessed from the main loop, causing inconsistent data.
         # Here the queue is expected to be used in listen() instead. The callback simply puts the sensor data into the queue,

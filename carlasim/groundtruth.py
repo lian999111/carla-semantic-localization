@@ -18,7 +18,6 @@ import carla
 from enum import Enum
 import numpy as np
 import queue
-from carlasim.data_collect import World
 from carlasim.carla_tform import CarlaW2ETform
 from vision.vutils import decode_depth
 
@@ -32,37 +31,52 @@ class Direction(Enum):
 
 
 class GroundTruthExtractor(object):
-    """ Class for ground truth extraction. """
+    """ Class for ground truth extraction during Carla simulation. """
 
-    def __init__(self, ego_veh: carla.Actor, carla_map: carla.Map, config: dict, parent_world: World = None):
+    def __init__(self, ego_veh: carla.Actor, carla_map: carla.Map, gt_config: dict):
         """ Constructor method. """
-        # TODO: Make this class work even without ego_veh. This is useful when used in factors.
+
+        # TODO: Try put this frame at the intersection of camera FOV and ground surface?
+        # Front bumper's transform in Carla's coordinate system
+        # It's for the convenience of querying waypoints for lane using carla's APIs
+        self._fbumper_carla_tform = None
+
+        # Pose ground truth extractor
+        self.pose_gt = PoseGTExtractor(ego_veh, gt_config['pose'])
+        # Lane ground truth extractor
+        self.lane_gt = LaneGTExtractor(carla_map, gt_config['lane'])
+
+        # Dict as an aggregate buffer to store ground truth data of interest
+        # Using dict helps automate data selection during recording since data can be queried by keys
+        # This buffer is automatically updated when the child ground truth extractors update their buffer
+        self.all_gt = {}
+        # Point to pose ground truth extractor's gt buffer
+        self.all_gt['pose'] = self.pose_gt.gt
+        # Point to lane ground truth extractor's gt buffer
+        self.all_gt['lane'] = self.lane_gt.gt
+
+    def update(self):
+        """ Update ground truth at the current tick. """
+        # Update pose
+        self.pose_gt.update()
+        self._fbumper_carla_tform = self.pose_gt.get_fbumper_carla_tform()   
+        # Update lanes
+        self.lane_gt.update_using_carla_transform(self._fbumper_carla_tform)
+
+
+class PoseGTExtractor(object):
+    """ Class for rear axle's pose extraction. """
+
+    def __init__(self, ego_veh: carla.Actor, pose_config: dict):
         # Ego vehicle
         self.ego_veh = ego_veh
         self.ego_veh_tform = ego_veh.get_transform()
         # Distance from rear axle to front bumper
-        self.raxle_to_fbumper = config['ego_veh']['raxle_to_fbumper']
+        self.raxle_to_fbumper = pose_config['raxle_to_fbumper']
         # Distance from rear axle to center of gravity
-        self.raxle_to_cg = config['ego_veh']['raxle_to_cg']
+        self.raxle_to_cg = pose_config['raxle_to_cg']
 
-        # TODO: Try put this frame at the intersect of camera FOV and ground surface?
-        # Front bumper location in Carla's coordinate system (left-handed z-up) as a carla.Vector3D object
-        # It's in carla's left-handed world frame so querying waypoints using carla's APIs is more straightforward
-        self._fbumper_location = self.ego_veh_tform.transform(
-            carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))
-
-        self.map = carla_map
-        # Ignore landmarks now since Carla's built-in maps don't have them defined
-        # self.landmarks = None
-
-        self._parent_world = parent_world
-
-        # Dict to store ground truth data of interest
         self.gt = {}
-        # Register ground truth data to parent_world._data_collection
-        if self._parent_world:
-            self._parent_world._data_collection['gt'] = self.gt
-
         # Rear axle in Carla's coordinate system (left-handed z-up) as a carla.Vector3D object
         raxle_location = self.ego_veh_tform.transform(
             carla.Location(x=-self.raxle_to_cg))
@@ -77,10 +91,43 @@ class GroundTruthExtractor(object):
                                                  -self.ego_veh_tform.rotation.pitch,
                                                  -self.ego_veh_tform.rotation.yaw]) * np.pi / 180
 
-        # Lanes
-        # Search radius
-        self._radius = config['gt']['lane']['radius']
+    def update(self):
+        """ Update ground truth at the current tick. """
+        self.ego_veh_tform = self.ego_veh.get_transform()
 
+        # Update rear axle's location and orientation (np.array in right-handed z-up frame)
+        raxle_location = self.ego_veh_tform.transform(
+            carla.Location(x=-self.raxle_to_cg))
+        self.gt['raxle_location'] = np.array([raxle_location.x,
+                                                      -raxle_location.y,
+                                                      raxle_location.z])
+        self.gt['raxle_orientation'] = np.array([self.ego_veh_tform.rotation.roll,
+                                                         -self.ego_veh_tform.rotation.pitch,
+                                                         -self.ego_veh_tform.rotation.yaw])
+    
+    def get_fbumper_carla_tform(self):
+        """ Get front bumper's carla.Transform. """
+        fbumper_location = self.ego_veh_tform.transform(
+            carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))
+        # Update front bumper's transform in Carla's coordinate system
+        fbumper_carla_tform = carla.Transform(
+            carla.Location(fbumper_location), self.ego_veh_tform.rotation)
+        return fbumper_carla_tform
+
+
+class LaneGTExtractor(object):
+    """ Class for lane ground truth extraction. """
+
+    def __init__(self, carla_map: carla.Map, lane_gt_config):
+        self.map = carla_map
+
+        # carla.Transform of current query point
+        self._carla_tform = None
+
+        # Search radius
+        self._radius = lane_gt_config['radius']
+
+        self.gt = {}
         # Current waypoint
         self.gt['waypoint'] = None
         # Flag indicating ego vehicle is in junction
@@ -98,39 +145,44 @@ class GroundTruthExtractor(object):
         self.gt['right_marking_coeffs'] = [0, 0]
         self.gt['next_right_marking_coeffs'] = [0, 0]
 
-    def update(self):
-        """ Update ground truth at the current tick. """
-        self.ego_veh_tform = self.ego_veh.get_transform()
+    def update(self, location, rotation):
+        """
+        Update lane ground truth at the current tick. 
 
-        # Update front bumper's location (carla.Vector3D in left-handed frame)
-        self._fbumper_location = self.ego_veh_tform.transform(
-            carla.Location(x=self.raxle_to_fbumper - self.raxle_to_cg))  # carla.Location.transform() returns just a carla.Vector3D object
+        Input:
+            location: Array-like 3D query point in world (right-handed z-up).
+            rotation: Array-like roll pitch yaw rotation representation in rad (right-handed z-up).
+        """
+        # Convert the passed-in location into Carla's frame (left-handed z-up).
+        carla_location = carla.Location(
+            x=location[0], y=-location[1], z=location[2])
+        rotation = rotation * 180/np.pi  # to deg
+        carla_rotation = carla.Rotation(
+            roll=rotation[0], pitch=rotation[1], yaw=rotation[2])
+        self.update_using_carla_transform(
+            carla.Transform(carla_location, carla_rotation))
 
-        # Update rear axle's location and orientation (np.array in right-handed z-up frame)
-        raxle_location = self.ego_veh_tform.transform(
-            carla.Location(x=-self.raxle_to_cg))
-        self.gt['raxle_location'] = np.array([raxle_location.x,
-                                              -raxle_location.y,
-                                              raxle_location.z])
-        self.gt['raxle_orientation'] = np.array([self.ego_veh_tform.rotation.roll,
-                                                 -self.ego_veh_tform.rotation.pitch,
-                                                 -self.ego_veh_tform.rotation.yaw])
+    def update_using_carla_transform(self, carla_tform: carla.Transform):
+        """ 
+        Update lane ground truth using a carla.Location at the current tick. 
+
+        Input:
+            carla_tform: carla.Transform query point following Carla's coordinate convention.
+        """
+        self._carla_tform = carla_tform
+        carla_location = self._carla_tform.location
 
         # Update lanes
         # Find a waypoint on the nearest lane (any lane type except NONE)
         # So when ego vehicle is driving abnormally (e.g. on shoulder or parking), lane markings can still be obtained.
         # Some strange results may happen in extreme cases though (e.g. car drives on rail or sidewalk).
         self.gt['waypoint'] = self.map.get_waypoint(
-            self._fbumper_location, lane_type=carla.LaneType.Any)
+            carla_location, lane_type=carla.LaneType.Any)
 
         self.gt['in_junction'] = self.gt['waypoint'].is_junction
         self.gt['lane_id'] = self.gt['waypoint'].lane_id
 
-        # When the query point (front bumper) is farther from the obtained waypoint than searching radius,
-        # the ego vehicle is likely  to be off road, then no lane info is further extracted.
-        # make a carla.Location object
-        fbumper_loc = carla.Location(self._fbumper_location)
-        if fbumper_loc.distance(self.gt['waypoint'].transform.location) >= self._radius:
+        if carla_location.distance(self.gt['waypoint'].transform.location) >= self._radius:
             self.gt['waypoint'] = None
 
         if self.gt['waypoint'] is not None:
@@ -235,11 +287,9 @@ class GroundTruthExtractor(object):
                 List containing carla.LaneMarking objects corresponding to the points
                 in candidate_markings_in_ego.
         """
-        fbumper_transform = carla.Transform(
-            self._fbumper_location, self.ego_veh.get_transform().rotation)
         # Object for transforming a carla.Location in carla's world frame (left-handed z-up)
         # into our front bumper's frame (right-handed z-up)
-        tform_w2e = CarlaW2ETform(fbumper_transform)
+        tform_w2e = CarlaW2ETform(self._carla_tform)
         waypt_ego_frame = tform_w2e.tform_world_to_ego(
             self.gt['waypoint'].transform.location)
 
