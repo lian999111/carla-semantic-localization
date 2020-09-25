@@ -20,6 +20,7 @@ import numpy as np
 import queue
 from carlasim.carla_tform import CarlaW2ETform
 from vision.utils import decode_depth
+from carlasim.utils import LaneMarking
 
 
 class Direction(Enum):
@@ -28,6 +29,7 @@ class Direction(Enum):
     Right = 2
     Forward = 3
     Backward = 4
+
 
 class GroundTruthExtractor(object):
     """ Class for ground truth extraction during Carla simulation. """
@@ -58,7 +60,7 @@ class GroundTruthExtractor(object):
         """ Update ground truth at the current tick. """
         # Update pose
         self.pose_gt.update()
-        self._fbumper_carla_tform = self.pose_gt.get_fbumper_carla_tform()   
+        self._fbumper_carla_tform = self.pose_gt.get_fbumper_carla_tform()
         # Update lanes
         self.lane_gt.update_using_carla_transform(self._fbumper_carla_tform)
 
@@ -98,12 +100,12 @@ class PoseGTExtractor(object):
         raxle_location = self.ego_veh_tform.transform(
             carla.Location(x=-self.raxle_to_cg))
         self.gt['raxle_location'] = np.array([raxle_location.x,
-                                                      -raxle_location.y,
-                                                      raxle_location.z])
+                                              -raxle_location.y,
+                                              raxle_location.z])
         self.gt['raxle_orientation'] = np.array([self.ego_veh_tform.rotation.roll,
-                                                         -self.ego_veh_tform.rotation.pitch,
-                                                         -self.ego_veh_tform.rotation.yaw])
-    
+                                                 -self.ego_veh_tform.rotation.pitch,
+                                                 -self.ego_veh_tform.rotation.yaw])
+
     def get_fbumper_carla_tform(self):
         """ Get front bumper's carla.Transform. """
         fbumper_location = self.ego_veh_tform.transform(
@@ -251,28 +253,40 @@ class LaneGTExtractor(object):
                 next_right_idx = (right_idx+1) if (right_idx +
                                                    1 < len(candidates)) else None
 
+            # c0 and c1 coefficients
             self.gt['left_marking_coeffs'] = candidates[left_idx][0] if left_idx is not None else [
                 0, 0]
-            self.gt['left_marking'] = candidates[left_idx][1] if left_idx is not None else None
             self.gt['next_left_marking_coeffs'] = candidates[next_left_idx][0] if next_left_idx is not None else [
                 0, 0]
-            self.gt['next_left_marking'] = candidates[next_left_idx][1] if next_left_idx is not None else None
             self.gt['right_marking_coeffs'] = candidates[right_idx][0] if right_idx is not None else [
                 0, 0]
-            self.gt['right_marking'] = candidates[right_idx][1] if right_idx is not None else None
             self.gt['next_right_marking_coeffs'] = candidates[next_right_idx][0] if next_right_idx is not None else [
                 0, 0]
-            self.gt['next_right_marking'] = candidates[next_right_idx][1] if next_right_idx is not None else None
+
+            # Lane marking objects (replaced with our pickle-able LaneMarking)
+            left_marking_obj = candidates[left_idx][1] if left_idx is not None else None
+            next_left_lane_marking_obj = candidates[next_left_idx][1] if next_left_idx is not None else None
+            right_marking_obj = candidates[right_idx][1] if right_idx is not None else None
+            next_right_marking_obj = candidates[next_right_idx][1] if next_right_idx is not None else None
+
+            self.gt['left_marking'] = LaneMarking.from_carla_lane_marking(
+                left_marking_obj) if left_marking_obj else None
+            self.gt['next_left_marking'] = LaneMarking.from_carla_lane_marking(
+                next_left_lane_marking_obj) if next_left_lane_marking_obj is not None else None
+            self.gt['right_marking'] = LaneMarking.from_carla_lane_marking(
+                right_marking_obj) if right_marking_obj is not None else None
+            self.gt['next_right_marking'] = LaneMarking.from_carla_lane_marking(
+                next_right_marking_obj) if next_right_marking_obj is not None else None
 
         else:
-            self.gt['left_marking'] = None
-            self.gt['next_left_marking'] = None
-            self.gt['right_marking'] = None
-            self.gt['next_right_marking'] = None
             self.gt['left_marking_coeffs'] = [0, 0]
             self.gt['next_left_marking_coeffs'] = [0, 0]
             self.gt['right_marking_coeffs'] = [0, 0]
             self.gt['next_right_marking_coeffs'] = [0, 0]
+            self.gt['left_marking'] = None
+            self.gt['next_left_marking'] = None
+            self.gt['right_marking'] = None
+            self.gt['next_right_marking'] = None
 
     def _find_candidate_markings(self):
         """ 
