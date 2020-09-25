@@ -1,7 +1,7 @@
 ## Defines configurations of Carla simulation
 
-## Carla simulation recorder toggle
-carla_recorder: Off
+## General setup
+sim_duration: 10  # sec
 
 ## World
 world:
@@ -101,5 +101,66 @@ gt:
   lane:
     radius: 9      # (m) Search radius for lane markings
 
-## Setups
-sim_duration: 10  # sec
+  # Carla recorder for simulation replay
+  carla_recorder: Off
+
+## Recorder
+# Each toggle specifies whether its corresponding data are recoreded when the recorder is activated
+# Note the names must match the ones definded in its class
+recorder:
+  sensor:
+    imu:
+      timestamp: On
+      # Velocities
+      vx: On
+      vy: On
+      # Angular velocities
+      gyro_x: Off
+      gyro_y: Off
+      gyro_z: On
+      # Accelerations
+      accel_x: Off
+      accel_y: Off
+      accel_z: Off
+
+    gnss:
+      timestamp: On
+      lat: Off
+      lon: Off
+      alt: Off
+      x: On
+      y: On
+      z: On
+
+    semantic_camera:
+      timestamp: On
+      ss_image: On
+
+    depth_camera:
+      timestamp: On
+      depth_buffer: On
+
+  # Ground truth
+  gt:
+    pose:
+      # Rear axle's pose
+      raxle_location: On
+      raxle_orientation: On
+      
+    lane:
+      # The closest Carla.Waypoint
+      waypoint: Off
+      in_junction: On
+      lane_id: On
+
+      # Carla.LaneMarking objects
+      left_marking: Off
+      next_left_marking: Off
+      right_marking: Off
+      next_right_marking: Off
+      
+      # c0 and c1 coefficients
+      left_marking_coeffs: On
+      next_left_marking_coeffs: On
+      right_marking_coeffs: On
+      next_right_marking_coeffs: On

@@ -25,25 +25,21 @@ from shutil import copyfile
 from carlasim.data_collect import World, FrontSmartCamera
 
 # TODO: Add Carla recorder
+
+
 def main():
     # Parse passed-in config yaml file
     argparser = argparse.ArgumentParser(
         description='CARLA Roaming Data Collector')
     argparser.add_argument('config', type=argparse.FileType(
-        'r'), help='yaml file for carla world config')
-    argparser.add_argument('-r', '--record_config', type=argparse.FileType(
-        'r'), help='record collected data with recorder config yaml')
+        'r'), help='yaml file for carla simulation config')
+    argparser.add_argument('-r', '--record', default=False, action='store_true',
+                           help='record data selected in config file')
     args = argparser.parse_args()
 
     # Read configurations from yaml file to config
     with args.config as f:
         config = yaml.safe_load(f)
-
-    if args.record_config:
-        with args.record_config as f:
-            record_config = yaml.safe_load(f)
-    else:
-        record_config = None
 
     # Initialize world
     world = None
@@ -58,7 +54,6 @@ def main():
         world = World(client.load_world(config['world']['map']),
                       client.get_trafficmanager(),
                       config,
-                      record_config,
                       spawn_point=spawn_point)
 
         # Launch autopilot for ego vehicle
@@ -96,20 +91,17 @@ def main():
                 world.force_lane_change(to_left=to_left)
                 to_left = not to_left
 
-        # Save recorded data
+        
 
-        mydir = os.path.join(os.getcwd(), 'recordings',
-                             datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
-        os.makedirs(mydir)
-
-        if args.record_config:
+        if args.record:
+            # Save recorded data
+            mydir = os.path.join(os.getcwd(), 'recordings',
+                                datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+            os.makedirs(mydir)
             world.save_recorded_data(mydir)
             # Copy config files to folder for future reference
-            config_dir = os.path.join(mydir, 'collector.yaml')
-            copyfile(args.config.name, config_dir)
-            record_config_dir = os.path.join(mydir, 'recorder.yaml')
-            copyfile(args.record_config.name, record_config_dir)
-            
+            target_dir = os.path.join(mydir, 'config.yaml')
+            copyfile(args.config.name, target_dir)
 
     finally:
         if world:

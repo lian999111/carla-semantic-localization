@@ -110,7 +110,7 @@ class World(object):
                  carla_world: carla.World,
                  traffic_manager: carla.TrafficManager,
                  config: dict,
-                 record_config: dict = None,
+                 activate_recorder=False,
                  spawn_point: carla.Transform = None):
         """
         Constructor method.
@@ -141,6 +141,7 @@ class World(object):
         # Ground truth extractor
         self.ground_truth = None
         # Data recorder
+        self.activate_recorder = activate_recorder
         self.recorder = None
 
         # This dict will store references to all sensor's data.
@@ -150,11 +151,11 @@ class World(object):
         self.all_sensor_data = {}
 
         # Start simuation
-        self.restart(config, record_config, spawn_point)
+        self.restart(config, spawn_point)
         # Tick the world to bring the actors into effect
         self.step_forward()
 
-    def restart(self, config, record_config=None, spawn_point=None):
+    def restart(self, config, spawn_point=None):
         """
         Start the simulation with the configuration arguments.
 
@@ -222,10 +223,10 @@ class World(object):
         self.ground_truth = GroundTruthExtractor(
             self.ego_veh, self.map, config['gt'])
 
-        # Init data recorder if record_config if provided
-        if record_config is not None:
+        # Init data recorder if should be activated
+        if self.activate_recorder:
             self.recorder = Recorder(
-                self.all_sensor_data, self.ground_truth.all_gt, record_config)
+                self.all_sensor_data, self.ground_truth.all_gt, config['recorder'])
 
     def set_ego_autopilot(self, active, autopilot_config=None):
         """ Set traffic manager and register ego vehicle to it. """
@@ -257,7 +258,7 @@ class World(object):
         self.semantic_camera.update()
         self.depth_camera.update()
         self.ground_truth.update()
-        if self.recorder is not None:
+        if self.activate_recorder:
             self.recorder.record_current_step()
 
     def see_ego_veh(self, following_dist=5, height=5, tilt_ang=-30):
@@ -472,6 +473,7 @@ class GNSS(CarlaSensor):
     def __init__(self, name, gnss_config, parent_actor=None, parent_world=None):
         """ Constructor method. """
         super().__init__(name, parent_actor, parent_world)
+        self.data['timestamp'] = 0.0
         self.data['lat'] = 0.0
         self.data['lon'] = 0.0
         self.data['alt'] = 0.0
@@ -532,6 +534,7 @@ class SemanticCamera(CarlaSensor):
     def __init__(self, name, ss_cam_config, parent_actor=None, parent_world=None):
         """ Constructor method. """
         super().__init__(name, parent_actor, parent_world)
+        self.data['timestamp'] = 0.0
         self.data['ss_image'] = None
 
         carla_world = self._parent.get_world()
@@ -571,6 +574,7 @@ class DepthCamera(CarlaSensor):
     def __init__(self, name, depth_cam_config, parent_actor=None, parent_world=None):
         """ Constructor method. """
         super().__init__(name, parent_actor, parent_world)
+        self.data['timestamp'] = 0.0
         self.data['depth_buffer'] = None
 
         world = self._parent.get_world()
