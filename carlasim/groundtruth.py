@@ -117,7 +117,12 @@ class PoseGTExtractor(object):
 
 
 class LaneGTExtractor(object):
-    """ Class for lane ground truth extraction. """
+    """ 
+    Class for lane ground truth extraction. 
+    
+    This class is intended to be used not only during data collection, but also localization.
+    It can be updated with an specified pose in the right-handed z-up convention and extract the lane ground truth.
+    """
 
     def __init__(self, carla_map: carla.Map, lane_gt_config):
         self.map = carla_map
