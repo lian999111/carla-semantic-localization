@@ -45,8 +45,8 @@ def main():
     world = None
     spawn_point = None
     # Assign spawn point for ego vehicle
-    # spawn_point = carla.Transform(carla.Location(
-    #     218.67, 59.18, 0.59), carla.Rotation(yaw=180))
+    spawn_point = carla.Transform(carla.Location(
+        229.67, 80.99, 0.59), carla.Rotation(yaw=91))
     try:
         client = carla.Client('localhost', 2000)
         client.set_timeout(5.0)
@@ -54,6 +54,7 @@ def main():
         world = World(client.load_world(config['world']['map']),
                       client.get_trafficmanager(),
                       config,
+                      activate_recorder=args.record, 
                       spawn_point=spawn_point)
 
         # Launch autopilot for ego vehicle
