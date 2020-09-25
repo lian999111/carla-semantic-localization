@@ -13,7 +13,7 @@ world:
   delta_seconds: &delta_seconds 0.1  # seconds per tick
   
   # Built-in map
-  map: Town04
+  map: Town03
   
   # Carla weathers (in alphabetic order)
   # 0 - ClearNoon
@@ -107,7 +107,20 @@ gt:
 ## Recorder
 # Each toggle specifies whether its corresponding data are recoreded when the recorder is activated
 # Note the names must match the ones definded in its class
+# Using names that don't exist causes KeyError during runtime
+
+# Example format for sensor data:
+# sensor:
+#   sensor_name:                  <- The sensor name (sensor's attribute)
+#     data_name_1: On/Off         <- The data name (i.e. the key in the data buffer)
+
+# Example format for ground truth data:
+# gt:
+#   gt_name:                      <- The ground truth type name (e.g. pose, lane)
+#     data_name_1: On/Off         <- The data name (i.e. the key in the data buffer)
+
 recorder:
+  # Sensor data
   sensor:
     imu:
       timestamp: On
@@ -148,16 +161,15 @@ recorder:
       raxle_orientation: On
       
     lane:
-      # The closest Carla.Waypoint
-      waypoint: Off
+      # The properties of the closest Carla.Waypoint
       in_junction: On
       lane_id: On
 
       # Carla.LaneMarking objects
-      left_marking: Off
-      next_left_marking: Off
-      right_marking: Off
-      next_right_marking: Off
+      left_marking: On
+      next_left_marking: On
+      right_marking: On
+      next_right_marking: On
       
       # c0 and c1 coefficients
       left_marking_coeffs: On
