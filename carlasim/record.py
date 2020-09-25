@@ -84,7 +84,7 @@ class Recorder(object):
 
     def set_up_record_buffer(self, sensor_record_config):
         """ 
-        Set up recording buffer if necessary, given the record config of the sensor. 
+        Set up recording buffer if necessary, given the record config of the specific sensor. 
 
         It iterates through the toggles in sensor_record_config and create empty lists to record corresponding data.
 
@@ -101,3 +101,4 @@ class Recorder(object):
                 record_buffer[data_name] = []
 
         return record_buffer
+
