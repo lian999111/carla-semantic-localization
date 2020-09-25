@@ -13,13 +13,13 @@ try:
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
 except IndexError:
     pass
-
 import carla
+
 from enum import Enum
 import numpy as np
 import queue
 from carlasim.carla_tform import CarlaW2ETform
-from vision.vutils import decode_depth
+from vision.utils import decode_depth
 
 
 class Direction(Enum):
@@ -28,7 +28,6 @@ class Direction(Enum):
     Right = 2
     Forward = 3
     Backward = 4
-
 
 class GroundTruthExtractor(object):
     """ Class for ground truth extraction during Carla simulation. """

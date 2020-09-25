@@ -12,8 +12,7 @@ import cv2
 from vision.lane import LaneMarkingDetector
 from vision.pole import PoleDetector
 from vision.camproj import im2world_known_x
-from vision import vutils
-
+from vision.utils import convert_semantic_color, decode_depth
 
 def visualize(folder_name):
     """
@@ -111,7 +110,7 @@ def visualize(folder_name):
     # Loop over data
     for image_idx, (ss_image, depth_buffer) in enumerate(zip(ss_images, depth_buffers)):
         # Prepare images
-        ss_image_copy = vutils.convert_semantic_color(ss_image)
+        ss_image_copy = convert_semantic_color(ss_image)
         pole_image = (ss_image == 5).astype(np.uint8)
         lane_image = (ss_image == 6) | (ss_image == 8).astype(np.uint8)
 
@@ -128,7 +127,7 @@ def visualize(folder_name):
         # Visualize poles
         if poles_xy_z0 is not None:
             # Ground truth
-            depth_image = vutils.decode_depth(depth_buffer)
+            depth_image = decode_depth(depth_buffer)
             x_world = depth_image[pole_bases_uv[1],
                                   pole_bases_uv[0]] - dist_cam_to_fbumper
             poles_gt_xyz = im2world_known_x(

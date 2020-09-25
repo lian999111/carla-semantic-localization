@@ -9,8 +9,7 @@ import pickle
 import matplotlib.pyplot as plt
 
 from vision.camproj import im2world_known_z, im2world_known_x
-from vision import vutils
-
+from vision.utils import find_pole_bases, decode_depth
 
 class PoleDetector(object):
     """ 
@@ -86,7 +85,7 @@ class PoleDetector(object):
         Output:
             pole_bases_uv: Image coordiantes (u-v) of detected pole bases.
         """
-        self.pole_bases_uv = vutils.find_pole_bases(
+        self.pole_bases_uv = find_pole_bases(
             pole_image, self._min_width, self._max_width, self._min_height, use_bbox_center=False, upper_lim=upper_lim)
         return self.pole_bases_uv
 
@@ -150,7 +149,7 @@ def single(folder_name, image_idx):
     pole_image = (ss_image == 5).astype(np.uint8)
 
     depth_buffer = depth_buffers[image_idx]
-    depth_image = vutils.decode_depth(depth_buffer)
+    depth_image = decode_depth(depth_buffer)
 
     pole_detector = PoleDetector(K, R, x0, vision_params['pole'])
     pole_detector.update_poles(pole_image, upper_lim=310, z=0)
@@ -238,7 +237,7 @@ def loop(folder_name):
         # Extract pole-relevant semantic labels
         pole_image = (ss_image == 5).astype(np.uint8)
 
-        depth_image = vutils.decode_depth(depth_buffer)
+        depth_image = decode_depth(depth_buffer)
 
         ss_image_copy = ss_image.copy()
 
