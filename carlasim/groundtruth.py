@@ -135,7 +135,7 @@ class LaneGTExtractor(object):
 
         self.gt = {}
         # Current waypoint
-        self.gt['waypoint'] = None
+        self.waypoint = None
         # Flag indicating ego vehicle is in junction
         self.gt['in_junction'] = False
         # Current lane id (to know the order of double marking types)
@@ -182,16 +182,16 @@ class LaneGTExtractor(object):
         # Find a waypoint on the nearest lane (any lane type except NONE)
         # So when ego vehicle is driving abnormally (e.g. on shoulder or parking), lane markings can still be obtained.
         # Some strange results may happen in extreme cases though (e.g. car drives on rail or sidewalk).
-        self.gt['waypoint'] = self.map.get_waypoint(
+        self.waypoint = self.map.get_waypoint(
             carla_location, lane_type=carla.LaneType.Any)
 
-        self.gt['in_junction'] = self.gt['waypoint'].is_junction
-        self.gt['lane_id'] = self.gt['waypoint'].lane_id
+        self.gt['in_junction'] = self.waypoint.is_junction
+        self.gt['lane_id'] = self.waypoint.lane_id
 
-        if carla_location.distance(self.gt['waypoint'].transform.location) >= self._radius:
-            self.gt['waypoint'] = None
+        if carla_location.distance(self.waypoint.transform.location) >= self._radius:
+            self.waypoint = None
 
-        if self.gt['waypoint'] is not None:
+        if self.waypoint is not None:
             # Find candidate visible markings within the specified radius
             # We get a list of 3D points of candidate markings in front bumper's frame (right-handed z-up)
             # as well as a list containing the corresponding marking types.
@@ -309,7 +309,7 @@ class LaneGTExtractor(object):
         # into our front bumper's frame (right-handed z-up)
         tform_w2e = CarlaW2ETform(self._carla_tform)
         waypt_ego_frame = tform_w2e.tform_world_to_ego(
-            self.gt['waypoint'].transform.location)
+            self.waypoint.transform.location)
 
         # Container lists
         # A list of points of each candidate marking
@@ -320,7 +320,7 @@ class LaneGTExtractor(object):
 
         # Left
         # Initilization with current waypoint
-        left_marking_waypt = self.gt['waypoint']
+        left_marking_waypt = self.waypoint
         cum_dist = waypt_ego_frame[1] + \
             0.5 * left_marking_waypt.lane_width
         # Search left till cumulative distance exceeds radius or a None waypoint is reached
@@ -350,7 +350,7 @@ class LaneGTExtractor(object):
 
         # Right
         # Initilization with current waypoint
-        right_marking_waypt = self.gt['waypoint']
+        right_marking_waypt = self.waypoint
         cum_dist = waypt_ego_frame[1] + \
             0.5 * right_marking_waypt.lane_width
         # Search right till cumulative distance exceeds radius or a None waypoint is reached
@@ -497,7 +497,7 @@ class LaneGTExtractor(object):
         """ Check if the direction of the given waypoint is the same as the ego lane. """
         if waypoint_of_interest is None:
             return None
-        return (self.gt['waypoint'].lane_id * waypoint_of_interest.lane_id) > 0
+        return (self.waypoint.lane_id * waypoint_of_interest.lane_id) > 0
 
     def _get_next_lane(self, waypoint_of_interest, direction):
         """ Get waypoint of next lane in specified direction (left or right) with respect to ego lane. """
