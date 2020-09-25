@@ -663,4 +663,3 @@ class FrontSmartCamera(object):
         self.lane_detector.update_lane_coeffs(lane_image, yaw_rate)
 
 # TODO: make carlatform vectorized
-# TODO: stop sign measurement

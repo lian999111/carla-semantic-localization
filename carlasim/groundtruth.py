@@ -30,7 +30,7 @@ class Direction(Enum):
     Forward = 3
     Backward = 4
 
-
+# TODO: extract traffic signs, especially stop signs
 class GroundTruthExtractor(object):
     """ Class for ground truth extraction during Carla simulation. """
 
