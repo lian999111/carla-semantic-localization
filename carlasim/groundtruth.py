@@ -32,10 +32,24 @@ class Direction(Enum):
 
 # TODO: extract traffic signs, especially stop signs
 class GroundTruthExtractor(object):
-    """ Class for ground truth extraction during Carla simulation. """
+    """ 
+    Class for ground truth extraction during Carla simulation. 
+
+    This class uses a dict "all_gt" as the sole buffer to store all ground truth data.
+    This buffer is divided into 2 sub-elements: 
+        - static: Stores static ground truth data that don't change across time, such as traffic sign locations.
+        - seq: Stores sequential ground truth data that changes over time, such as the pose of the ego vehicle.
+    """
 
     def __init__(self, ego_veh: carla.Actor, carla_map: carla.Map, gt_config: dict):
         """ Constructor method. """
+
+        # Dict as an buffer to store all ground truth data of interest
+        # Using dict helps automate data selection during recording since data can be queried by keys
+        # This buffer is automatically updated when the child ground truth extractors update their buffer
+        self.all_gt = {'static': {}, 'seq': {}}
+
+        # TODO: Add actors
 
         # TODO: Try put this frame at the intersection of camera FOV and ground surface?
         # Front bumper's transform in Carla's coordinate system
@@ -47,14 +61,11 @@ class GroundTruthExtractor(object):
         # Lane ground truth extractor
         self.lane_gt = LaneGTExtractor(carla_map, gt_config['lane'])
 
-        # Dict as an aggregate buffer to store ground truth data of interest
-        # Using dict helps automate data selection during recording since data can be queried by keys
-        # This buffer is automatically updated when the child ground truth extractors update their buffer
-        self.all_gt = {}
+        # Set up buffer for sequential data
         # Point to pose ground truth extractor's gt buffer
-        self.all_gt['pose'] = self.pose_gt.gt
+        self.all_gt['seq']['pose'] = self.pose_gt.gt
         # Point to lane ground truth extractor's gt buffer
-        self.all_gt['lane'] = self.lane_gt.gt
+        self.all_gt['seq']['lane'] = self.lane_gt.gt
 
     def update(self):
         """ Update ground truth at the current tick. """

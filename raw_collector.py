@@ -69,7 +69,7 @@ def main():
             world.step_forward()
             world.see_ego_veh()
 
-            lane_gt = world.ground_truth.all_gt['lane']
+            lane_gt = world.ground_truth.all_gt['seq']['lane']
 
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
                 world.imu.data['vx'], world.imu.data['vy'], world.imu.data['gyro_z'] * 180 / pi))
