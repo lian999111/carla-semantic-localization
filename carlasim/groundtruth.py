@@ -42,7 +42,13 @@ class GroundTruthExtractor(object):
     """
 
     def __init__(self, ego_veh: carla.Actor, carla_map: carla.Map, gt_config: dict):
-        """ Constructor method. """
+        """
+        Constructor method. 
+
+        Input:
+            ego_veh: Carla.Actor obj of the ego vehicle.
+            carla_map: Carla.Map obj of current map.
+        """
 
         # Dict as an buffer to store all ground truth data of interest
         # Using dict helps automate data selection during recording since data can be queried by keys
