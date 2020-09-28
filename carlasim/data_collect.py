@@ -220,8 +220,7 @@ class World(object):
                                         self.ego_veh, self)
 
         # Ground truth extractor
-        self.ground_truth = GroundTruthExtractor(
-            self.ego_veh, self.map, config['gt'])
+        self.ground_truth = GroundTruthExtractor(self.ego_veh, config['gt'])
 
         # Init data recorder if should be activated
         if self.activate_recorder:

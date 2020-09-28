@@ -41,14 +41,17 @@ class GroundTruthExtractor(object):
         - seq: Stores sequential ground truth data that changes over time, such as the pose of the ego vehicle.
     """
 
-    def __init__(self, ego_veh: carla.Actor, carla_map: carla.Map, gt_config: dict):
+    def __init__(self, ego_veh: carla.Actor, gt_config: dict):
         """
         Constructor method. 
 
         Input:
-            ego_veh: Carla.Actor obj of the ego vehicle.
-            carla_map: Carla.Map obj of current map.
+            ego_veh: Carla.Actor obj of the ego vehicle. Carla.Actor provides a get_world() method to get the 
+                     Carla.World it belongs to; thus, ego vehicle actor is sufficient to retrieve other info.
         """
+        # Retrieve other necessary objects from ego vehicle Carla.Actor object
+        carla_world = ego_veh.get_world()
+        carla_map = carla_world.get_map()
 
         # Dict as an buffer to store all ground truth data of interest
         # Using dict helps automate data selection during recording since data can be queried by keys
@@ -80,6 +83,8 @@ class GroundTruthExtractor(object):
         self._fbumper_carla_tform = self.pose_gt.get_fbumper_carla_tform()
         # Update lanes
         self.lane_gt.update_using_carla_transform(self._fbumper_carla_tform)
+
+    # def get_traffic_sign_actors(self):
 
 
 class PoseGTExtractor(object):
