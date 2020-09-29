@@ -130,7 +130,7 @@ def single(folder_name, image_idx):
                            - carla_config['ego_veh']['raxle_to_cg'])
 
     # Load camera parameters
-    with open('vision/calib_data.pkl', 'rb') as f:
+    with open('calib_data.pkl', 'rb') as f:
         calib_data = pickle.load(f)
     K = calib_data['K']
     R = calib_data['R']
@@ -205,7 +205,7 @@ def loop(folder_name):
                            - carla_config['ego_veh']['raxle_to_cg'])
 
     # Load camera parameters
-    with open('vision/calib_data.pkl', 'rb') as f:
+    with open('calib_data.pkl', 'rb') as f:
         calib_data = pickle.load(f)
     K = calib_data['K']
     R = calib_data['R']

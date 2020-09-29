@@ -654,7 +654,7 @@ def loop(folder_name):
         vision_params = yaml.safe_load(vision_params_file)
 
     # Load parameters for bird's eye view projection
-    with open('vision/ipm_data.pkl', 'rb') as f:
+    with open('ipm_data.pkl', 'rb') as f:
         ipm_data = pickle.load(f)
     M = ipm_data['M']
     warped_size = ipm_data['bev_size']
@@ -755,7 +755,7 @@ def single(folder_name, image_idx):
         vision_params = yaml.safe_load(vision_params_file)
 
     # Load parameters for bird's eye view projection
-    with open('vision/ipm_data.pkl', 'rb') as f:
+    with open('ipm_data.pkl', 'rb') as f:
         ipm_data = pickle.load(f)
     M = ipm_data['M']
     warped_size = ipm_data['bev_size']
