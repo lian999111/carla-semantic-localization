@@ -63,7 +63,7 @@ class CarlaW2ETform:
         if self._rotm_w2e is None:
             self._init_rotm_w2e()
         # Need to convert from left-handed to right-handed before apply the rotation
-        np_vec = np.array([vector3D.x, -vector3D.y, vector3D.z]).T
+        np_vec = np.array([vector3D.x, -vector3D.y, vector3D.z])
         return self._rotm_w2e.dot(np_vec)
 
     def tform_world_to_ego(self, vector3D: carla.Vector3D):
