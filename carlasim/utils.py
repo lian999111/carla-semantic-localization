@@ -150,6 +150,8 @@ class TrafficSignType(Enum):
 class TrafficSign(object):
     """
     Used to represent a traffic sign in Carla.
+
+    The internal data follows the right-handed z-up coordinate system.
     """
 
     def __init__(self, traffic_sign_actor, traffic_sign_type):
@@ -163,7 +165,7 @@ class TrafficSign(object):
         carla_location = traffic_sign_actor.get_location()
         self.location = np.zeros((3, 1))
         self.location[0] = carla_location.x
-        self.location[1] = - carla_location.y
+        self.location[1] = - carla_location.y   # convert to right-handed frame
         self.location[2] = carla_location.z
         self.type = traffic_sign_type
 
