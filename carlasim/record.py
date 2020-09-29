@@ -23,7 +23,10 @@ class Recorder(object):
         self.gt_data_source = gt_data_source
         # Buffers
         self.sensor_record_buffer = {}
-        self.gt_record_buffer = {"static": {}, "seq": {}}   # divide into static nd sequential parts
+        self.gt_record_buffer = {'static': None, 'seq': {}}   # divide into static nd sequential parts
+        
+        # Get static ground truth data (No need to update static data)
+        self.gt_record_buffer['static'] = gt_data_source['static']
 
         # Sensor data
         sensor_record_config = record_config['sensor']

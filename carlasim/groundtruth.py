@@ -20,7 +20,7 @@ import numpy as np
 import queue
 from carlasim.carla_tform import CarlaW2ETform
 from vision.utils import decode_depth
-from carlasim.utils import LaneMarking
+from carlasim.utils import LaneMarking, TrafficSignType, TrafficSign
 
 
 class Direction(Enum):
@@ -58,11 +58,12 @@ class GroundTruthExtractor(object):
         # This buffer is automatically updated when the child ground truth extractors update their buffer
         self.all_gt = {'static': {}, 'seq': {}}
 
-        # TODO: Add actors
+        # Traffic signs
+        self.all_gt['static']['traffic_sign'] = self.get_traffic_signs(carla_world)
 
-        # TODO: Try put this frame at the intersection of camera FOV and ground surface?
         # Front bumper's transform in Carla's coordinate system
         # It's for the convenience of querying waypoints for lane using carla's APIs
+        # TODO: Try put this frame at the intersection of camera FOV and ground surface?
         self._fbumper_carla_tform = None
 
         # Pose ground truth extractor
@@ -83,8 +84,55 @@ class GroundTruthExtractor(object):
         self._fbumper_carla_tform = self.pose_gt.get_fbumper_carla_tform()
         # Update lanes
         self.lane_gt.update_using_carla_transform(self._fbumper_carla_tform)
+    
+    @staticmethod
+    def get_traffic_signs(carla_world):
+        """
+        Get a list of of TrafficSign objects from the given Carla.World object.
+        """
+        actor_list = carla_world.get_actors()
+        carla_map = carla_world.get_map()
+        traffic_signs = []
+        
+        # Stop signs
+        for actor in actor_list.filter('traffic.stop'):
+            location = actor.get_location()
+            closest_waypt = carla_map.get_waypoint(location)
+            
+            # If the stop sign is within 1 meter from the closest waypoint, it is most likely on the road surface
+            if location.distance(closest_waypt.transform.location) < 1:
+                traffic_signs.append(TrafficSign(actor, TrafficSignType.StopOnRoad))
+                ########################
+                carla_world.debug.draw_arrow(location, location + carla.Location(z=50))
+            else:
+                traffic_signs.append(TrafficSign(actor, TrafficSignType.Stop))
+                ########################
+                carla_world.debug.draw_arrow(location, location + carla.Location(z=50), color=carla.Color(0, 255, 0), thickness=2)
 
-    # def get_traffic_sign_actors(self):
+        # Yield signs
+        for actor in actor_list.filter('traffic.yield'):
+            traffic_signs.append(TrafficSign(actor, TrafficSignType.Yield))
+
+            location = actor.get_location()
+            carla_world.debug.draw_arrow(location, location + carla.Location(z=50), color=carla.Color(0, 0, 255))
+
+        # Speed limit signs
+        for actor in actor_list.filter('traffic.speed_limit.*'):
+            traffic_signs.append(TrafficSign(actor, TrafficSignType.SpeedLimit))
+
+            location = actor.get_location()
+            carla_world.debug.draw_arrow(location, location + carla.Location(z=50), color=carla.Color(255, 0, 255))
+
+        # Traffic lights
+        for actor in actor_list.filter('traffic.traffic_light'):
+            traffic_signs.append(TrafficSign(actor, TrafficSignType.TrafficLight))
+
+            location = actor.get_location()
+            carla_world.debug.draw_arrow(location, location + carla.Location(z=50), color=carla.Color(255, 255, 0))
+
+        return traffic_signs
+            
+
 
 
 class PoseGTExtractor(object):

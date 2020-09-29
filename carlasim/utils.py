@@ -13,6 +13,7 @@ except IndexError:
 import carla
 
 from enum import Enum
+import numpy as np
 
 
 class LaneMarkingType(Enum):
@@ -133,3 +134,36 @@ class LaneMarking(object):
     def __str__(self):
         return "LaneMarking(color: {}, type: {})".format(
             self.color, self.type)
+
+
+class TrafficSignType(Enum):
+    """
+    Enum that defines the traffic sign types.
+    """
+    Stop = 0
+    StopOnRoad = 1  # the big STOP sign printed on road surface
+    Yield = 2
+    SpeedLimit = 3
+    TrafficLight = 4
+
+
+class TrafficSign(object):
+    """
+    Used to represent a traffic sign in Carla.
+    """
+
+    def __init__(self, traffic_sign_actor, traffic_sign_type):
+        """
+        Constructor.
+
+        Input:
+            traffic_sign_actor: Carla.Actor obj of the traffic sign.
+            traffic_sign_type: TrafficSignType obj.
+        """
+        carla_location = traffic_sign_actor.get_location()
+        self.location = np.zeros((3, 1))
+        self.location[0] = carla_location.x
+        self.location[1] = - carla_location.y
+        self.location[2] = carla_location.z
+        self.type = traffic_sign_type
+
