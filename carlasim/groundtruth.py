@@ -30,6 +30,8 @@ class Direction(Enum):
     Backward = 4
 
 # TODO: extract traffic signs, especially stop signs
+
+
 class GroundTruthExtractor(object):
     """ 
     Class for ground truth extraction during Carla simulation. 
@@ -58,7 +60,8 @@ class GroundTruthExtractor(object):
         self.all_gt = {'static': {}, 'seq': {}}
 
         # Traffic signs
-        self.all_gt['static']['traffic_sign'] = self.get_traffic_signs(carla_world)
+        self.all_gt['static']['traffic_sign'] = self.get_traffic_signs(
+            carla_world)
 
         # Front bumper's transform in Carla's coordinate system
         # It's for the convenience of querying waypoints for lane using carla's APIs
@@ -83,7 +86,7 @@ class GroundTruthExtractor(object):
         self._fbumper_carla_tform = self.pose_gt.get_fbumper_carla_tform()
         # Update lanes
         self.lane_gt.update_using_carla_transform(self._fbumper_carla_tform)
-    
+
     @staticmethod
     def get_traffic_signs(carla_world):
         """
@@ -92,46 +95,52 @@ class GroundTruthExtractor(object):
         actor_list = carla_world.get_actors()
         carla_map = carla_world.get_map()
         traffic_signs = []
-        
+
         # Stop signs
         for actor in actor_list.filter('traffic.stop'):
             location = actor.get_location()
             closest_waypt = carla_map.get_waypoint(location)
-            
+
             # If the stop sign is within 1 meter from the closest waypoint, it is most likely on the road surface
             if location.distance(closest_waypt.transform.location) < 1:
-                traffic_signs.append(TrafficSign(actor, TrafficSignType.StopOnRoad))
-                ########################
-                carla_world.debug.draw_arrow(location, location + carla.Location(z=50))
+                traffic_signs.append(TrafficSign(
+                    actor, TrafficSignType.StopOnRoad))
+                if __debug__:
+                    carla_world.debug.draw_arrow(
+                        location, location + carla.Location(z=50))
             else:
                 traffic_signs.append(TrafficSign(actor, TrafficSignType.Stop))
-                ########################
-                carla_world.debug.draw_arrow(location, location + carla.Location(z=50), color=carla.Color(0, 255, 0), thickness=2)
+                if __debug__:
+                    carla_world.debug.draw_arrow(
+                        location, location + carla.Location(z=50), color=carla.Color(0, 255, 0))
 
         # Yield signs
         for actor in actor_list.filter('traffic.yield'):
             traffic_signs.append(TrafficSign(actor, TrafficSignType.Yield))
-
-            location = actor.get_location()
-            carla_world.debug.draw_arrow(location, location + carla.Location(z=50), color=carla.Color(0, 0, 255))
+            if __debug__:
+                location = actor.get_location()
+                carla_world.debug.draw_arrow(
+                    location, location + carla.Location(z=50), color=carla.Color(0, 0, 255))
 
         # Speed limit signs
         for actor in actor_list.filter('traffic.speed_limit.*'):
-            traffic_signs.append(TrafficSign(actor, TrafficSignType.SpeedLimit))
-
-            location = actor.get_location()
-            carla_world.debug.draw_arrow(location, location + carla.Location(z=50), color=carla.Color(255, 0, 255))
+            traffic_signs.append(TrafficSign(
+                actor, TrafficSignType.SpeedLimit))
+            if __debug__:
+                location = actor.get_location()
+                carla_world.debug.draw_arrow(
+                    location, location + carla.Location(z=50), color=carla.Color(255, 0, 255))
 
         # Traffic lights
         for actor in actor_list.filter('traffic.traffic_light'):
-            traffic_signs.append(TrafficSign(actor, TrafficSignType.TrafficLight))
+            traffic_signs.append(TrafficSign(
+                actor, TrafficSignType.TrafficLight))
 
             location = actor.get_location()
-            carla_world.debug.draw_arrow(location, location + carla.Location(z=50), color=carla.Color(255, 255, 0))
+            carla_world.debug.draw_arrow(
+                location, location + carla.Location(z=50), color=carla.Color(255, 255, 0))
 
         return traffic_signs
-            
-
 
 
 class PoseGTExtractor(object):
@@ -188,7 +197,7 @@ class PoseGTExtractor(object):
 class LaneGTExtractor(object):
     """ 
     Class for lane ground truth extraction. 
-    
+
     This class is intended to be used not only during data collection, but also localization.
     It can be updated with an specified pose in the right-handed z-up convention and extract the lane ground truth.
     """
