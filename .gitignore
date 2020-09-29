@@ -1,6 +1,5 @@
 .vscode
-detection/vision/images
-detection/vision/calib_images
+/calib_images
 
 /playground
 /opendrive
