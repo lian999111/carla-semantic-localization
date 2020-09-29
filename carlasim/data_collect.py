@@ -29,8 +29,6 @@ import queue
 from carlasim.groundtruth import GroundTruthExtractor
 from carlasim.carla_tform import CarlaW2ETform
 from carlasim.record import Recorder
-from vision.pole import PoleDetector
-from vision.lane import LaneMarkingDetector
 
 # %% ================= Global function =================
 
@@ -609,56 +607,5 @@ class DepthCamera(CarlaSensor):
         self.data['depth_buffer'] = np_img[:, :,
                                            0:3].copy()    # get just BGR channels
 
-
-# %% ================= Front Smart Camera =================
-
-
-class FrontSmartCamera(object):
-    """
-    Class for front smart camera that provides high-level detections.
-
-    It uses a semantic image to extract high-level detections, such as lane markings and poles.
-    This class is suppoesed run in parallel with World, which acts like an interface to Carla.
-    This class then use raw sensor data in World to do further process.
-    """
-
-    def __init__(self, semantic_camera, imu, vision_params, calib_data, ipm_data):
-        """
-        Constructor method.
-
-        Input:
-            semantic_camera: SemanticCamera object that provides semantic images.
-            imu: IMU object that provides yaw rate.
-            vision_params: Vision-algorithm-related parameters.
-            calib_data: Dict of camera calibration parameters.
-            ipm_data: Dict of inverse persepective mapping parameters.
-        """
-        # Semantic camera
-        self.semantic_camera = semantic_camera
-        self.imu = imu
-        # Detectors
-        self.pole_detector = PoleDetector(calib_data['K'],
-                                          calib_data['R'],
-                                          calib_data['x0'],
-                                          vision_params['pole'])
-        self.lane_detector = LaneMarkingDetector(ipm_data['M'],
-                                                 ipm_data['px_per_meter_x'],
-                                                 ipm_data['px_per_meter_y'],
-                                                 ipm_data['bev_size'],
-                                                 ipm_data['valid_mask'],
-                                                 ipm_data['dist_fbumper_to_intersect'],
-                                                 vision_params['lane'])
-
-    def update(self):
-        """ Update data given current semantic image and yaw rate. """
-        # Extract high-level objects
-        ss_image = self.semantic_camera.data['ss_image']
-        pole_image = (ss_image == 5).astype(np.uint8)
-        lane_image = ((ss_image == 6) | (ss_image == 8)).astype(np.uint8)
-
-        yaw_rate = self.imu.data['gyro_z']
-
-        self.pole_detector.update_poles(pole_image)
-        self.lane_detector.update_lane_coeffs(lane_image, yaw_rate)
 
 # TODO: make carlatform vectorized

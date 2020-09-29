@@ -22,7 +22,7 @@ import pickle
 from math import pi
 from shutil import copyfile
 
-from carlasim.data_collect import World, FrontSmartCamera
+from carlasim.data_collect import World
 
 # TODO: Add Carla recorder
 

@@ -19,7 +19,6 @@ from enum import Enum
 import numpy as np
 import queue
 from carlasim.carla_tform import CarlaW2ETform
-from vision.utils import decode_depth
 from carlasim.utils import LaneMarking, TrafficSignType, TrafficSign
 
 

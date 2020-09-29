@@ -9,10 +9,10 @@ import pickle
 import matplotlib.pyplot as plt
 import cv2
 
-from vision.lane import LaneMarkingDetector
-from vision.pole import PoleDetector
-from vision.camproj import im2world_known_x
-from vision.utils import convert_semantic_color, decode_depth
+from detection.vision.lane import LaneMarkingDetector
+from detection.vision.pole import PoleDetector
+from detection.vision.camproj import im2world_known_x
+from detection.vision.utils import convert_semantic_color, decode_depth
 
 def visualize(folder_name):
     """
@@ -41,7 +41,7 @@ def visualize(folder_name):
                            - carla_config['ego_veh']['raxle_to_cg'])
 
     # Load camera parameters
-    with open('vision/calib_data.pkl', 'rb') as f:
+    with open('detection/vision/calib_data.pkl', 'rb') as f:
         calib_data = pickle.load(f)
     K = calib_data['K']
     R = calib_data['R']
@@ -50,7 +50,7 @@ def visualize(folder_name):
     P = K @ R @ np.concatenate((np.eye(3), -x0), axis=1)
 
     # Load parameters for bird's eye view projection
-    with open('vision/ipm_data.pkl', 'rb') as f:
+    with open('detection/vision/ipm_data.pkl', 'rb') as f:
         ipm_data = pickle.load(f)
     M = ipm_data['M']
     warped_size = ipm_data['bev_size']

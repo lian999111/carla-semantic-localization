@@ -8,8 +8,8 @@ from scipy.spatial.transform import Rotation
 import pickle
 import matplotlib.pyplot as plt
 
-from vision.camproj import im2world_known_z, im2world_known_x
-from vision.utils import find_pole_bases, decode_depth
+from detection.vision.camproj import im2world_known_z, im2world_known_x
+from detection.vision.utils import find_pole_bases, decode_depth
 
 class PoleDetector(object):
     """ 
