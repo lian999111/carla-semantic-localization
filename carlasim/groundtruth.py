@@ -182,7 +182,7 @@ class PoseGTExtractor(object):
                                               raxle_location.z])
         self.gt['raxle_orientation'] = np.array([self.ego_veh_tform.rotation.roll,
                                                  -self.ego_veh_tform.rotation.pitch,
-                                                 -self.ego_veh_tform.rotation.yaw])
+                                                 -self.ego_veh_tform.rotation.yaw]) * np.pi / 180   # rad
 
     def get_fbumper_carla_tform(self):
         """ Get front bumper's carla.Transform. """
