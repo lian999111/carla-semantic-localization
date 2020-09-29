@@ -327,8 +327,8 @@ class CarlaSensor(object):
         self.sensor = None
         # Dict to store sensor data
         self.data = {}
-        # Register sensor data to parent_world's _aggre_sensor_data if parent_world given
-        # _aggre_sensor_data gets updated automatically when self.data is updated since it's just a pointer
+        # Register sensor data to parent_world's all_sensor_data if parent_world given
+        # all_sensor_data gets updated automatically when self.data is updated since it's just a pointer
         if self._parent_world:
             self._parent_world.all_sensor_data[self.name] = self.data
         # The callback method in listen() to retrieve data used widely in official tutorials has a data race problem.
