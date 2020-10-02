@@ -116,8 +116,11 @@ gt:
 
 # Example format for ground truth data:
 # gt:
-#   gt_name:                      <- The ground truth type name (e.g. pose, lane)
-#     data_name_1: On/Off         <- The data name (i.e. the key in the data buffer)
+#   static:
+#     gt_name: On/Off               <- The static ground truth type name (e.g. pose, lane)
+#   seq:
+#     gt_name:                      <- The sequential ground truth type name (e.g. pose, lane)
+#       data_name_1: On/Off         <- The data name (i.e. the key in the data buffer)
 
 recorder:
   # Sensor data
