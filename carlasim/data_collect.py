@@ -98,6 +98,44 @@ class Geo2Location(object):
         return self._tform
 
 
+# %% ================= Sensor Base =================
+
+
+class CarlaSensor(object):
+    """ Base class for sensors provided by carla. """
+
+    def __init__(self, name, parent_actor=None):
+        """ 
+        Constructor method. 
+
+        Input:
+            name: Str of sensor name.
+            parent_actor: Carla.Actor of parent actor that this sensor is attached to.
+            parent_world: Carla.World of the world where this sensor is spawned.
+        """
+        self.name = name
+        self._parent = parent_actor
+        self.sensor = None
+        # Dict to store sensor data
+        self.data = {}
+        # The callback method in listen() to retrieve data used widely in official tutorials has a data race problem.
+        # The callback will likely not finish before data get accessed from the main loop, causing inconsistent data.
+        # Here the queue is expected to be used in listen() instead. The callback simply puts the sensor data into the queue,
+        # then the data can be obtained in update() using get() which blocks and make sure synchronization.
+        self._queue = queue.Queue()
+
+    def update(self):
+        """ Wait for sensro event to be put in queue and update data. """
+        raise NotImplementedError()
+
+    def destroy(self):
+        """ Destroy sensor actor. """
+        if self.sensor:
+            print('Destroying {}'.format(self.name))
+            self.sensor.destroy()
+            self.sensor = None
+
+
 # %% ================= World =================
 
 
@@ -131,10 +169,14 @@ class World(object):
         self.carla_world.set_weather(
             self._weather_presets[self._weather_index][0])
         self.ego_veh = None
-        self.imu = None
-        self.gnss = None
-        self.semantic_camera = None
-        self.depth_camera = None
+
+        # Containers for managing carla sensors
+        self.carla_sensors = {}
+        # This dict will store references to all sensor's data container.
+        # It is to facilitate the recording, so the recorder only needs to query this one-stop container.
+        # When a CarlaSensor is added via add_carla_sensor(), its data container is registered automatically.
+        # When sensor data are updated, the content in this dict is updated automatically since they are just pointers.
+        self.all_sensor_data = {}
 
         # Ground truth extractor
         self.ground_truth = None
@@ -142,16 +184,10 @@ class World(object):
         self.activate_recorder = activate_recorder
         self.recorder = None
 
-        # This dict will store references to all sensor's data.
-        # It is to facilitate the recording, so the recorder only needs to query this one-stop container.
-        # Each sensor has to register their data in this dict.
-        # When sensor data are updated, the content in this dict is updated automatically since they are just pointers.
-        self.all_sensor_data = {}
-
         # Start simuation
         self.restart(config, spawn_point)
-        # Tick the world to bring the actors into effect
-        self.step_forward()
+        # Tick the world to bring the ego vehicle actor into effect
+        self.carla_world.tick()
 
     def restart(self, config, spawn_point=None):
         """
@@ -208,14 +244,14 @@ class World(object):
         self.see_ego_veh()
 
         # Spawn the sensors
-        self.gnss = GNSS('gnss', config['sensor']['gnss'], self.ego_veh, self)
-        self.imu = IMU('imu', config['sensor']['imu'], self.ego_veh, self)
-        self.semantic_camera = SemanticCamera('semantic_camera',
-                                              config['sensor']['front_camera'],
-                                              self.ego_veh, self)
-        self.depth_camera = DepthCamera('depth_camera',
-                                        config['sensor']['front_camera'],
-                                        self.ego_veh, self)
+        # self.gnss = GNSS('gnss', config['sensor']['gnss'], self.ego_veh)
+        # self.imu = IMU('imu', config['sensor']['imu'], self.ego_veh)
+        # self.semantic_camera = SemanticCamera('semantic_camera',
+        #                                       config['sensor']['front_camera'],
+        #                                       self.ego_veh)
+        # self.depth_camera = DepthCamera('depth_camera',
+        #                                 config['sensor']['front_camera'],
+        #                                 self.ego_veh)
 
         # Ground truth extractor
         self.ground_truth = GroundTruthExtractor(self.ego_veh, config['gt'])
@@ -224,6 +260,22 @@ class World(object):
         if self.activate_recorder:
             self.recorder = Recorder(
                 self.all_sensor_data, self.ground_truth.all_gt, config['recorder'])
+
+    def add_carla_sensor(self, carla_sensor: CarlaSensor):
+        """
+        Add a CarlaSensor.
+
+        This sensor will be added to the carla_sensors list, and all_sensor_data will add a new key-value pair,
+        where the key is the same as the carla_sensor's name and the value is the reference to carla_sensor's data.
+        """
+        if carla_sensor.name in self.carla_sensors.keys():
+            raise RuntimeError(
+                'Trying to a CarlaSensor with a duplicate name.')
+
+        # Add the CarlaSensor
+        self.carla_sensors[carla_sensor.name] = carla_sensor
+        # Register the CarlaSensor's data to all_sensor_data
+        self.all_sensor_data[carla_sensor.name] = carla_sensor.data
 
     def set_ego_autopilot(self, active, autopilot_config=None):
         """ Set traffic manager and register ego vehicle to it. """
@@ -250,11 +302,13 @@ class World(object):
     def step_forward(self):
         """ Tick carla world to take simulation one step forward. """
         self.carla_world.tick()
-        self.imu.update()
-        self.gnss.update()
-        self.semantic_camera.update()
-        self.depth_camera.update()
+        
+        # Update CarlaSensors' data
+        for carla_sensor in self.carla_sensors.values():
+            carla_sensor.update()
+
         self.ground_truth.update()
+
         if self.activate_recorder:
             self.recorder.record_current_step()
 
@@ -288,64 +342,11 @@ class World(object):
             print("Destroying the ego vehicle.")
             self.ego_veh.destroy()
             self.ego_veh = None
-        if self.imu:
-            print("Destroying IMU sensor.")
-            self.imu.destroy()
-            self.imu = None
-        if self.gnss:
-            print("Destroying gnss sensor.")
-            self.gnss.destroy()
-            self.gnss = None
-        if self.semantic_camera:
-            print("Destroying front camera sensor.")
-            self.semantic_camera.destroy()
-            self.semantic_camera = None
-        if self.depth_camera:
-            print("Destroying depth camera sensor.")
-            self.depth_camera.destroy()
-            self.depth_camera = None
 
+        for carla_sensor in self.carla_sensors.values():
+            carla_sensor.destroy()
 
-# %% ================= Sensor Base =================
-
-
-class CarlaSensor(object):
-    """ Base class for sensors provided by carla. """
-
-    def __init__(self, name, parent_actor=None, parent_world=None):
-        """ 
-        Constructor method. 
-
-        Input:
-            name: Str of sensor name.
-            parent_actor: Carla.Actor of parent actor that this sensor is attached to.
-            parent_world: Carla.World of the world where this sensor is spawned.
-        """
-        self.name = name
-        self._parent = parent_actor
-        self._parent_world = parent_world
-        self.sensor = None
-        # Dict to store sensor data
-        self.data = {}
-        # Register sensor data to parent_world's all_sensor_data if parent_world given
-        # all_sensor_data gets updated automatically when self.data is updated since it's just a pointer
-        if self._parent_world:
-            self._parent_world.all_sensor_data[self.name] = self.data
-        # The callback method in listen() to retrieve data used widely in official tutorials has a data race problem.
-        # The callback will likely not finish before data get accessed from the main loop, causing inconsistent data.
-        # Here the queue is expected to be used in listen() instead. The callback simply puts the sensor data into the queue,
-        # then the data can be obtained in update() using get() which blocks and make sure synchronization.
-        self._queue = queue.Queue()
-
-    def update(self):
-        """ Wait for sensro event to be put in queue and update data. """
-        raise NotImplementedError()
-
-    def destroy(self):
-        """ Destroy sensor actor. """
-        if self.sensor:
-            self.sensor.destroy()
-            self.sensor = None
+        self.carla_sensors.clear()
 
 
 # %% ================= IMU Sensor =================
@@ -365,9 +366,9 @@ class IMU(CarlaSensor):
         This wrapper class automatically convert to right-handed z-up coordinate system to match our convention.
     """
 
-    def __init__(self, name, imu_config, parent_actor=None, parent_world=None):
+    def __init__(self, name, imu_config, parent_actor=None):
         """ Constructor method. """
-        super().__init__(name, parent_actor, parent_world)
+        super().__init__(name, parent_actor)
         self.data['timestamp'] = 0.0
         # In right-handed z-up coordinate system
         # Accelerations
@@ -467,9 +468,9 @@ class GNSS(CarlaSensor):
     This class already converts the GNSS measurements into our right-handed z-up coordinate system.
     """
 
-    def __init__(self, name, gnss_config, parent_actor=None, parent_world=None):
+    def __init__(self, name, gnss_config, parent_actor=None):
         """ Constructor method. """
-        super().__init__(name, parent_actor, parent_world)
+        super().__init__(name, parent_actor)
         self.data['timestamp'] = 0.0
         self.data['lat'] = 0.0
         self.data['lon'] = 0.0
@@ -528,9 +529,9 @@ class GNSS(CarlaSensor):
 class SemanticCamera(CarlaSensor):
     """ Class for semantic camera. """
 
-    def __init__(self, name, ss_cam_config, parent_actor=None, parent_world=None):
+    def __init__(self, name, ss_cam_config, parent_actor=None):
         """ Constructor method. """
-        super().__init__(name, parent_actor, parent_world)
+        super().__init__(name, parent_actor)
         self.data['timestamp'] = 0.0
         self.data['ss_image'] = None
 
@@ -568,9 +569,9 @@ class SemanticCamera(CarlaSensor):
 class DepthCamera(CarlaSensor):
     """ Class for depth camera. """
 
-    def __init__(self, name, depth_cam_config, parent_actor=None, parent_world=None):
+    def __init__(self, name, depth_cam_config, parent_actor=None):
         """ Constructor method. """
-        super().__init__(name, parent_actor, parent_world)
+        super().__init__(name, parent_actor)
         self.data['timestamp'] = 0.0
         self.data['depth_buffer'] = None
 

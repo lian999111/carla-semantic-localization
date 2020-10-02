@@ -22,7 +22,7 @@ import pickle
 from math import pi
 from shutil import copyfile
 
-from carlasim.data_collect import World
+from carlasim.data_collect import World, IMU, GNSS, SemanticCamera, DepthCamera
 
 # TODO: Add Carla recorder
 
@@ -57,6 +57,13 @@ def main():
                       activate_recorder=args.record, 
                       spawn_point=spawn_point)
 
+        # Add Carla sensors
+        ego_veh = world.ego_veh
+        world.add_carla_sensor(IMU('imu', config['sensor']['imu'], ego_veh))
+        world.add_carla_sensor(GNSS('gnss', config['sensor']['gnss'], ego_veh))
+        world.add_carla_sensor(SemanticCamera('semantic_camera', config['sensor']['front_camera'], ego_veh))
+        world.add_carla_sensor(DepthCamera('depth_camera', config['sensor']['front_camera'], ego_veh))
+
         # Launch autopilot for ego vehicle
         world.set_ego_autopilot(True, config['autopilot'])
 
@@ -72,7 +79,7 @@ def main():
             lane_gt = world.ground_truth.all_gt['seq']['lane']
 
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
-                world.imu.data['vx'], world.imu.data['vy'], world.imu.data['gyro_z'] * 180 / pi))
+                world.all_sensor_data['imu']['vx'], world.all_sensor_data['imu']['vy'], world.all_sensor_data['imu']['gyro_z'] * 180 / pi))
             print('in junction: {}'.format(
                 lane_gt['in_junction']))
             # c0
