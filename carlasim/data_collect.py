@@ -506,7 +506,7 @@ class World(object):
         """
         if carla_sensor.name in self.carla_sensors.keys():
             raise RuntimeError(
-                'Trying to a CarlaSensor with a duplicate name.')
+                'Trying to add a CarlaSensor with a duplicate name.')
 
         # Add the CarlaSensor
         self.carla_sensors[carla_sensor.name] = carla_sensor
