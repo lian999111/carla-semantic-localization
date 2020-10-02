@@ -155,24 +155,30 @@ recorder:
 
   # Ground truth
   gt:
-    pose:
-      # Rear axle's pose
-      raxle_location: On
-      raxle_orientation: On
-      
-    lane:
-      # The properties of the closest Carla.Waypoint
-      in_junction: On
-      lane_id: On
+    # Static
+    static:
+      traffic_sign: on
+    
+    # Sequential
+    seq:
+      pose:
+        # Rear axle's pose
+        raxle_location: On
+        raxle_orientation: On
+        
+      lane:
+        # The properties of the closest Carla.Waypoint
+        in_junction: On
+        lane_id: On
 
-      # Carla.LaneMarking objects
-      left_marking: On
-      next_left_marking: On
-      right_marking: On
-      next_right_marking: On
-      
-      # c0 and c1 coefficients
-      left_marking_coeffs: On
-      next_left_marking_coeffs: On
-      right_marking_coeffs: On
-      next_right_marking_coeffs: On
+        # Carla.LaneMarking objects
+        left_marking: On
+        next_left_marking: On
+        right_marking: On
+        next_right_marking: On
+        
+        # c0 and c1 coefficients
+        left_marking_coeffs: On
+        next_left_marking_coeffs: On
+        right_marking_coeffs: On
+        next_right_marking_coeffs: On

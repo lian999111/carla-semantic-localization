@@ -28,7 +28,6 @@ import queue
 
 from carlasim.groundtruth import GroundTruthExtractor
 from carlasim.carla_tform import CarlaW2ETform
-from carlasim.record import Recorder
 
 # %% ================= Global function =================
 
@@ -146,7 +145,6 @@ class World(object):
                  carla_world: carla.World,
                  traffic_manager: carla.TrafficManager,
                  config: dict,
-                 activate_recorder=False,
                  spawn_point: carla.Transform = None):
         """
         Constructor method.
@@ -180,9 +178,6 @@ class World(object):
 
         # Ground truth extractor
         self.ground_truth = None
-        # Data recorder
-        self.activate_recorder = activate_recorder
-        self.recorder = None
 
         # Start simuation
         self.restart(config, spawn_point)
@@ -243,23 +238,8 @@ class World(object):
         # Point the spectator to the ego vehicle
         self.see_ego_veh()
 
-        # Spawn the sensors
-        # self.gnss = GNSS('gnss', config['sensor']['gnss'], self.ego_veh)
-        # self.imu = IMU('imu', config['sensor']['imu'], self.ego_veh)
-        # self.semantic_camera = SemanticCamera('semantic_camera',
-        #                                       config['sensor']['front_camera'],
-        #                                       self.ego_veh)
-        # self.depth_camera = DepthCamera('depth_camera',
-        #                                 config['sensor']['front_camera'],
-        #                                 self.ego_veh)
-
         # Ground truth extractor
         self.ground_truth = GroundTruthExtractor(self.ego_veh, config['gt'])
-
-        # Init data recorder if should be activated
-        if self.activate_recorder:
-            self.recorder = Recorder(
-                self.all_sensor_data, self.ground_truth.all_gt, config['recorder'])
 
     def add_carla_sensor(self, carla_sensor: CarlaSensor):
         """
@@ -309,9 +289,6 @@ class World(object):
 
         self.ground_truth.update()
 
-        if self.activate_recorder:
-            self.recorder.record_current_step()
-
     def see_ego_veh(self, following_dist=5, height=5, tilt_ang=-30):
         """ Aim the spectator down to the ego vehicle. """
         spect_location = carla.Location(x=-following_dist)
@@ -327,14 +304,6 @@ class World(object):
         settings.synchronous_mode = False
         settings.fixed_delta_seconds = 0.0
         self.carla_world.apply_settings(settings)
-
-    def save_recorded_data(self, path_to_folder):
-        """ Save recorded data to the designated folder. """
-        if self.recorder is not None:
-            self.recorder.save_data(path_to_folder)
-        else:
-            raise RuntimeError(
-                'Try to save recorded data while recorder was not initialized. Did you pass None as record_config?')
 
     def destroy(self):
         """ Destroy spawned actors in carla world. """

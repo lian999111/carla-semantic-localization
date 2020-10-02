@@ -4,105 +4,146 @@ import pickle
 import os
 
 
-class Recorder(object):
+class SequentialRecorder(object):
     """
-    Class for sensor data and ground truth recording. 
+    Class for sequential data recording. 
     """
 
-    def __init__(self, sensor_data_source: dict, gt_data_source: dict, record_config: dict):
+    def __init__(self, record_config: dict):
         """
         Constructor method.
 
         Input:
-            sensor_data_source: Source from where sensor data can be reached.
-            gt_data_source: Source from where ground truth data can be reached.
-            record_config: Dict specifying data to be recorded.
+            record_config: Dict of toggles specifying data to be recorded.
         """
-        # Sources
-        self.sensor_data_source = sensor_data_source
-        self.gt_data_source = gt_data_source
-        # Buffers
-        self.sensor_record_buffer = {}
-        self.gt_record_buffer = {'static': None, 'seq': {}}   # divide into static nd sequential parts
-        
-        # Get static ground truth data (No need to update static data)
-        self.gt_record_buffer['static'] = gt_data_source['static']
+        # Use a dict as record buffer
+        self.seq_data_buffer = {}
 
-        # Sensor data
-        sensor_record_config = record_config['sensor']
-        # Init sub-dicts for sensors and data chosen to be recorded
-        for sensor_name, data_toggles in sensor_record_config.items():
-            # If any of data of this sensor is selected, set up a record buffer for it
+        # Init the buffer according to the record_config
+        # group can be sensor names, e.g. imu, gnss, or ground truth types, e.g. pose, lane
+        for group, data_toggles in record_config.items():
+            # If any of data of this group is selected, set up a record buffer for it
             if self.must_record(data_toggles):
-                self.sensor_record_buffer[sensor_name] = self.set_up_record_buffer(
+                self.seq_data_buffer[group] = self.set_up_seq_data_buffer(
                     data_toggles)
 
-        # Sequential ground truth
-        gt_record_config = record_config['gt']
-        for gt_type_name, data_toggles in gt_record_config.items():
-            # If any of data of this sequential ground truth type is selected, set up a record buffer for it
-            if self.must_record(data_toggles):
-                self.gt_record_buffer['seq'][gt_type_name] = self.set_up_record_buffer(
-                    data_toggles)
-
-    def record_current_step(self):
-        """ Record data at current simulation step. """
-        # Iterate over sensors
-        for sensor_name, record_buffer in self.sensor_record_buffer.items():
+    def record_seq(self, source):
+        """ Record sequential data from source at the current time step. """
+        # Iterate over groups
+        for group, data_buffers in self.seq_data_buffer.items():
             # Iterate over specific data
-            for data_name in record_buffer:
-                record_buffer[data_name].append(
-                    self.sensor_data_source[sensor_name][data_name])
+            for data_name in data_buffers:
+                data_buffers[data_name].append(source[group][data_name])
 
-        seq_gt_data_source = self.gt_data_source['seq']
-        # Iterate over types of sequential ground truth data
-        for gt_type_name, record_buffer in self.gt_record_buffer['seq'].items():
-            # Iterate over specific data
-            for data_name in record_buffer:
-                record_buffer[data_name].append(
-                    seq_gt_data_source[gt_type_name][data_name])
-
-    def save_data(self, path_to_folder):
-        """ Save recorded data under designated directory. """
-        with open(os.path.join(path_to_folder, 'sensor_data.pkl'), 'wb') as f:
-            pickle.dump(self.sensor_record_buffer, f)
-        with open(os.path.join(path_to_folder, 'gt_data.pkl'), 'wb') as f:
-            pickle.dump(self.gt_record_buffer, f)
-
+    def save(self, path_to_folder, file_name):
+        """ Save recorded data under designated directory as .pkl file. """
+        print('Saving sequential data.')
+        with open(os.path.join(path_to_folder, file_name+'.pkl'), 'wb') as f:
+            pickle.dump(self.seq_data_buffer, f)
 
     def must_record(self, toggles):
         """ 
-        Determine if recording of a sensor is necessary. 
+        Determine if recording of a group is necessary. 
 
         It iterates through the toggles in the dict and return True if any of the toggles is set to On (True).
 
         Input:
-            toggles: Dict of toggles specifying which data of a sensor has to be recorded.
+            toggles: Dict of toggles specifying which data of a group has to be recorded.
         Output:
-            True if must record this sensor. Otherwise, False. 
+            True if must record this group. Otherwise, False. 
         """
         for toggle_value in toggles.values():
             if toggle_value == True:
                 return True
         return False
 
-    def set_up_record_buffer(self, toggles):
+    def set_up_seq_data_buffer(self, toggles):
         """ 
-        Set up recording buffer if necessary, given the record config of the specific sensor. 
+        Set up sequential data buffer for data toggled on. 
 
-        It iterates through the toggles in toggles and create empty lists to record corresponding data.
+        The toggles is a dictionary of format: 
+            {'data1': True, 'data2', False, 'data3', True}.
+        It iterates through the toggles and creates empty lists to record the coming sequential data.
+        The generated buffer corresponding to the toggles above is:
+            {'data1: [], 'data3': []}
 
         Input:
-            toggles: Dict of toggles specifying which data of the sensor has to be recorded.
+            toggles: Dict of toggles specifying which data has to be recorded.
         Output:
-            record_buffer: Dict of lists for storing data with corresponding data name as key. None toggles are True. 
+            buffer: Dict of lists for storing data with corresponding data name as key. 
         """
-        # Initialize the dict to store recorded data that are toggled on
-        record_buffer = {}
-        for data_name, toggle in toggles.items():
+        # Initialize the dict to store data that are toggled on
+        buffer = {}
+        for data_name, toggle_value in toggles.items():
             # If a toggle is on, initialize a list for it
-            if toggle:
-                record_buffer[data_name] = []
+            if toggle_value:
+                buffer[data_name] = []
 
-        return record_buffer
+        return buffer
 
+
+class StaticAndSequentialRecorder(SequentialRecorder):
+    """
+    Class for static and sequential data recording.
+
+    Internal buffers are divided into 'static' and 'seq' (sequential) parts. The 'static' part is for data that
+    don't change across time. The 'static' part must be recorded using the method record_static() only once 
+    while the 'seq' part  is recorded using record_seq() at each time step.
+    """
+
+    def __init__(self, record_config: dict):
+        """
+        Constructor method.
+
+        Input:
+            record_config: Dict of toggles specifying data to be recorded.
+        """
+        seq_record_config = record_config['seq']
+        static_record_config = record_config['static']
+
+        super().__init__(seq_record_config)
+        self.static_data_buffer = self.set_up_static_data_buffer(
+            static_record_config)
+
+    def record_static(self, static_data_source):
+        """ Record static data from source. """
+        for data_name in self.static_data_buffer:
+            self.static_data_buffer[data_name] = static_data_source[data_name]
+
+    def save(self, path_to_folder, file_name):
+        """ 
+        Save recorded data under designated directory as .pkl file. 
+        
+        The buffers for static and sequential data are combined into one dictionary before saving.
+        The resutling dict has 2 key-value pairs:
+            1. 'static': static_data_buffer
+            2. 'seq': seq_data_buffer
+        """
+        print('Saving static and sequential data.')
+        combined_buffer = {'static': self.static_data_buffer, 'seq': self.seq_data_buffer}
+        with open(os.path.join(path_to_folder, file_name+'.pkl'), 'wb') as f:
+            pickle.dump(combined_buffer, f)
+
+    def set_up_static_data_buffer(self, toggles):
+        """ 
+        Set up static data buffer for data toggled on. 
+
+        The toggles is a dictionary of format: 
+            {'data1': True, 'data2', False, 'data3', True}.
+        It iterates through the toggles and creates empty lists to record the coming sequential data.
+        The generated buffer corresponding to the toggles above is:
+            {'data1: [], 'data3': []}
+
+        Input:
+            toggles: Dict of toggles specifying which static data has to be recorded.
+        Output:
+            buffer: Dict of Nones for storing static data with corresponding data name as key. 
+        """
+        # Initialize the dict to store data that are toggled on
+        buffer = {}
+        for data_name, toggle_value in toggles.items():
+            # If a toggle is on, initialize a list for it
+            if toggle_value:
+                buffer[data_name] = None
+
+        return buffer

@@ -23,6 +23,7 @@ from math import pi
 from shutil import copyfile
 
 from carlasim.data_collect import World, IMU, GNSS, SemanticCamera, DepthCamera
+from carlasim.record import SequentialRecorder, StaticAndSequentialRecorder
 
 # TODO: Add Carla recorder
 
@@ -54,15 +55,24 @@ def main():
         world = World(client.load_world(config['world']['map']),
                       client.get_trafficmanager(),
                       config,
-                      activate_recorder=args.record, 
                       spawn_point=spawn_point)
 
         # Add Carla sensors
         ego_veh = world.ego_veh
         world.add_carla_sensor(IMU('imu', config['sensor']['imu'], ego_veh))
         world.add_carla_sensor(GNSS('gnss', config['sensor']['gnss'], ego_veh))
-        world.add_carla_sensor(SemanticCamera('semantic_camera', config['sensor']['front_camera'], ego_veh))
-        world.add_carla_sensor(DepthCamera('depth_camera', config['sensor']['front_camera'], ego_veh))
+        world.add_carla_sensor(SemanticCamera(
+            'semantic_camera', config['sensor']['front_camera'], ego_veh))
+        world.add_carla_sensor(DepthCamera(
+            'depth_camera', config['sensor']['front_camera'], ego_veh))
+
+        # Set up recorders
+        if args.record:
+            sensor_recorder = SequentialRecorder(config['recorder']['sensor'])
+            gt_recorder = StaticAndSequentialRecorder(config['recorder']['gt'])
+
+            # Record static ground truth data
+            gt_recorder.record_static(world.ground_truth.all_gt['static'])
 
         # Launch autopilot for ego vehicle
         world.set_ego_autopilot(True, config['autopilot'])
@@ -76,10 +86,17 @@ def main():
             world.step_forward()
             world.see_ego_veh()
 
+            # Record sequential data
+            if args.record:
+                sensor_recorder.record_seq(world.all_sensor_data)
+                gt_recorder.record_seq(world.ground_truth.all_gt['seq'])
+
+            # Print data of interest
+            imu_data = world.all_sensor_data['imu']
             lane_gt = world.ground_truth.all_gt['seq']['lane']
 
             print('vx: {:3.2f}, vy: {:3.2f}, w: {:3.2f}'.format(
-                world.all_sensor_data['imu']['vx'], world.all_sensor_data['imu']['vy'], world.all_sensor_data['imu']['gyro_z'] * 180 / pi))
+                imu_data['vx'], imu_data['vy'], imu_data['gyro_z'] * 180 / pi))
             print('in junction: {}'.format(
                 lane_gt['in_junction']))
             # c0
@@ -99,14 +116,15 @@ def main():
                 world.force_lane_change(to_left=to_left)
                 to_left = not to_left
 
-        
-
         if args.record:
             # Save recorded data
             mydir = os.path.join(os.getcwd(), 'recordings',
-                                datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+                                 datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
             os.makedirs(mydir)
-            world.save_recorded_data(mydir)
+            
+            sensor_recorder.save(mydir, 'sensor_data')
+            gt_recorder.save(mydir, 'gt_data')
+
             # Copy config files to folder for future reference
             target_dir = os.path.join(mydir, 'config.yaml')
             copyfile(args.config.name, target_dir)
