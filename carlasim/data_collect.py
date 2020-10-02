@@ -96,7 +96,6 @@ class Geo2Location(object):
         """ Get the 4-by-4 transform matrix """
         return self._tform
 
-
 # %% ================= Sensor Base =================
 
 
@@ -133,190 +132,6 @@ class CarlaSensor(object):
             print('Destroying {}'.format(self.name))
             self.sensor.destroy()
             self.sensor = None
-
-
-# %% ================= World =================
-
-
-class World(object):
-    """ Class representing the simulation environment. """
-
-    def __init__(self,
-                 carla_world: carla.World,
-                 traffic_manager: carla.TrafficManager,
-                 config: dict,
-                 spawn_point: carla.Transform = None):
-        """
-        Constructor method.
-
-        If spawn_point not given, choose random spawn point recommended by the map.
-        """
-        self.carla_world = carla_world
-        self.tm = traffic_manager
-        self.spectator = carla_world.get_spectator()
-        try:
-            self.map = self.carla_world.get_map()
-        except RuntimeError as error:
-            print('RuntimeError: {}'.format(error))
-            print('  The server could not send the OpenDRIVE (.xodr) file:')
-            print(
-                '  Make sure it exists, has the same name of your town, and is correct.')
-            sys.exit(1)
-        self._weather_presets = find_weather_presets()
-        self._weather_index = config['world']['weather']
-        self.carla_world.set_weather(
-            self._weather_presets[self._weather_index][0])
-        self.ego_veh = None
-
-        # Containers for managing carla sensors
-        self.carla_sensors = {}
-        # This dict will store references to all sensor's data container.
-        # It is to facilitate the recording, so the recorder only needs to query this one-stop container.
-        # When a CarlaSensor is added via add_carla_sensor(), its data container is registered automatically.
-        # When sensor data are updated, the content in this dict is updated automatically since they are just pointers.
-        self.all_sensor_data = {}
-
-        # Ground truth extractor
-        self.ground_truth = None
-
-        # Start simuation
-        self.restart(config, spawn_point)
-        # Tick the world to bring the ego vehicle actor into effect
-        self.carla_world.tick()
-
-    def restart(self, config, spawn_point=None):
-        """
-        Start the simulation with the configuration arguments.
-
-        It spawns the actors including ego vehicle and sensors. If the ego vehicle exists already,
-        it respawns the vehicle either at the same location or at the designated location.
-        """
-        # Set up carla engine using config
-        settings = self.carla_world.get_settings()
-        settings.no_rendering_mode = config['world']['no_rendering']
-        settings.synchronous_mode = config['world']['sync_mode']
-        settings.fixed_delta_seconds = config['world']['delta_seconds']
-        self.carla_world.apply_settings(settings)
-
-        # Spawn a Mustang as the ego vehicle (not stolen from John Wick, don't panic)
-        ego_veh_bp = self.carla_world.get_blueprint_library().find('vehicle.mustang.mustang')
-
-        if self.ego_veh:
-            if spawn_point is None:
-                print("Respawning ego vehicle.")
-                spawn_point = self.ego_veh.get_transform()
-            else:
-                print("Respawning ego vehicle at assigned point.")
-            # Destroy previously spawned actors
-            self.destroy()
-            spawn_point.location.z += 2.0
-            spawn_point.rotation.roll = 0.0
-            spawn_point.rotation.pitch = 0.0
-            self.ego_veh = self.carla_world.try_spawn_actor(
-                ego_veh_bp, spawn_point)
-            if self.ego_veh is None:
-                print('Chosen spawn point failed.')
-
-        else:
-            if spawn_point:
-                print("Spawning new ego vehicle at assigned point.")
-                spawn_point.location.z += 2.0
-                self.ego_veh = self.carla_world.try_spawn_actor(
-                    ego_veh_bp, spawn_point)
-
-        while self.ego_veh is None:
-            if not self.map.get_spawn_points():
-                print('There are no spawn points available in your map/town.')
-                sys.exit(1)
-            print("Spawning new ego vehicle at a random point.")
-            spawn_points = self.map.get_spawn_points()
-            spawn_point = random.choice(
-                spawn_points) if spawn_points else carla.Transform()
-            self.ego_veh = self.carla_world.try_spawn_actor(
-                ego_veh_bp, spawn_point)
-
-        # Point the spectator to the ego vehicle
-        self.see_ego_veh()
-
-        # Ground truth extractor
-        self.ground_truth = GroundTruthExtractor(self.ego_veh, config['gt'])
-
-    def add_carla_sensor(self, carla_sensor: CarlaSensor):
-        """
-        Add a CarlaSensor.
-
-        This sensor will be added to the carla_sensors list, and all_sensor_data will add a new key-value pair,
-        where the key is the same as the carla_sensor's name and the value is the reference to carla_sensor's data.
-        """
-        if carla_sensor.name in self.carla_sensors.keys():
-            raise RuntimeError(
-                'Trying to a CarlaSensor with a duplicate name.')
-
-        # Add the CarlaSensor
-        self.carla_sensors[carla_sensor.name] = carla_sensor
-        # Register the CarlaSensor's data to all_sensor_data
-        self.all_sensor_data[carla_sensor.name] = carla_sensor.data
-
-    def set_ego_autopilot(self, active, autopilot_config=None):
-        """ Set traffic manager and register ego vehicle to it. """
-        if autopilot_config:
-            self.tm.auto_lane_change(
-                self.ego_veh, autopilot_config['auto_lane_change'])
-            self.tm.ignore_lights_percentage(
-                self.ego_veh, autopilot_config['ignore_lights_percentage'])
-            self.tm.vehicle_percentage_speed_difference(
-                self.ego_veh, autopilot_config['vehicle_percentage_speed_difference'])
-        self.ego_veh.set_autopilot(active, self.tm.get_port())
-
-    def force_lane_change(self, to_left):
-        """
-        Force ego vehicle to change the lane regardless collision with other vehicles.
-
-        It only allows lane changes in the possible direction.
-        Performing a left lane change on the left-most lane is not possible.
-        Carla's traffic manager doesn't seem to make car change to a left turn lane in built-in town (tested in Town03)
-        """
-        # carla uses true for right
-        self.tm.force_lane_change(self.ego_veh, not to_left)
-
-    def step_forward(self):
-        """ Tick carla world to take simulation one step forward. """
-        self.carla_world.tick()
-        
-        # Update CarlaSensors' data
-        for carla_sensor in self.carla_sensors.values():
-            carla_sensor.update()
-
-        self.ground_truth.update()
-
-    def see_ego_veh(self, following_dist=5, height=5, tilt_ang=-30):
-        """ Aim the spectator down to the ego vehicle. """
-        spect_location = carla.Location(x=-following_dist)
-        self.ego_veh.get_transform().transform(
-            spect_location)  # it modifies passed-in location
-        ego_rotation = self.ego_veh.get_transform().rotation
-        self.spectator.set_transform(carla.Transform(spect_location + carla.Location(z=height),
-                                                     carla.Rotation(pitch=tilt_ang, yaw=ego_rotation.yaw)))
-
-    def allow_free_run(self):
-        """ Allow carla engine to run asynchronously and freely. """
-        settings = self.carla_world.get_settings()
-        settings.synchronous_mode = False
-        settings.fixed_delta_seconds = 0.0
-        self.carla_world.apply_settings(settings)
-
-    def destroy(self):
-        """ Destroy spawned actors in carla world. """
-        if self.ego_veh:
-            print("Destroying the ego vehicle.")
-            self.ego_veh.destroy()
-            self.ego_veh = None
-
-        for carla_sensor in self.carla_sensors.values():
-            carla_sensor.destroy()
-
-        self.carla_sensors.clear()
-
 
 # %% ================= IMU Sensor =================
 
@@ -423,7 +238,6 @@ class IMU(CarlaSensor):
                                             self._noise_vx_stddev)
         self.data['vy'] += np.random.normal(self._noise_vy_bias,
                                             self._noise_vy_stddev)
-
 
 # %% ================= GNSS Sensor =================
 
@@ -576,6 +390,188 @@ class DepthCamera(CarlaSensor):
         # Making a copy makes sure depth_buffer is not subject to side-effect when the underlying buffer is modified
         self.data['depth_buffer'] = np_img[:, :,
                                            0:3].copy()    # get just BGR channels
+
+# %% ================= World =================
+
+
+class World(object):
+    """ Class representing the simulation environment. """
+
+    def __init__(self,
+                 carla_world: carla.World,
+                 traffic_manager: carla.TrafficManager,
+                 config: dict,
+                 spawn_point: carla.Transform = None):
+        """
+        Constructor method.
+
+        If spawn_point not given, choose random spawn point recommended by the map.
+        """
+        self.carla_world = carla_world
+        self.tm = traffic_manager
+        self.spectator = carla_world.get_spectator()
+        try:
+            self.map = self.carla_world.get_map()
+        except RuntimeError as error:
+            print('RuntimeError: {}'.format(error))
+            print('  The server could not send the OpenDRIVE (.xodr) file:')
+            print(
+                '  Make sure it exists, has the same name of your town, and is correct.')
+            sys.exit(1)
+        self._weather_presets = find_weather_presets()
+        self._weather_index = config['world']['weather']
+        self.carla_world.set_weather(
+            self._weather_presets[self._weather_index][0])
+        self.ego_veh = None
+
+        # Containers for managing carla sensors
+        self.carla_sensors = {}
+        # This dict will store references to all sensor's data container.
+        # It is to facilitate the recording, so the recorder only needs to query this one-stop container.
+        # When a CarlaSensor is added via add_carla_sensor(), its data container is registered automatically.
+        # When sensor data are updated, the content in this dict is updated automatically since they are just pointers.
+        self.all_sensor_data = {}
+
+        # Ground truth extractor
+        self.ground_truth = None
+
+        # Start simuation
+        self.restart(config, spawn_point)
+        # Tick the world to bring the ego vehicle actor into effect
+        self.carla_world.tick()
+
+    def restart(self, config, spawn_point=None):
+        """
+        Start the simulation with the configuration arguments.
+
+        It spawns the actors including ego vehicle and sensors. If the ego vehicle exists already,
+        it respawns the vehicle either at the same location or at the designated location.
+        """
+        # Set up carla engine using config
+        settings = self.carla_world.get_settings()
+        settings.no_rendering_mode = config['world']['no_rendering']
+        settings.synchronous_mode = config['world']['sync_mode']
+        settings.fixed_delta_seconds = config['world']['delta_seconds']
+        self.carla_world.apply_settings(settings)
+
+        # Spawn a Mustang as the ego vehicle (not stolen from John Wick, don't panic)
+        ego_veh_bp = self.carla_world.get_blueprint_library().find('vehicle.mustang.mustang')
+
+        if self.ego_veh:
+            if spawn_point is None:
+                print("Respawning ego vehicle.")
+                spawn_point = self.ego_veh.get_transform()
+            else:
+                print("Respawning ego vehicle at assigned point.")
+            # Destroy previously spawned actors
+            self.destroy()
+            spawn_point.location.z += 2.0
+            spawn_point.rotation.roll = 0.0
+            spawn_point.rotation.pitch = 0.0
+            self.ego_veh = self.carla_world.try_spawn_actor(
+                ego_veh_bp, spawn_point)
+            if self.ego_veh is None:
+                print('Chosen spawn point failed.')
+
+        else:
+            if spawn_point:
+                print("Spawning new ego vehicle at assigned point.")
+                spawn_point.location.z += 2.0
+                self.ego_veh = self.carla_world.try_spawn_actor(
+                    ego_veh_bp, spawn_point)
+
+        while self.ego_veh is None:
+            if not self.map.get_spawn_points():
+                print('There are no spawn points available in your map/town.')
+                sys.exit(1)
+            print("Spawning new ego vehicle at a random point.")
+            spawn_points = self.map.get_spawn_points()
+            spawn_point = random.choice(
+                spawn_points) if spawn_points else carla.Transform()
+            self.ego_veh = self.carla_world.try_spawn_actor(
+                ego_veh_bp, spawn_point)
+
+        # Point the spectator to the ego vehicle
+        self.see_ego_veh()
+
+        # Ground truth extractor
+        self.ground_truth = GroundTruthExtractor(self.ego_veh, config['gt'])
+
+    def add_carla_sensor(self, carla_sensor: CarlaSensor):
+        """
+        Add a CarlaSensor.
+
+        This sensor will be added to the carla_sensors list, and all_sensor_data will add a new key-value pair,
+        where the key is the same as the carla_sensor's name and the value is the reference to carla_sensor's data.
+        """
+        if carla_sensor.name in self.carla_sensors.keys():
+            raise RuntimeError(
+                'Trying to a CarlaSensor with a duplicate name.')
+
+        # Add the CarlaSensor
+        self.carla_sensors[carla_sensor.name] = carla_sensor
+        # Register the CarlaSensor's data to all_sensor_data
+        self.all_sensor_data[carla_sensor.name] = carla_sensor.data
+
+    def set_ego_autopilot(self, active, autopilot_config=None):
+        """ Set traffic manager and register ego vehicle to it. """
+        if autopilot_config:
+            self.tm.auto_lane_change(
+                self.ego_veh, autopilot_config['auto_lane_change'])
+            self.tm.ignore_lights_percentage(
+                self.ego_veh, autopilot_config['ignore_lights_percentage'])
+            self.tm.vehicle_percentage_speed_difference(
+                self.ego_veh, autopilot_config['vehicle_percentage_speed_difference'])
+        self.ego_veh.set_autopilot(active, self.tm.get_port())
+
+    def force_lane_change(self, to_left):
+        """
+        Force ego vehicle to change the lane regardless collision with other vehicles.
+
+        It only allows lane changes in the possible direction.
+        Performing a left lane change on the left-most lane is not possible.
+        Carla's traffic manager doesn't seem to make car change to a left turn lane in built-in town (tested in Town03)
+        """
+        # carla uses true for right
+        self.tm.force_lane_change(self.ego_veh, not to_left)
+
+    def step_forward(self):
+        """ Tick carla world to take simulation one step forward. """
+        self.carla_world.tick()
+
+        # Update CarlaSensors' data
+        for carla_sensor in self.carla_sensors.values():
+            carla_sensor.update()
+
+        self.ground_truth.update()
+
+    def see_ego_veh(self, following_dist=5, height=5, tilt_ang=-30):
+        """ Aim the spectator down to the ego vehicle. """
+        spect_location = carla.Location(x=-following_dist)
+        self.ego_veh.get_transform().transform(
+            spect_location)  # it modifies passed-in location
+        ego_rotation = self.ego_veh.get_transform().rotation
+        self.spectator.set_transform(carla.Transform(spect_location + carla.Location(z=height),
+                                                     carla.Rotation(pitch=tilt_ang, yaw=ego_rotation.yaw)))
+
+    def allow_free_run(self):
+        """ Allow carla engine to run asynchronously and freely. """
+        settings = self.carla_world.get_settings()
+        settings.synchronous_mode = False
+        settings.fixed_delta_seconds = 0.0
+        self.carla_world.apply_settings(settings)
+
+    def destroy(self):
+        """ Destroy spawned actors in carla world. """
+        if self.ego_veh:
+            print("Destroying the ego vehicle.")
+            self.ego_veh.destroy()
+            self.ego_veh = None
+
+        for carla_sensor in self.carla_sensors.values():
+            carla_sensor.destroy()
+
+        self.carla_sensors.clear()
 
 
 # TODO: make carlatform vectorized
