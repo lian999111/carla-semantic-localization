@@ -41,6 +41,18 @@ autopilot:
 
 ## Ego Vehicle
 ego_veh:
+  # If True, use a random spawn point and ignore the following spawn point settings
+  use_random_spawn_point: False
+  # x, y, z in Carla's coordinate system (left-handed z-up)
+  spawn_location:
+    - 229.67
+    - 80.99
+    - 0.59
+  # pitch, yaw, roll (deg) in Carla's coordinate system (right-handed z-down)
+  spawn_orientation:
+    - 0.0
+    - 90.0
+    - 0.0
   # Carla uses center of gravity as the model's origin
   # The following is roughly measured from Carla's Mustang model
   # Carla's Mustang:

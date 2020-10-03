@@ -42,12 +42,21 @@ def main():
     with args.config as f:
         config = yaml.safe_load(f)
 
-    # Initialize world
+    # Placeholder for World obj
     world = None
-    spawn_point = None
-    # Assign spawn point for ego vehicle
-    spawn_point = carla.Transform(carla.Location(
-        229.67, 80.99, 0.59), carla.Rotation(yaw=91))
+
+    # Assign spawn point for ego vehicle according to config
+    if config['ego_veh']['use_random_spawn_point']:
+        spawn_point = None
+    else:
+        spawn_location = carla.Location(config['ego_veh']['spawn_location'][0],
+                                        config['ego_veh']['spawn_location'][1],
+                                        config['ego_veh']['spawn_location'][2])
+        spawn_orientation = carla.Rotation(config['ego_veh']['spawn_orientation'][0],
+                                           config['ego_veh']['spawn_orientation'][1],
+                                           config['ego_veh']['spawn_orientation'][2])
+        spawn_point = carla.Transform(spawn_location, spawn_orientation)
+    
     try:
         client = carla.Client('localhost', 2000)
         client.set_timeout(5.0)
@@ -121,7 +130,7 @@ def main():
             mydir = os.path.join(os.getcwd(), 'recordings',
                                  datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
             os.makedirs(mydir)
-            
+
             sensor_recorder.save(mydir, 'sensor_data')
             gt_recorder.save(mydir, 'gt_data')
 
