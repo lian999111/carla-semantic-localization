@@ -111,6 +111,7 @@ class CarlaSensor(object):
             parent_actor: Carla.Actor of parent actor that this sensor is attached to.
             parent_world: Carla.World of the world where this sensor is spawned.
         """
+        print("Spawning {}".format(name))
         self.name = name
         self._parent = parent_actor
         self.sensor = None
@@ -121,6 +122,7 @@ class CarlaSensor(object):
         # Here the queue is expected to be used in listen() instead. The callback simply puts the sensor data into the queue,
         # then the data can be obtained in update() using get() which blocks and make sure synchronization.
         self._queue = queue.Queue()
+        
 
     def update(self):
         """ Wait for sensro event to be put in queue and update data. """
@@ -200,7 +202,6 @@ class IMU(CarlaSensor):
         self._noise_vx_stddev = imu_config['noise_vx_stddev']
         self._noise_vy_stddev = imu_config['noise_vy_stddev']
 
-        print("Spawning IMU sensor.")
         self.sensor = carla_world.spawn_actor(imu_bp,
                                               carla.Transform(carla.Location(
                                                   x=imu_config['pos_x'], z=0.0)),
@@ -278,7 +279,6 @@ class GNSS(CarlaSensor):
         gnss_bp.set_attribute('noise_lon_stddev',
                               gnss_config['noise_lon_stddev'])
 
-        print("Spawning GNSS sensor.")
         self.sensor = carla_world.spawn_actor(gnss_bp,
                                               carla.Transform(carla.Location(
                                                   x=gnss_config['pos_x'], z=0.0)),
@@ -325,7 +325,6 @@ class SemanticCamera(CarlaSensor):
         ss_cam_bp.set_attribute('image_size_y', ss_cam_config['res_v'])
         ss_cam_bp.set_attribute('fov', ss_cam_config['fov'])
 
-        print("Spawning semantic camera sensor.")
         self.sensor = carla_world.spawn_actor(ss_cam_bp,
                                               carla.Transform(
                                                   carla.Location(x=ss_cam_config['pos_x'], z=ss_cam_config['pos_z'])),
@@ -367,7 +366,6 @@ class DepthCamera(CarlaSensor):
             'image_size_y', depth_cam_config['res_v'])
         depth_cam_bp.set_attribute('fov', depth_cam_config['fov'])
 
-        print("Spawning depth camera sensor.")
         self.sensor = world.spawn_actor(depth_cam_bp,
                                         carla.Transform(
                                             carla.Location(x=depth_cam_config['pos_x'], z=depth_cam_config['pos_z'])),
