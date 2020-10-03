@@ -3,6 +3,9 @@
 ## General setup
 sim_duration: 10  # sec
 
+# Carla recorder for simulation replay
+carla_recorder: On
+
 ## World
 world:
   # Rendering must be on for semantic segmentation output
@@ -112,9 +115,6 @@ gt:
     raxle_to_fbumper: *raxle_to_fbumper    # (m) Distance from rear axle to front bumper in x
   lane:
     radius: 9      # (m) Search radius for lane markings
-
-  # Carla recorder for simulation replay
-  carla_recorder: Off
 
 ## Recorder
 # Each toggle specifies whether its corresponding data are recoreded when the recorder is activated

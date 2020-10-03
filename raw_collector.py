@@ -60,6 +60,7 @@ def main():
     try:
         client = carla.Client('localhost', 2000)
         client.set_timeout(5.0)
+
         # Create a World obj with a built-in map
         world = World(client.load_world(config['world']['map']),
                       client.get_trafficmanager(),
@@ -85,6 +86,15 @@ def main():
 
         # Launch autopilot for ego vehicle
         world.set_ego_autopilot(True, config['autopilot'])
+
+        if args.record:
+            recording_folder = os.path.join(os.getcwd(), 'recordings',
+                                 datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+            os.makedirs(recording_folder)
+            # Set up Carla's recorder for replaying if activated by config
+            if config['carla_recorder']:
+                file_name = os.path.join(recording_folder, 'carla_recording.log')
+                client.start_recorder(file_name)
 
         n_ticks = int(config['sim_duration'] /
                       config['world']['delta_seconds'])
@@ -126,22 +136,21 @@ def main():
                 to_left = not to_left
 
         if args.record:
+            # Stop Carla's recorder
+            if config['carla_recorder']:
+                client.stop_recorder()
             # Save recorded data
-            mydir = os.path.join(os.getcwd(), 'recordings',
-                                 datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
-            os.makedirs(mydir)
-
-            sensor_recorder.save(mydir, 'sensor_data')
-            gt_recorder.save(mydir, 'gt_data')
-
+            sensor_recorder.save(recording_folder, 'sensor_data')
+            gt_recorder.save(recording_folder, 'gt_data')
             # Copy config files to folder for future reference
-            target_dir = os.path.join(mydir, 'config.yaml')
+            target_dir = os.path.join(recording_folder, 'config.yaml')
             copyfile(args.config.name, target_dir)
 
     finally:
         if world:
             world.set_ego_autopilot(False)
             world.destroy()
+
             # Allow carla engine to run freely so it doesn't just hang there
             world.allow_free_run()
 
