@@ -43,11 +43,44 @@ class CarlaW2ETform:
         Input:
             ego_transform: Carla.Transform object of ego frame.
         """
-        self._ego_veh_transform = ego_transform
+        self._ego_transform = ego_transform
         # rotation matrix to transform a vector from world frame to ego frame
         self._rotm_w2e = None
         # homogeneous transformation matrix to transform a vector from world frame to ego frame
         self._tform_w2e = None
+
+    @classmethod
+    def from_conventional(cls, location, orientation):
+        """
+        Create a CarlaW2ETform from given location and orientation in right-handed z-up coordinate system.
+
+        The input location and orientation should follow the right-handed z-up coordinate system.
+
+        Input:
+            location: Array-like (x, y, z) coordinate.
+            orientation: Array-like (roll, pitch, yaw) in rad.
+        Output:
+            An instance of CarlaW2ETform.
+        """
+        # Make sure inputs are np.ndarray with right shape
+        if isinstance(location, np.ndarray):
+            location = location.reshape((-1)).astype(np.float)
+        else:
+            location = np.array(location, dtype=np.float)
+
+        if isinstance(orientation, np.ndarray):
+            orientation = orientation.reshape((-1)).astype(np.float)
+        else:
+            orientation = np.array(orientation, dtype=np.float)
+
+        carla_location = carla.Location(x=location[0],
+                                        y=-location[1],
+                                        z=location[2])
+        carla_rotation = carla.Rotation(roll=orientation[0]*180/np.pi,
+                                        pitch=-orientation[1]*180/np.pi,
+                                        yaw=-orientation[2]*180/np.pi)
+
+        return cls(carla.Transform(carla_location, carla_rotation))
 
     def rot_w2e_carla_vector3D(self, vector3D: carla.Vector3D):
         """ 
@@ -127,7 +160,7 @@ class CarlaW2ETform:
 
     def _init_rotm_w2e(self):
         """ Helper method to create rotation matrix _rotm_e2w. """
-        rotation = self._ego_veh_transform.rotation
+        rotation = self._ego_transform.rotation
         # Need to convert from right-handed z-down to right-handed z-down system when building up the rotation matrix
         # Transpose so it is the rotation of the world frame wrt the ego frame
         self._rotm_w2e = Rotation.from_euler(
@@ -140,7 +173,7 @@ class CarlaW2ETform:
         self._tform_w2e = np.zeros((4, 4), dtype=np.float)
         self._tform_w2e[3, 3] = 1
         self._tform_w2e[0:3, 0:3] = self._rotm_w2e
-        trvec = np.array([self._ego_veh_transform.location.x,
-                          -self._ego_veh_transform.location.y,
-                          -self._ego_veh_transform.location.z]).T
+        trvec = np.array([self._ego_transform.location.x,
+                          -self._ego_transform.location.y,
+                          -self._ego_transform.location.z]).T
         self._tform_w2e[0:3, 3] = - self._rotm_w2e.dot(trvec)
