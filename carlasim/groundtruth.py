@@ -108,6 +108,13 @@ class GroundTruthExtractor(object):
                 if __debug__:
                     carla_world.debug.draw_arrow(
                         location, location + carla.Location(z=50))
+
+                    # Draw orientation
+                    carla_tform = actor.get_transform()
+                    arrow_tip = carla.Location(x=5)
+                    carla_tform.transform(arrow_tip)
+                    carla_world.debug.draw_arrow(
+                        location, arrow_tip)
             else:
                 traffic_signs.append(TrafficSign(actor, TrafficSignType.Stop))
                 if __debug__:
