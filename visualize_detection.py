@@ -138,7 +138,7 @@ def visualize(folder_name):
             # Visualization
             for base_coord in pole_detector.pole_bases_uv.T:
                 ss_image_copy = cv2.circle(
-                    ss_image_copy, (base_coord[0], base_coord[1]), 10, color=[12, 0, 0], thickness=10)
+                    ss_image_copy, (base_coord[0], base_coord[1]), 10, color=[12, 0, 0], thickness=5)
 
             pole0.set_data(poles_xy_z0[1, :], poles_xy_z0[0, :])
             pole_gt.set_data(poles_gt_xyz[1, :], poles_gt_xyz[0, :])
