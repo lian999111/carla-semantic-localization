@@ -44,7 +44,7 @@ lane:
 
   histo:
     # Minimum height to consider as a peak
-    required_height: 100
+    required_height: 200
     # Ratio of the image height that takes part in histogram calculation
     # e.g. 0.5 means only the region from bottom to half height of the image are searched
     # Since histogram is for finding starting points for sliding window, it should focus on on the lower part of image
