@@ -58,7 +58,7 @@ class CarlaW2ETform:
         Input:
             vector3D: Carla.Vector3D which follows carla's coordinate system (z-down system).
         Output:
-            Numpy.array representing a 3D coordinate in the right-handed z-up coordinate system.
+            Numpy.array representing a 3D point in the right-handed z-up coordinate system.
         """
         if self._rotm_w2e is None:
             self._init_rotm_w2e()
@@ -75,13 +75,55 @@ class CarlaW2ETform:
         Input:
             vector3D: Carla.Vector3D which follows carla's coordinate system (z-down system).
         Output:
-            Numpy.array representing a 3D coordinate in the right-handed z-up coordinate system.
+            Numpy.array representing a 3D point in the right-handed z-up coordinate system.
         """
         if self._tform_w2e is None:
             self._init_tform_w2e()
         # Need to convert from left-handed to right-handed before apply the homogeneous transformation
         np_homo_vec = np.array([vector3D.x, -vector3D.y, vector3D.z, 1])
         return self._tform_w2e.dot(np_homo_vec)[0:3]
+
+    def rot_w2e_numpy_array(self, np_points):
+        """
+        Rotate the given set of numpy points in world frame into ego frame.
+
+        Note the input should follows the right-handed z-up coordinate system.
+
+        Input:
+            np_points: 3-by-N numpy array, where each column is the (x, y, z) 
+                       coordinates of a point.
+        Returns:
+            An 3-by-N numpy array of rotated points in the right-handed z-up coordinate system.
+        """
+        # Make sure shape is 2D
+        if np_points.ndim != 2:
+            np_points = np_points.reshape((3, -1))    # 3-by-N
+        if self._rotm_w2e is None:
+            self._init_rotm_w2e()
+        return self._rotm_w2e @ np_points
+
+    def tform_w2e_numpy_array(self, np_points):
+        """
+        Transform the given set of numpy points in world frame into ego frame.
+
+        Note the input should follows the right-handed z-up coordinate system.
+
+        Input:
+            np_points: 3-by-N numpy array, where each column is the (x, y, z) 
+                       coordinates of a point.
+        Returns:
+            An 3-by-N numpy array of rotated points in the right-handed z-up coordinate system.
+        """
+        if np_points.ndim != 2:
+            np_points = np_points.reshape((3, -1))    # 3-by-N
+        if self._tform_w2e is None:
+            self._init_tform_w2e()
+
+        # Number of points
+        n_pts = np_points.shape[1]
+
+        np_homo_vec = np.concatenate((np_points, np.ones((1, n_pts))), axis=0)
+        return (self._tform_w2e @ np_homo_vec)[0:3, :]
 
     def _init_rotm_w2e(self):
         """ Helper method to create rotation matrix _rotm_e2w. """
