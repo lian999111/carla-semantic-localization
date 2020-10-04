@@ -227,7 +227,7 @@ class IMU(CarlaSensor):
         vel = self._parent.get_velocity()
         tform_w2e = CarlaW2ETform(self._parent.get_transform())
         # Transform velocities from Carla world frame (left-handed) to ego frame (right-handed)
-        ego_vel = tform_w2e.rotm_world_to_ego(vel)  # an np 3D vector
+        ego_vel = tform_w2e.rot_w2e_carla_vector3D(vel)  # an np 3D vector
         self.data['vx'] = ego_vel[0] + \
             self._delta_seconds * self.data['accel_x']
         self.data['vy'] = ego_vel[1] + \

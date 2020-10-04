@@ -386,7 +386,7 @@ class LaneGTExtractor(object):
         # Object for transforming a carla.Location in carla's world frame (left-handed z-up)
         # into our front bumper's frame (right-handed z-up)
         tform_w2e = CarlaW2ETform(self._carla_tform)
-        waypt_ego_frame = tform_w2e.tform_world_to_ego(
+        waypt_ego_frame = tform_w2e.tform_w2e_carla_vector3D(
             self.waypoint.transform.location)
 
         # Container lists
@@ -489,7 +489,7 @@ class LaneGTExtractor(object):
             else:
                 lane_pt_in_world = waypoint_of_interest.transform.transform(
                     carla.Location(y=half_width))
-            return world_to_ego.tform_world_to_ego(lane_pt_in_world)
+            return world_to_ego.tform_w2e_carla_vector3D(lane_pt_in_world)
 
         # Local helper functions
         def get_next_waypoint(waypoint_of_interest, distance, direction):
