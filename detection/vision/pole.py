@@ -137,12 +137,12 @@ def single(folder_name, image_idx):
     x0 = calib_data['x0']
 
     # Load data
-    mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'data.pkl'), 'rb') as f:
-        data = pickle.load(f)
+    path_to_folder = os.path.join('recordings', folder_name)
+    with open(os.path.join(path_to_folder, 'sensor_data.pkl'), 'rb') as f:
+        sensor_data = pickle.load(f)
         
-    ss_images = data['ss_images']
-    depth_buffers = data['depth_buffers']
+    ss_images = sensor_data['semantic_camera']['ss_image']
+    depth_buffers = sensor_data['depth_camera']['depth_buffer']
 
     # Extract pole-relevant semantic labels
     ss_image = ss_images[image_idx]
@@ -161,7 +161,6 @@ def single(folder_name, image_idx):
 
     ss_image_copy = ss_image.copy()
     _, ax = plt.subplots(1, 2)
-    ax[0].imshow(ss_image_copy)
 
     if pole_bases_uv is not None:
         x_world = depth_image[pole_bases_uv[1],
@@ -172,8 +171,9 @@ def single(folder_name, image_idx):
         # Visualization
         for base_coord in pole_detector.pole_bases_uv.T:
             ss_image_copy = cv2.circle(
-                ss_image_copy, (base_coord[0], base_coord[1]), 10, color=[1, 0, 0], thickness=10)
+                ss_image_copy, (base_coord[0], base_coord[1]), 10, color=[1, 0, 0], thickness=5)
 
+        ax[0].imshow(ss_image_copy)
         # ax[1].axis('equal')
         ax[1].plot(poles_xy_z0[1, :], poles_xy_z0[0, :], '.', label='z = 0')
         ax[1].plot(poles_xy_z1[1, :], poles_xy_z1[0, :], '.', label='z = 1')
@@ -212,12 +212,12 @@ def loop(folder_name):
     x0 = calib_data['x0']
 
     # Load data\
-    mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'data.pkl'), 'rb') as f:
-        data = pickle.load(f)
+    path_to_folder = os.path.join('recordings', folder_name)
+    with open(os.path.join(path_to_folder, 'sensor_data.pkl'), 'rb') as f:
+        sensor_data = pickle.load(f)
 
-    ss_images = data['ss_images']
-    depth_buffers = data['depth_buffers']
+    ss_images = sensor_data['semantic_camera']['ss_image']
+    depth_buffers = sensor_data['depth_camera']['depth_buffer']
 
     pole_detector = PoleDetector(K, R, x0, vision_params['pole'])
 
@@ -258,7 +258,7 @@ def loop(folder_name):
             # Visualization
             for base_coord in pole_detector.pole_bases_uv.T:
                 ss_image_copy = cv2.circle(
-                    ss_image_copy, (base_coord[0], base_coord[1]), 10, color=[1, 0, 0], thickness=10)
+                    ss_image_copy, (base_coord[0], base_coord[1]), 10, color=[1, 0, 0], thickness=5)
 
             pole0.set_data(poles_xy_z0[1, :], poles_xy_z0[0, :])
             pole1.set_data(poles_xy_z1[1, :], poles_xy_z1[0, :])
@@ -274,5 +274,5 @@ def loop(folder_name):
 
 
 if __name__ == "__main__":
-    # single('true_highway', 193)
-    loop('pole_gt')
+    single('town03_highway', 51)
+    # loop('town03_highway')

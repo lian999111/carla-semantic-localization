@@ -70,14 +70,16 @@ def visualize(folder_name):
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'data.pkl'), 'rb') as f:
-        data = pickle.load(f)
+    with open(os.path.join(mydir, 'sensor_data.pkl'), 'rb') as f:
+        sensor_data = pickle.load(f)
+    with open(os.path.join(mydir, 'gt_data.pkl'), 'rb') as f:
+        gt_data = pickle.load(f)
 
-    ss_images = data['ss_images']
-    depth_buffers = data['depth_buffers']
-    raxle_gt_loc = data['raxle_gt_loc']
-    raxle_gt_ori = data['raxle_gt_ori']
-    yaw_rates = data['yaw_rate']
+    ss_images = sensor_data['semantic_camera']['ss_image']
+    depth_buffers = sensor_data['depth_camera']['depth_buffer']
+    yaw_rates = sensor_data['imu']['gyro_z']
+    raxle_locations = gt_data['seq']['pose']['raxle_location']
+    raxle_orientations = gt_data['seq']['pose']['raxle_orientation']
 
     # Detector objects
     pole_detector = PoleDetector(K, R, x0, vision_params['pole'])
@@ -189,4 +191,4 @@ def visualize(folder_name):
 
 
 if __name__ == "__main__":
-    visualize('pole_gt')
+    visualize('town03_highway')

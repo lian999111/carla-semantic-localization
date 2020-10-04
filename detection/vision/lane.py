@@ -665,12 +665,12 @@ def loop(folder_name):
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'data.pkl'), 'rb') as f:
-        data = pickle.load(f)
+    with open(os.path.join(mydir, 'sensor_data.pkl'), 'rb') as f:
+        sensor_data = pickle.load(f)
 
-    ss_images = data['ss_images']
-    yaw_rates = data['yaw_rate']
-
+    ss_images = sensor_data['semantic_camera']['ss_image']
+    yaw_rates = sensor_data['imu']['gyro_z']
+    
     lane_detector = LaneMarkingDetector(M, px_per_meter_x, px_per_meter_y,
                                         warped_size, valid_mask,
                                         dist_fbumper_to_intersect,
@@ -766,11 +766,11 @@ def single(folder_name, image_idx):
 
     # Load data
     mydir = os.path.join('recordings', folder_name)
-    with open(os.path.join(mydir, 'data.pkl'), 'rb') as f:
-        data = pickle.load(f)
+    with open(os.path.join(mydir, 'sensor_data.pkl'), 'rb') as f:
+        sensor_data = pickle.load(f)
 
-    ss_images = data['ss_images']
-    yaw_rates = data['yaw_rate']
+    ss_images = sensor_data['semantic_camera']['ss_image']
+    yaw_rates = sensor_data['imu']['gyro_z']
 
     # Extract lane-relevant semantic labels (road line and sidewalk)
     ss_image = ss_images[image_idx]
@@ -836,5 +836,5 @@ def single(folder_name, image_idx):
 
 
 if __name__ == "__main__":
-    # single('small_roundabout', 215)
-    loop('pole_gt')
+    # single('town03_highway', 215)
+    loop('town03_highway')
