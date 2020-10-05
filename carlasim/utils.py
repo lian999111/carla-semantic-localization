@@ -164,10 +164,9 @@ class TrafficSign(object):
         """
         carla_location = traffic_sign_actor.get_location()
         carla_rotation = traffic_sign_actor.get_transform().rotation
-        self.location = np.zeros((3, 1))
-        self.location[0] = carla_location.x
-        self.location[1] = - carla_location.y   # convert to right-handed frame
-        self.location[2] = carla_location.z
+        self.x = carla_location.x
+        self.y = - carla_location.y   # convert to right-handed frame
+        self.z = carla_location.z
         self.type = traffic_sign_type
-        self.yaw = carla_rotation.yaw * np.pi / 180
+        self.yaw = carla_rotation.yaw * np.pi / 180     # to rad
 
