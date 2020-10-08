@@ -63,7 +63,7 @@ class PoleDetector(object):
                         Note that larger upper_lim value means lower in image since it's the v coordinate.
             z: Assumed z coordinates perpendicular to ground of corresponding points
         Output:
-            x-y coordinates of pole bases wrt the front bumper.
+            2-by-N Numpy.array containing x-y coordinates of pole bases wrt the front bumper.
         """
         self._find_pole_bases(pole_image, upper_lim)
         self._get_pole_xy_fbumper(z)
