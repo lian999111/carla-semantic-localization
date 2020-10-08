@@ -65,7 +65,7 @@ class GroundTruthExtractor(object):
 
         # Front bumper's transform in Carla's coordinate system
         # It's for the convenience of querying waypoints for lane using carla's APIs
-        # TODO: Try put this frame at the intersection of camera FOV and ground surface?
+        # TODO: Try put this frame's origin at the intersection of camera FOV and ground surface?
         self._fbumper_carla_tform = None
 
         # Pose ground truth extractor
