@@ -25,8 +25,6 @@ from shutil import copyfile
 from carlasim.data_collect import World, IMU, GNSS, SemanticCamera, DepthCamera
 from carlasim.record import SequentialRecorder, StaticAndSequentialRecorder
 
-# TODO: Add Carla recorder
-
 
 def main():
     # Parse passed-in config yaml file
@@ -56,7 +54,7 @@ def main():
                                            config['ego_veh']['spawn_orientation'][1],
                                            config['ego_veh']['spawn_orientation'][2])
         spawn_point = carla.Transform(spawn_location, spawn_orientation)
-    
+
     try:
         client = carla.Client('localhost', 2000)
         client.set_timeout(5.0)
@@ -89,11 +87,12 @@ def main():
 
         if args.record:
             recording_folder = os.path.join(os.getcwd(), 'recordings',
-                                 datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+                                            datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
             os.makedirs(recording_folder)
             # Set up Carla's recorder for replaying if activated by config
             if config['carla_recorder']:
-                file_name = os.path.join(recording_folder, 'carla_recording.log')
+                file_name = os.path.join(
+                    recording_folder, 'carla_recording.log')
                 client.start_recorder(file_name)
 
         n_ticks = int(config['sim_duration'] /
