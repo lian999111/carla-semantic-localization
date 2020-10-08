@@ -36,14 +36,14 @@ class CarlaW2ETform:
     will be in our right-handed z-up coordinate system convention.
     """
 
-    def __init__(self, ego_transform: carla.Transform):
+    def __init__(self, carla_tform: carla.Transform):
         """ 
         Constructor method using lazy initialization. 
 
         Input:
-            ego_transform: Carla.Transform object of ego frame.
+            carla_tform: Carla.Transform object of ego frame.
         """
-        self._ego_transform = ego_transform
+        self._carla_tform = carla_tform
         # rotation matrix to transform a vector from world frame to ego frame
         self._rotm_w2e = None
         # homogeneous transformation matrix to transform a vector from world frame to ego frame
@@ -159,21 +159,21 @@ class CarlaW2ETform:
         return (self._tform_w2e @ np_homo_vec)[0:3, :]
 
     def _init_rotm_w2e(self):
-        """ Helper method to create rotation matrix _rotm_e2w. """
-        rotation = self._ego_transform.rotation
-        # Need to convert from right-handed z-down to right-handed z-down system when building up the rotation matrix
+        """ Helper method to create rotation matrix _rotm_w2e. """
+        rotation = self._carla_tform.rotation
+        # Need to convert from right-handed z-down to right-handed z-up system when building up the rotation matrix
         # Transpose so it is the rotation of the world frame wrt the ego frame
         self._rotm_w2e = Rotation.from_euler(
             'zyx', [-rotation.yaw, -rotation.pitch, rotation.roll], degrees=True).as_matrix().T
 
     def _init_tform_w2e(self):
-        """ Helper method to create rotation matrix _tform_e2w. """
+        """ Helper method to create rotation matrix _tform_w2e. """
         if self._rotm_w2e is None:
             self._init_rotm_w2e()
         self._tform_w2e = np.zeros((4, 4), dtype=np.float)
         self._tform_w2e[3, 3] = 1
         self._tform_w2e[0:3, 0:3] = self._rotm_w2e
-        trvec = np.array([self._ego_transform.location.x,
-                          -self._ego_transform.location.y,
-                          -self._ego_transform.location.z]).T
+        trvec = np.array([self._carla_tform.location.x,
+                          -self._carla_tform.location.y,
+                          -self._carla_tform.location.z]).T
         self._tform_w2e[0:3, 3] = - self._rotm_w2e.dot(trvec)
