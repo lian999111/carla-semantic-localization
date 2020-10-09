@@ -28,7 +28,7 @@ from carlasim.carla_tform import Transform
 from carlasim.utils import TrafficSignType, get_fbumper_location
 
 
-class RSStopSignDetectionSimulator(object):
+class RSStopDetectionSimulator(object):
     """
     Class for road surface stop sign detection simulation.
     """
@@ -120,7 +120,7 @@ def main(folder_name, idx=None):
     ax[1].set_ylim((-5, 60))
     plt.show(block=False)
 
-    rs_stop_detector = RSStopSignDetectionSimulator(
+    rs_stop_detector = RSStopDetectionSimulator(
         traffic_signs, carla_config['gt']['rs_stop_sign'])
 
     if idx is not None:
