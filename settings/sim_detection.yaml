@@ -1,0 +1,8 @@
+## Defines parameters for simulated detecion
+rs_stop:
+  # Scale longitudinal distance to simulate error
+  scale: 1.0
+  # Mean parameter in the noise model for longitudinal distance.
+  noise_bias: 0.0
+  # Standard deviation parameter in the noise model for longitudinal distance.
+  noise_stddev: 0.0
