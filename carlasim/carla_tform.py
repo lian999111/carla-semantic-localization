@@ -56,7 +56,7 @@ class Transform:
     @classmethod
     def from_conventional(cls, location, orientation):
         """
-        Create a CarlaW2ETform from given location and orientation in right-handed z-up coordinate system.
+        Create a Transform from given location and orientation in conventional right-handed z-up coordinate system.
 
         The input location and orientation should follow the right-handed z-up coordinate system.
 
@@ -64,7 +64,7 @@ class Transform:
             location: Array-like (x, y, z) coordinate.
             orientation: Array-like (roll, pitch, yaw) in rad.
         Output:
-            An instance of CarlaW2ETform.
+            An instance of Transform.
         """
         # Make sure inputs are np.ndarray with right shape
         if isinstance(location, np.ndarray):
