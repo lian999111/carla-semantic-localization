@@ -16,7 +16,7 @@ world:
   delta_seconds: &delta_seconds 0.1  # seconds per tick
   
   # Built-in map
-  map: Town03
+  map: Town04
   
   # Carla weathers (in alphabetic order)
   # 0 - ClearNoon
@@ -34,7 +34,7 @@ world:
   # 12 - WetCloudySunset
   # 13 - WetNoon
   # 14 - WetSunset
-  weather: 4
+  weather: 0
 
 ## Autopilot
 autopilot:
@@ -48,9 +48,9 @@ ego_veh:
   use_random_spawn_point: False
   # x, y, z in Carla's coordinate system (left-handed z-up)
   spawn_location:
-    - 229.67
-    - 80.99
-    - 0.59
+    - 236.5
+    - -44.7
+    - 0.0
   # pitch, yaw, roll (deg) in Carla's coordinate system (right-handed z-down)
   spawn_orientation:
     - 0.0
@@ -115,6 +115,10 @@ gt:
     raxle_to_fbumper: *raxle_to_fbumper    # (m) Distance from rear axle to front bumper in x
   lane:
     radius: 9      # (m) Search radius for lane markings
+  rs_stop_sign:
+    radius: 30                     # (m) Search radius for road surface stop sign actors
+    max_lateral_offset: 1.75       # (m) Max lateral offset within which the sign can be extracted
+    max_yaw_diff: 0.18             # (rad) Max heading difference within which the sign can be extracted
 
 ## Recorder
 # Each toggle specifies whether its corresponding data are recoreded when the recorder is activated

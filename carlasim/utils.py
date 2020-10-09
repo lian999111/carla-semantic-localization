@@ -15,6 +15,8 @@ import carla
 from enum import Enum
 import numpy as np
 
+from carlasim.carla_tform import Transform
+
 
 class LaneMarkingType(Enum):
     """
@@ -169,4 +171,21 @@ class TrafficSign(object):
         self.z = carla_location.z
         self.type = traffic_sign_type
         self.yaw = carla_rotation.yaw * np.pi / 180     # to rad
+
+
+def get_fbumper_location(raxle_location, raxle_orientation, dist_raxle_to_fbumper):
+    """
+    Helper function to get the front bumper's location in right-haned z-up frame given the pose of the rear axle.
+
+    Input:
+        location: Array-like (x, y, z) coordinate.
+        orientation: Array-like (roll, pitch, yaw) in rad.
+    Output:
+        1D numpy.array representing a 3D point in the right-handed z-up coordinate system.
+    """
+    tform = Transform.from_conventional(raxle_location, raxle_orientation)
+    fbumper_pt_in_ego = np.array([dist_raxle_to_fbumper, 0, 0])
+    return tform.tform_e2w_numpy_array(fbumper_pt_in_ego).squeeze()     # make it 1D
+
+
 

@@ -634,3 +634,93 @@ class LaneGTExtractor(object):
                 return waypoint_of_interest.right_lane_marking
             else:
                 return waypoint_of_interest.left_lane_marking
+
+
+class RSStopGTExtractor(object):
+    """ 
+    Class for road surface stop sign ground truth extraction. 
+
+    This class is intended to be used not only during data collection, but also localization.
+    It can be updated with an specified pose in the right-handed z-up convention and extract the lane ground truth.
+    """
+
+    def __init__(self, traffic_signs, rs_stop_gt_config):
+        """
+        Constructor.
+
+        Input:
+            traffic_signs: List of TrafficSigns.
+        """
+        self._radius = rs_stop_gt_config['radius']
+        self._max_lateral_offset = rs_stop_gt_config['max_lateral_offset']
+        self._max_yaw_diff = rs_stop_gt_config['max_yaw_diff']
+
+        # A list of TrafficSigns that are road surface stop signs
+        self.rs_stops = [
+            sign for sign in traffic_signs if sign.type == TrafficSignType.RSStop]
+        # A 2D array where each row is a 2D coordinate of a road surface stop sign
+        self.rs_stop_coords = np.asarray([
+            [sign.x, sign.y, sign.z] for sign in traffic_signs if sign.type == TrafficSignType.RSStop])
+        self._kd_coords = KDTree(self.rs_stop_coords)
+
+        # Container for visible road surface stop signs in the near front
+        self.gt = {}
+        self.gt['visible_rs_stop'] = None
+
+    def update(self, location, rotation):
+        """
+        Update lane ground truth at the current tick. 
+
+        The ground truth result is wrt to the given pose.
+        e.g. If the front bumper's pose is given, the resulting lane markings are wrt the front bumper.
+
+        Input:
+            location: Array-like 3D query point in world (right-handed z-up).
+            rotation: Array-like roll pitch yaw rotation representation in rad (right-handed z-up). 
+        Output:
+            Dictionary container for the ground truth.
+        """
+        # Find stop signs on road in the neighborhood
+        nearest_idc = self._kd_coords.query_ball_point(
+            location[0:3], r=self._radius)
+
+        if not nearest_idc:
+            self.gt['visible_rs_stop'] = None
+            return self.gt
+
+        # Pick out coordinates of interest
+        candidate_coords = []
+        for idx in nearest_idc:
+            # Compare yaw angles. Only pick those with within yaw difference threshold.
+            curr_sign = self.rs_stops[idx]
+            yaw_diff = abs(curr_sign.yaw - rotation[2])
+
+            if ((yaw_diff < self._max_yaw_diff) or
+                    (np.pi-self._max_yaw_diff < yaw_diff < np.pi+self._max_yaw_diff) or
+                    (yaw_diff > 2*np.pi-self._max_yaw_diff)):
+                candidate_coords.append(self.rs_stop_coords[idx])
+
+        # Make it a numpy array where each column is a 3D point
+        candidate_coords = np.asarray(candidate_coords).T
+
+        # Transform the coordinates into ego frame
+        w2e_tform = Transform.from_conventional(location, rotation)
+        # Each column is a 3D point in ego frame
+        candidate_coords_in_ego = w2e_tform.tform_w2e_numpy_array(
+            candidate_coords)
+
+        # Filter out signs behind
+        candidate_coords_in_ego = candidate_coords_in_ego[
+            :, candidate_coords_in_ego[0, :] > 0]
+
+        # Filter out signs with large lateral offsets
+        candidate_coords_in_ego = candidate_coords_in_ego[:, np.abs(
+            candidate_coords_in_ego[1, :]) < self._max_lateral_offset]
+
+        if candidate_coords_in_ego.size == 0:
+            self.gt['visible_rs_stop'] = None
+        else:
+            # Each column is a 3D point in ego frame
+            self.gt['visible_rs_stop'] = candidate_coords_in_ego
+
+        return self.gt
