@@ -141,7 +141,7 @@ class TrafficSignType(Enum):
     Enum that defines the traffic sign types.
     """
     Stop = 0
-    StopOnRoad = 1  # the big STOP sign printed on road surface
+    RSStop = 1  # Road surface stop sign
     Yield = 2
     SpeedLimit = 3
     TrafficLight = 4

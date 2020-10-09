@@ -18,7 +18,9 @@ import carla
 from enum import Enum
 import numpy as np
 import queue
-from carlasim.carla_tform import CarlaW2ETform
+from scipy.spatial import KDTree
+
+from carlasim.carla_tform import Transform
 from carlasim.utils import LaneMarking, TrafficSignType, TrafficSign
 
 
@@ -74,9 +76,9 @@ class GroundTruthExtractor(object):
         self.lane_gt = LaneGTExtractor(carla_map, gt_config['lane'])
 
         # Set up buffer for sequential data
-        # Point to pose ground truth extractor's gt buffer
+        # Refer to pose ground truth extractor's gt buffer
         self.all_gt['seq']['pose'] = self.pose_gt.gt
-        # Point to lane ground truth extractor's gt buffer
+        # Refer to lane ground truth extractor's gt buffer
         self.all_gt['seq']['lane'] = self.lane_gt.gt
 
     def update(self):
@@ -104,7 +106,7 @@ class GroundTruthExtractor(object):
             # If the stop sign is within 1 meter from the closest waypoint, it is most likely on the road surface
             if location.distance(closest_waypt.transform.location) < 1:
                 traffic_signs.append(TrafficSign(
-                    actor, TrafficSignType.StopOnRoad))
+                    actor, TrafficSignType.RSStop))
                 if __debug__:
                     carla_world.debug.draw_arrow(
                         location, location + carla.Location(z=50))
@@ -153,14 +155,14 @@ class GroundTruthExtractor(object):
 class PoseGTExtractor(object):
     """ Class for rear axle's pose extraction. """
 
-    def __init__(self, ego_veh: carla.Actor, pose_config: dict):
+    def __init__(self, ego_veh: carla.Actor, pose_gt_config: dict):
         # Ego vehicle
         self.ego_veh = ego_veh
         self.ego_veh_tform = ego_veh.get_transform()
         # Distance from rear axle to front bumper
-        self.raxle_to_fbumper = pose_config['raxle_to_fbumper']
+        self.raxle_to_fbumper = pose_gt_config['raxle_to_fbumper']
         # Distance from rear axle to center of gravity
-        self.raxle_to_cg = pose_config['raxle_to_cg']
+        self.raxle_to_cg = pose_gt_config['raxle_to_cg']
 
         self.gt = {}
         # Rear axle in Carla's coordinate system (left-handed z-up) as a carla.Vector3D object
@@ -178,7 +180,12 @@ class PoseGTExtractor(object):
                                                  -self.ego_veh_tform.rotation.yaw]) * np.pi / 180
 
     def update(self):
-        """ Update ground truth at the current tick. """
+        """ 
+        Update ground truth at the current tick. 
+
+        Output:
+            Dictionary contariner for the ground truth.
+        """
         self.ego_veh_tform = self.ego_veh.get_transform()
 
         # Update rear axle's location and orientation (np.array in right-handed z-up frame)
@@ -240,9 +247,14 @@ class LaneGTExtractor(object):
         """
         Update lane ground truth at the current tick. 
 
+        The ground truth result is wrt to the given pose.
+        e.g. If the front bumper's pose is given, the resulting lane markings are wrt the front bumper.
+
         Input:
             location: Array-like 3D query point in world (right-handed z-up).
             rotation: Array-like roll pitch yaw rotation representation in rad (right-handed z-up).
+        Output:
+            Dictionary contariner for the ground truth.
         """
         # Convert the passed-in location into Carla's frame (left-handed z-up).
         carla_location = carla.Location(
@@ -250,15 +262,20 @@ class LaneGTExtractor(object):
         rotation = rotation * 180/np.pi  # to deg
         carla_rotation = carla.Rotation(
             roll=rotation[0], pitch=rotation[1], yaw=rotation[2])
-        self.update_using_carla_transform(
+        return self.update_using_carla_transform(
             carla.Transform(carla_location, carla_rotation))
 
     def update_using_carla_transform(self, carla_tform: carla.Transform):
         """ 
         Update lane ground truth using a carla.Location at the current tick. 
 
+        The ground truth result is wrt to the given pose.
+        e.g. If the front bumper's pose is given, the resulting lane markings are wrt the front bumper.
+
         Input:
             carla_tform: carla.Transform query point following Carla's coordinate convention.
+        Output:
+            Dictionary contariner for the ground truth.
         """
         self._carla_tform = carla_tform
         carla_location = self._carla_tform.location
