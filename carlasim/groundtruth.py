@@ -198,6 +198,8 @@ class PoseGTExtractor(object):
                                                  -self.ego_veh_tform.rotation.pitch,
                                                  -self.ego_veh_tform.rotation.yaw]) * np.pi / 180   # rad
 
+        return self.gt
+
     def get_fbumper_carla_tform(self):
         """ Get front bumper's carla.Transform. """
         fbumper_location = self.ego_veh_tform.transform(
@@ -394,6 +396,8 @@ class LaneGTExtractor(object):
             self.gt['next_left_marking'] = None
             self.gt['right_marking'] = None
             self.gt['next_right_marking'] = None
+
+        return self.gt
 
     def _find_candidate_markings(self):
         """ 
