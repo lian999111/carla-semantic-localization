@@ -125,18 +125,34 @@ class GroundTruthExtractor(object):
 
         # Yield signs
         for actor in actor_list.filter('traffic.yield'):
+            location = actor.get_location()
+            closest_waypt = carla_map.get_waypoint(location)
+            # If the sign is within 1 meter from the closest waypoint, it is most likely on the road surface without a pole.
+            # In this case, simply ignore the actor.
+            # Although some traffic sign actors with an actual pole are found to be strangely placed in a lane in Town04 and
+            # will be ignored incorrectly, they should be rare and acceptable. 
+            if location.distance(closest_waypt.transform.location) < 1:
+                continue
+
             traffic_signs.append(TrafficSign(actor, TrafficSignType.Yield))
             if __debug__:
-                location = actor.get_location()
                 carla_world.debug.draw_arrow(
                     location, location + carla.Location(z=50), color=carla.Color(0, 0, 255))
 
         # Speed limit signs
         for actor in actor_list.filter('traffic.speed_limit.*'):
+            location = actor.get_location()
+            closest_waypt = carla_map.get_waypoint(location)
+            # If the sign is within 1 meter from the closest waypoint, it is most likely on the road surface without a pole.
+            # In this case, simply ignore the actor.
+            # Although some traffic sign actors with an actual pole are found to be strangely placed in a lane in Town04 and
+            # will be ignored incorrectly, they should be rare and acceptable. 
+            if location.distance(closest_waypt.transform.location) < 1:
+                continue
+
             traffic_signs.append(TrafficSign(
                 actor, TrafficSignType.SpeedLimit))
             if __debug__:
-                location = actor.get_location()
                 carla_world.debug.draw_arrow(
                     location, location + carla.Location(z=50), color=carla.Color(255, 0, 255))
 
