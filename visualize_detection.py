@@ -35,11 +35,6 @@ def visualize(folder_name):
     with args.vision_params as vision_params_file:
         vision_params = yaml.safe_load(vision_params_file)
 
-    # For correcting pole ground truth
-    dist_cam_to_fbumper = (carla_config['ego_veh']['raxle_to_fbumper']
-                           - carla_config['sensor']['front_camera']['pos_x']
-                           - carla_config['ego_veh']['raxle_to_cg'])
-
     # Load camera parameters
     with open('calib_data.pkl', 'rb') as f:
         calib_data = pickle.load(f)
