@@ -1,0 +1,19 @@
+## Parameters for finding pole ground truth
+pole_extraction:
+  # The pole detection algorithm finds bounding boxes aroung connected pole labels beneath the vanish point
+  # Minimum height of the bounding box around a pole
+  min_height: 0
+  # Minimum width of the bounding box around a pole
+  min_width: 0
+  # Maximum width of the bounding box around a pole
+  max_width: 50
+
+clustering:
+  # The maximum distance between two samples for one to be considered as in the neighborhood of the other.
+  eps: 0.3  # (m)
+  # The number of samples in a neighborhood for a point to be considered as a core point. This includes the point itself.
+  min_samples: 2
+
+classification:
+  # The max distance between a TrafficSign and a pole that are to be associated.
+  perimeter: 3  # (m)

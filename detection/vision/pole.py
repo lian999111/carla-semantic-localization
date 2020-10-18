@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from detection.vision.camproj import im2world_known_z, im2world_known_x
 from detection.vision.utils import find_pole_bases, decode_depth
 
+
 class PoleDetector(object):
     """ 
     Class for pole-like objects detection from semantic segmentation images. 
@@ -30,7 +31,6 @@ class PoleDetector(object):
             R: Numpy.array of 3x3 matrix for rotation matrix of the reference frame wrt the camera frame.
             x0: 3-by-1 Numpy.array representing camera's origin (principal point) wrt the front bumper's frame.
             pole_detect_params: Dict object storing pole detection algorithm parameters.
-            vp: Array-like representing 2D vanish point in the image. If not given, image center is used.
         """
         self.K = K
         self.R = R
@@ -56,20 +56,44 @@ class PoleDetector(object):
         """
         Update measurement of poles.
 
+        It calls find_pole_bases() first to find pole bases in the passed-in image, then calls _get_pole_xy_fbumper() to get the x-y coordinates
+        in the front bumper's frame.
+
         Input: 
             pole_image: OpenCV image with supported data type (e.g. np.uint8). The image should have non-zero values only
-                        at pole pixels, which is easy to obtained from a semantic image.
+                        at pole pixels, which is easy to obtain from a semantic image.
             upper_lim:  Position of the upper_lim in the image (wrt the top of image). If not given, half point of image is used.
                         Note that larger upper_lim value means lower in image since it's the v coordinate.
             z: Assumed z coordinates perpendicular to ground of corresponding points
         Output:
             2-by-N Numpy.array containing x-y coordinates of pole bases wrt the front bumper.
         """
-        self._find_pole_bases(pole_image, upper_lim)
+        self.find_pole_bases(pole_image, upper_lim)
         self._get_pole_xy_fbumper(z)
         return self.pole_bases_xy
 
-    def _find_pole_bases(self, pole_image, upper_lim=None):
+    def get_pole_xyz_from_depth(self, depth_image, dist_cam_to_fbumper):
+        """
+        Derive the x-y coordinates wrt the front bumper of the currently-detected pole bases given the depth image.
+
+        If no bases were found, it returns None.
+
+        Input:
+            depth_image: Numpy.array of depth image with np.float64 numbers representating depths of pixels.
+                          It must have the same size as the pole_image used to detect the poles.
+            dist_cam_to_fbumper: Longitudinal distance from the camera's principal point to the front bumper.
+        Output:
+            3-by-N Numpy.array containing x-y coordinates of pole bases wrt the front bumper. None if no bases were found.
+        """
+        if self.pole_bases_uv is None:
+            return None
+        
+        x_world = depth_image[self.pole_bases_uv[1],
+                              self.pole_bases_uv[0]] - dist_cam_to_fbumper
+        # In front bumper's frame
+        return im2world_known_x(self.H, self.x0, self.pole_bases_uv, x_world)
+
+    def find_pole_bases(self, pole_image, upper_lim=None):
         """
         Find bases of poles in the given image.
 
@@ -140,7 +164,7 @@ def single(folder_name, image_idx):
     path_to_folder = os.path.join('recordings', folder_name)
     with open(os.path.join(path_to_folder, 'sensor_data.pkl'), 'rb') as f:
         sensor_data = pickle.load(f)
-        
+
     ss_images = sensor_data['semantic_camera']['ss_image']
     depth_buffers = sensor_data['depth_camera']['depth_buffer']
 

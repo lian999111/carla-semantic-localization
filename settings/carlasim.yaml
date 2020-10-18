@@ -115,10 +115,6 @@ gt:
     raxle_to_fbumper: *raxle_to_fbumper    # (m) Distance from rear axle to front bumper in x
   lane:
     radius: 9      # (m) Search radius for lane markings
-  rs_stop_sign:
-    radius: 30                     # (m) Search radius for road surface stop sign actors
-    max_lateral_offset: 1.75       # (m) Max lateral offset within which the sign can be extracted
-    max_yaw_diff: 0.18             # (rad) Max heading difference within which the sign can be extracted
 
 ## Recorder
 # Each toggle specifies whether its corresponding data are recoreded when the recorder is activated
