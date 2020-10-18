@@ -139,7 +139,7 @@ def main(folder_name, idx=None):
     plt.show(block=False)
 
     rs_stop_detector = RSStopDetectionSimulator(
-        traffic_signs, carla_config['gt']['rs_stop_sign'], sim_detection_config['rs_stop'])
+        traffic_signs, sim_detection_config['rs_stop_gt_extractor'], sim_detection_config['rs_stop'])
 
     if idx is not None:
         raxle_location = raxle_locations[idx]
