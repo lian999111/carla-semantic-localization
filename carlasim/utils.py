@@ -121,12 +121,12 @@ class LaneMarking(object):
 
     @classmethod
     def from_carla_lane_marking(cls, lane_marking):
-        """Creates a pylot LaneMarking from a CARLA lane marking.
-        Args:
-            lane_marking (:py:class:`carla.LaneMarking`): An instance of a
-                CARLA lane marking.
-        Returns:
-            :py:class:`.LaneMarking`: A pylot lane-marking.
+        """
+        Creates a LaneMarking from a CARLA lane marking.
+        Input:
+            lane_marking: An instance of a Carla.LaneMarking.
+        Output:
+            LaneMarking object.
         """
         return cls(lane_marking.color, lane_marking.type)
 
