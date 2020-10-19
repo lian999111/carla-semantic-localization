@@ -52,56 +52,6 @@ class LaneMarkingColor(Enum):
     Other = 5
 
 
-class MELaneMarkingType(Enum):
-    """
-    Enum that defines the lane marking types according to ME's definition.
-    """
-    Unknown = 0
-    Undecided = 1
-    SolidMarker = 2
-    DashedMarker = 3
-    DoubleLine_Unspecific = 4
-    DoubleLine_LeftDashed = 5
-    DoubleLine_RightDashed = 6
-    DoubleLine_BothSolid = 7
-    DoubleLine_BothDashed = 8
-    BottsDotts = 9
-    RoadEdge = 10
-    Barrier = 11
-
-
-def to_me_lane_marking_type(lane_id, carla_lane_marking_type):
-    """
-    Convert carla.LaneMarkingType to ME's definition.
-    """
-    if carla_lane_marking_type == carla.LaneMarkingType.NONE:
-        return MELaneMarkingType.Unknown
-    elif carla_lane_marking_type == carla.LaneMarkingType.Other:
-        return MELaneMarkingType.Unknown
-    elif carla_lane_marking_type == carla.LaneMarkingType.Broken:
-        return MELaneMarkingType.DashedMarker
-    elif carla_lane_marking_type == carla.LaneMarkingType.Solid:
-        return MELaneMarkingType.SolidMarker
-    elif carla_lane_marking_type == carla.LaneMarkingType.SolidSolid:
-        return MELaneMarkingType.DoubleLine_BothSolid
-    elif carla_lane_marking_type == carla.LaneMarkingType.SolidBroken:
-        if lane_id < 0:
-            return MELaneMarkingType.DoubleLine_RightDashed
-        else:
-            return MELaneMarkingType.DoubleLine_LeftDashed
-    elif carla_lane_marking_type == carla.LaneMarkingType.BrokenSolid:
-        if lane_id < 0:
-            return MELaneMarkingType.DoubleLine_LeftDashed
-        else:
-            return MELaneMarkingType.DoubleLine_LeftDashed
-    elif carla_lane_marking_type == carla.LaneMarkingType.BottsDot:
-        return MELaneMarkingType.BottsDotts
-    elif carla_lane_marking_type == carla.LaneMarkingType.Grass:
-        return MELaneMarkingType.RoadEdge
-    elif carla_lane_marking_type == carla.LaneMarkingType.Curb:
-        return MELaneMarkingType.RoadEdge
-
-
 class LaneMarking(object):
     """
     Used to represent a lane marking.
@@ -123,6 +73,7 @@ class LaneMarking(object):
     def from_carla_lane_marking(cls, lane_marking):
         """
         Creates a LaneMarking from a CARLA lane marking.
+
         Input:
             lane_marking: An instance of a Carla.LaneMarking.
         Output:
@@ -186,7 +137,5 @@ def get_fbumper_location(raxle_location, raxle_orientation, dist_raxle_to_fbumpe
     """
     tform = Transform.from_conventional(raxle_location, raxle_orientation)
     fbumper_pt_in_ego = np.array([dist_raxle_to_fbumper, 0, 0])
-    return tform.tform_e2w_numpy_array(fbumper_pt_in_ego).squeeze()     # make it 1D
-
-
-
+    # make it 1D
+    return tform.tform_e2w_numpy_array(fbumper_pt_in_ego).squeeze()
