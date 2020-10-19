@@ -26,9 +26,9 @@ from detection.vision.pole import PoleDetector
 from detection.vision.camproj import im2world_known_z, im2world_known_x
 from detection.vision.utils import find_pole_bases, decode_depth
 from detection.rs_stop import RSStopDetectionSimulator
-from detection.utils import Pole
+from detection.utils import Pole, MELaneMarking, MELaneMarkingType
 from detection.pole_map import gen_pole_map
-from carlasim.utils import get_fbumper_location, Transform
+from carlasim.utils import get_fbumper_location, Transform, LaneMarkingColor
 
 
 def dir_path(path):
@@ -112,6 +112,12 @@ def main():
     raxle_locations = gt_data['seq']['pose']['raxle_location']
     raxle_orientations = gt_data['seq']['pose']['raxle_orientation']
 
+    left_marking_coeffs_seq = gt_data['seq']['lane']['left_marking_coeffs']
+    left_marking_seq = gt_data['seq']['lane']['left_marking']
+    right_marking_coeffs_seq = gt_data['seq']['lane']['right_marking_coeffs']
+    right_marking_seq = gt_data['seq']['lane']['right_marking']
+    lane_id_seq = gt_data['seq']['lane']['lane_id']
+
     # Create detector objects
     pole_detector = PoleDetector(K, R, x0, vision_config['pole'])
     lane_detector = LaneMarkingDetector(M, px_per_meter_x, px_per_meter_y,
@@ -130,6 +136,10 @@ def main():
     # Container to accumulate accurate world coordinates of poles at each step
     all_accurate_poles = []
 
+    # Containers for detection sequences
+    left_lane_makring_detections = []
+    right_lane_marking_detections = []
+
     # Loop over recorded data
     for image_idx, (ss_image, depth_buffer) in enumerate(zip(ss_images, depth_buffers)):
         # Retrieve data at current step
@@ -144,6 +154,12 @@ def main():
         fbumper_location = get_fbumper_location(
             raxle_location, raxle_orientation, dist_raxle_to_fbumper)
         fbumper_orientation = raxle_orientation
+        # Lane markings
+        left_coeffs_gt = left_marking_coeffs_seq[image_idx]
+        left_marking_gt = left_marking_seq[image_idx]
+        right_coeffs_gt = right_marking_coeffs_seq[image_idx]
+        right_marking_gt = right_marking_seq[image_idx]
+        lane_id = lane_id_seq[image_idx]
 
         # Pole detection (wrt front bumper)
         # x-y coordinates assuming z = 0
@@ -155,7 +171,32 @@ def main():
         # Lane detection (wrt front bumper)
         left_coeffs, right_coeffs = lane_detector.update_lane_coeffs(
             lane_image, yaw_rates[image_idx])
-        # TODO: Add lane type
+        
+        # Add color and type properties as part of lane detections
+        # The simulated detections are first compared to the ground truth. If the coefficients are close to the ground truth,
+        # the recorded marking properties are used as the classification result. 
+        # It should be noted that due to the lane detection algorithm implementation details, when the ego vehicle makes a lane
+        # change, the detected lane markings will switch to the next lane before the front bumper's center actually enters the next lane.
+        # That is, there will be some time points when the lane detection returns the next lane already while the recorded ground truth
+        # remains in the current lane since it is based on the front bumper's actual location. In this case, detections will be created
+        # with "Other" color and "Unknown" type.
+        if left_coeffs is None:
+            left_lane_makring_detections.append(None)
+        elif abs(left_coeffs[-1] - left_coeffs_gt[0]) < 0.5 and abs(left_coeffs[-2] - left_coeffs_gt[1]) < 0.5:
+            left_lane_makring_detections.append(MELaneMarking.from_lane_marking(
+                left_coeffs, left_marking_gt, lane_id, 0.0))
+        else:
+            left_lane_makring_detections.append(MELaneMarking(
+                left_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown))
+
+        if right_coeffs is None:
+            right_lane_marking_detections.append(None)
+        elif abs(right_coeffs[-1] - right_coeffs_gt[0]) < 0.5 and abs(right_coeffs[-2] - right_coeffs_gt[1]) < 0.5:
+            right_lane_marking_detections.append(MELaneMarking.from_lane_marking(
+                right_coeffs, right_marking_gt, lane_id, 0.0))
+        else:
+            right_lane_marking_detections.append(MELaneMarking(
+                right_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown))
 
         # RS stop sign detection (wrt front bumper)
         longi_dist_to_rs_stop = rs_stop_detector.update_rs_stop(
@@ -183,8 +224,9 @@ def main():
     all_accurate_poles_xy = np.concatenate(
         all_accurate_poles, axis=1)[0:2, :]  # 2-by-N
 
-    pole_map = gen_pole_map(all_accurate_poles_xy, traffic_signs, pole_map_config)
-    
+    pole_map = gen_pole_map(all_accurate_poles_xy,
+                            traffic_signs, pole_map_config)
+
     # TODO: Add pole classification
 
 
