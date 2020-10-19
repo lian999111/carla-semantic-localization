@@ -1,20 +1,8 @@
 # Implementations of utilities for detection
-import glob
-import os
-import sys
 from enum import Enum
 import random
 
-try:
-    sys.path.append(glob.glob('./carla-*%d.%d-%s.egg' % (
-        sys.version_info.major,
-        sys.version_info.minor,
-        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
-except IndexError:
-    pass
-import carla
-
-from carlasim.utils import TrafficSignType, LaneMarkingColor
+from carlasim.utils import TrafficSignType, LaneMarkingType, LaneMarkingColor, LaneMarking
 from carlasim.carla_tform import Transform
 
 
@@ -57,38 +45,38 @@ class MELaneMarkingType(Enum):
     Barrier = 11
 
 
-def to_me_lane_marking_type(lane_id, carla_lane_marking_type):
+def to_me_lane_marking_type(lane_id, lane_marking_type):
     """
-    Convert carla.LaneMarkingType to ME's definition.
+    Convert LaneMarkingType to MELaneMarkingType.
 
     Input:
-        carla_lane_marking_type: An instance of Carla.LaneMarkingType.
+        lane_marking_type: An instance of LaneMarkingType.
     """
-    if carla_lane_marking_type == carla.LaneMarkingType.NONE:
+    if lane_marking_type == LaneMarkingType.NONE:
         return MELaneMarkingType.Unknown
-    if carla_lane_marking_type == carla.LaneMarkingType.Other:
+    if lane_marking_type == LaneMarkingType.Other:
         return MELaneMarkingType.Unknown
-    if carla_lane_marking_type == carla.LaneMarkingType.Broken:
+    if lane_marking_type == LaneMarkingType.Broken:
         return MELaneMarkingType.DashedMarker
-    if carla_lane_marking_type == carla.LaneMarkingType.Solid:
+    if lane_marking_type == LaneMarkingType.Solid:
         return MELaneMarkingType.SolidMarker
-    if carla_lane_marking_type == carla.LaneMarkingType.SolidSolid:
+    if lane_marking_type == LaneMarkingType.SolidSolid:
         return MELaneMarkingType.DoubleLine_BothSolid
-    if carla_lane_marking_type == carla.LaneMarkingType.SolidBroken:
+    if lane_marking_type == LaneMarkingType.SolidBroken:
         if lane_id < 0:
             return MELaneMarkingType.DoubleLine_RightDashed
         else:
             return MELaneMarkingType.DoubleLine_LeftDashed
-    if carla_lane_marking_type == carla.LaneMarkingType.BrokenSolid:
+    if lane_marking_type == LaneMarkingType.BrokenSolid:
         if lane_id < 0:
             return MELaneMarkingType.DoubleLine_LeftDashed
         else:
             return MELaneMarkingType.DoubleLine_RightDashed
-    if carla_lane_marking_type == carla.LaneMarkingType.BottsDot:
+    if lane_marking_type == LaneMarkingType.BottsDot:
         return MELaneMarkingType.BottsDotts
-    if carla_lane_marking_type == carla.LaneMarkingType.Grass:
+    if lane_marking_type == LaneMarkingType.Grass:
         return MELaneMarkingType.RoadEdge
-    if carla_lane_marking_type == carla.LaneMarkingType.Curb:
+    if lane_marking_type == LaneMarkingType.Curb:
         return MELaneMarkingType.RoadEdge
 
 
@@ -117,8 +105,8 @@ class MELaneMarking(object):
 
         Input:
             coeffs: List containing coefficients of the polynomial.
-            lane_marking: An instance of a Carla.LaneMarking.
-            lane_id: Lane ID the ego vehicle is on.
+            lane_marking: An instance of a LaneMarking.
+            lane_id: ID of the lane the ego vehicle is on.
             fc_prob: false classification probability. If nonzero, the lane type is assigned randomly to a wrong type.
         Output:
             MELaneMarking object.
