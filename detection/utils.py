@@ -99,13 +99,13 @@ class MELaneMarking(object):
         self.type = MELaneMarkingType(me_lane_marking_type)
 
     @classmethod
-    def from_carla_lane_marking(cls, coeffs, lane_marking, lane_id, fc_prob):
+    def from_lane_marking(cls, coeffs, lane_marking, lane_id, fc_prob):
         """
-        Creates an MELaneMarking from a CARLA lane marking.
+        Creates an MELaneMarking with a LaneMarking and other information.
 
         Input:
             coeffs: List containing coefficients of the polynomial.
-            lane_marking: An instance of a LaneMarking.
+            lane_marking: An instance of LaneMarking.
             lane_id: ID of the lane the ego vehicle is on.
             fc_prob: false classification probability. If nonzero, the lane type is assigned randomly to a wrong type.
         Output:
