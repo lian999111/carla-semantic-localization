@@ -98,7 +98,7 @@ class TrafficSignType(Enum):
     Yield = 2
     SpeedLimit = 3
     TrafficLight = 4
-    NONE = 5
+    Unknown = 5
 
 
 class TrafficSign(object):

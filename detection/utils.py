@@ -13,7 +13,7 @@ class Pole(object):
     The internal data follows the right-handed z-up coordinate system.
     """
 
-    def __init__(self, x, y, traffic_sign_type=TrafficSignType.NONE):
+    def __init__(self, x, y, traffic_sign_type=TrafficSignType.Unknown):
         """
         Constructor.
 
