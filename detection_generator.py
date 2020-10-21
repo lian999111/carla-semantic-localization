@@ -199,7 +199,7 @@ def main():
         else:
             # True positive. Thresholding doesn't guarantee definite true positive nevertheless.
             left_lane_makring_detections.append(MELaneMarking.from_lane_marking(
-                left_coeffs, left_marking_gt, lane_id, 0.0))
+                left_coeffs, left_marking_gt, lane_id, lane_detection_sim_config['perturb_prob']))
 
         if right_coeffs is None:
             # No detection
@@ -212,7 +212,7 @@ def main():
         else:
             # True positive. Thresholding doesn't guarantee definite true positive nevertheless.
             right_lane_marking_detections.append(MELaneMarking.from_lane_marking(
-                right_coeffs, right_marking_gt, lane_id, 0.0))
+                right_coeffs, right_marking_gt, lane_id, lane_detection_sim_config['perturb_prob']))
 
         # RS stop sign detection (wrt front bumper)
         longi_dist_to_rs_stop = rs_stop_detector.update_rs_stop(
