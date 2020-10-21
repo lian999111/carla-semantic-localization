@@ -20,6 +20,7 @@ import numpy as np
 from scipy.spatial import KDTree
 import pickle
 import matplotlib.pyplot as plt
+from shutil import copyfile
 
 from detection.vision.lane import LaneMarkingDetector
 from detection.vision.pole import PoleDetector
@@ -54,7 +55,7 @@ def main():
     args = argparser.parse_args()
 
     # Read carla simulation configs of the recording
-    path_to_config = os.path.join(args.recording_dir, 'config.yaml')
+    path_to_config = os.path.join(args.recording_dir, 'settings/config.yaml')
     with open(path_to_config, 'r') as f:
         carla_config = yaml.safe_load(f)
 
@@ -221,7 +222,7 @@ def main():
             me_lane_marking = MELaneMarking.from_lane_marking(
                 left_coeffs, left_marking_gt, lane_id)
             # Perturb lane marking type
-            me_lane_marking.perturb_type(lane_detection_sim_config['perturb_prob'])
+            me_lane_marking.perturb_type(lane_detection_sim_config['fc_prob'])
             left_lane_makring_detection_seq.append(me_lane_marking)
 
         if right_coeffs is None:
@@ -237,7 +238,7 @@ def main():
             me_lane_marking = MELaneMarking.from_lane_marking(
                 right_coeffs, right_marking_gt, lane_id)
             # Perturb lane marking type
-            me_lane_marking.perturb_type(lane_detection_sim_config['perturb_prob'])
+            me_lane_marking.perturb_type(lane_detection_sim_config['fc_prob'])
             right_lane_marking_detection_seq.append(me_lane_marking)
 
         ############ RS stop sign detection (wrt front bumper) ############
@@ -290,7 +291,15 @@ def main():
                     detections[pole_idx].perturb_type(
                         pole_detection_sim_config['fc_prob'])
 
-    a = 1
+    ############ Save data ############
+    # Copy configuration files for future reference
+    dst = os.path.join(args.recording_dir, 'settings/vision.yaml')
+    copyfile(args.vision_config.name, dst)
+    dst = os.path.join(args.recording_dir, 'settings/sim_detection.yaml')
+    copyfile(args.sim_detection_config.name, dst)
+    dst = os.path.join(args.recording_dir, 'settings/pole_map.yaml')
+    copyfile(args.pole_map_config.name, dst)
+
 
 
 if __name__ == "__main__":
