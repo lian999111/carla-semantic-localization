@@ -189,24 +189,30 @@ def main():
 
         # Coeffs from detector are in descending order, while those from ground truth are in ascending order
         if left_coeffs is None:
+            # No detection
             left_lane_makring_detections.append(None)
-        elif (abs(left_coeffs[-1] - left_coeffs_gt[0]) < lane_detection_sim_config['c0_thres'] and
-              abs(left_coeffs[-2] - left_coeffs_gt[1]) < lane_detection_sim_config['c1_thres']):
-            left_lane_makring_detections.append(MELaneMarking.from_lane_marking(
-                left_coeffs, left_marking_gt, lane_id, 0.0))
-        else:
+        elif left_coeffs_gt is None or (abs(left_coeffs[-1] - left_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] and
+                                        abs(left_coeffs[-2] - left_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
+            # False positive
             left_lane_makring_detections.append(MELaneMarking(
                 left_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown))
+        else:
+            # True positive. Thresholding doesn't guarantee definite true positive nevertheless.
+            left_lane_makring_detections.append(MELaneMarking.from_lane_marking(
+                left_coeffs, left_marking_gt, lane_id, 0.0))
 
         if right_coeffs is None:
+            # No detection
             right_lane_marking_detections.append(None)
-        elif (abs(right_coeffs[-1] - right_coeffs_gt[0]) < lane_detection_sim_config['c0_thres'] and
-              abs(right_coeffs[-2] - right_coeffs_gt[1]) < lane_detection_sim_config['c1_thres']):
-            right_lane_marking_detections.append(MELaneMarking.from_lane_marking(
-                right_coeffs, right_marking_gt, lane_id, 0.0))
-        else:
+        elif right_coeffs_gt is None or (abs(right_coeffs[-1] - right_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] and
+                                         abs(right_coeffs[-2] - right_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
+            # False positive
             right_lane_marking_detections.append(MELaneMarking(
                 right_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown))
+        else:
+            # True positive. Thresholding doesn't guarantee definite true positive nevertheless.
+            right_lane_marking_detections.append(MELaneMarking.from_lane_marking(
+                right_coeffs, right_marking_gt, lane_id, 0.0))
 
         # RS stop sign detection (wrt front bumper)
         longi_dist_to_rs_stop = rs_stop_detector.update_rs_stop(
