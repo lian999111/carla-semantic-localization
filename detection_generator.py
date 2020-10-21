@@ -27,7 +27,7 @@ from detection.vision.pole import PoleDetector
 from detection.vision.camproj import im2world_known_z, im2world_known_x
 from detection.vision.utils import find_pole_bases, decode_depth
 from detection.rs_stop import RSStopDetectionSimulator
-from detection.utils import Pole, MELaneMarking, MELaneMarkingType
+from detection.utils import Pole, MELaneMarking, MELaneMarkingType, MELaneDetection
 from detection.pole_map import gen_pole_map
 from carlasim.utils import get_fbumper_location, Transform, LaneMarkingColor
 
@@ -146,8 +146,7 @@ def main():
     pole_detection_seq = []                     # sequence of pole detecions
     # the accurate version of detected poles in world frame
     accurate_pole_detections_in_world_seq = []
-    left_lane_makring_detection_seq = []
-    right_lane_marking_detection_seq = []
+    lane_marking_detection_seq = []
     rs_stop_detecion_seq = []
 
     # Loop over recorded data
@@ -211,35 +210,35 @@ def main():
         # Coeffs from detector are in descending order, while those from ground truth are in ascending order
         if left_coeffs is None:
             # No detection
-            left_lane_makring_detection_seq.append(None)
+            left_detection = None
         elif left_coeffs_gt is None or (abs(left_coeffs[-1] - left_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] and
                                         abs(left_coeffs[-2] - left_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
             # False positive
-            left_lane_makring_detection_seq.append(MELaneMarking(
-                left_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown))
+            left_detection = MELaneMarking(
+                left_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown)
         else:
             # True positive. Thresholding doesn't guarantee definite true positive nevertheless.
-            me_lane_marking = MELaneMarking.from_lane_marking(
+            left_detection = MELaneMarking.from_lane_marking(
                 left_coeffs, left_marking_gt, lane_id)
             # Perturb lane marking type
-            me_lane_marking.perturb_type(lane_detection_sim_config['fc_prob'])
-            left_lane_makring_detection_seq.append(me_lane_marking)
+            left_detection.perturb_type(lane_detection_sim_config['fc_prob'])
 
         if right_coeffs is None:
             # No detection
-            right_lane_marking_detection_seq.append(None)
+            right_detection = None
         elif right_coeffs_gt is None or (abs(right_coeffs[-1] - right_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] and
                                          abs(right_coeffs[-2] - right_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
             # False positive
-            right_lane_marking_detection_seq.append(MELaneMarking(
-                right_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown))
+            right_detection = MELaneMarking(
+                right_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown)
         else:
             # True positive. Thresholding doesn't guarantee definite true positive nevertheless.
-            me_lane_marking = MELaneMarking.from_lane_marking(
+            right_detection = MELaneMarking.from_lane_marking(
                 right_coeffs, right_marking_gt, lane_id)
             # Perturb lane marking type
-            me_lane_marking.perturb_type(lane_detection_sim_config['fc_prob'])
-            right_lane_marking_detection_seq.append(me_lane_marking)
+            right_detection.perturb_type(lane_detection_sim_config['fc_prob'])
+
+        lane_marking_detection_seq.append(MELaneDetection(left_detection, right_detection))
 
         ############ RS stop sign detection (wrt front bumper) ############
         longi_dist_to_rs_stop = rs_stop_detector.update_rs_stop(
@@ -300,6 +299,17 @@ def main():
     dst = os.path.join(args.recording_dir, 'settings/pole_map.yaml')
     copyfile(args.pole_map_config.name, dst)
 
+    # Save detections
+    detections = {}
+    detections['pole'] = pole_detection_seq
+    detections['lane'] = lane_marking_detection_seq
+    detections['rs_stop'] = rs_stop_detecion_seq
+    with open(os.path.join(args.recording_dir, 'detections.pkl'), 'wb') as f:
+        pickle.dump(detections, f)
+
+    # Save pole map
+    with open(os.path.join(args.recording_dir, 'pole_map.pkl.pkl'), 'wb') as f:
+        pickle.dump(pole_map, f)
 
 
 if __name__ == "__main__":

@@ -97,7 +97,7 @@ def to_me_lane_marking_type(lane_id, lane_marking_type):
 
 class MELaneMarking(object):
     """
-    Class for mobileye-like lane marking.
+    Class for mobileye-like lane marking entity.
     """
 
     def __init__(self, coeffs, marking_color, me_lane_marking_type):
@@ -145,3 +145,18 @@ class MELaneMarking(object):
                     self.type = wrong_type
                     break
 
+class MELaneDetection(object):
+    """
+    Class for mobileye-like lane detecion.
+    """
+
+    def __init__(self, left_me_marking, right_me_marking):
+        """
+        Constructor.
+
+        Input:
+            left_me_marking: An instance of MELaneMarking for left marking.
+            right_me_marking: An instance of MELaneMarking for right marking.
+        """
+        self.left_marking_detection = left_me_marking
+        self.right_marking_detection = right_me_marking
