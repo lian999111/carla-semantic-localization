@@ -147,6 +147,7 @@ def main():
     accurate_pole_detections_in_world_seq = []
     left_lane_makring_detection_seq = []
     right_lane_marking_detection_seq = []
+    rs_stop_detecion_seq = []
 
     # Loop over recorded data
     for image_idx, (ss_image, depth_buffer) in enumerate(zip(ss_images, depth_buffers)):
@@ -242,6 +243,7 @@ def main():
         ############ RS stop sign detection (wrt front bumper) ############
         longi_dist_to_rs_stop = rs_stop_detector.update_rs_stop(
             fbumper_location, fbumper_orientation)
+        rs_stop_detecion_seq.append(longi_dist_to_rs_stop)
 
         ############ Accurate poles for building pole map ############
         # The bases in image are stored internally in the detector
@@ -287,6 +289,8 @@ def main():
                     detections[pole_idx].type = pole_map[nearest_idx].type
                     detections[pole_idx].perturb_type(
                         pole_detection_sim_config['fc_prob'])
+
+    a = 1
 
 
 if __name__ == "__main__":
