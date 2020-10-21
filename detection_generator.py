@@ -179,7 +179,8 @@ def main():
         # change, the detected lane markings will switch to the next lane before the front bumper's center actually enters the next lane.
         # That is, there will be some time points when the lane detection returns the next lane already while the recorded ground truth
         # remains in the current lane since it is based on the front bumper's actual location. In this case, detections will be created
-        # with "Other" color and "Unknown" type.
+        # with "Other" color and "Unknown" type. This is also the case when there is a false positive detection as the coefficients are
+        # not consistent with the ground truth.
         if left_coeffs is None:
             left_lane_makring_detections.append(None)
         elif abs(left_coeffs[-1] - left_coeffs_gt[0]) < 0.5 and abs(left_coeffs[-2] - left_coeffs_gt[1]) < 0.5:
@@ -226,8 +227,6 @@ def main():
 
     pole_map = gen_pole_map(all_accurate_poles_xy,
                             traffic_signs, pole_map_config)
-
-    # TODO: Add pole classification
 
 
 if __name__ == "__main__":
