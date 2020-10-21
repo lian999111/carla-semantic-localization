@@ -66,6 +66,11 @@ def main():
     with args.pole_map_config as f:
         pole_map_config = yaml.safe_load(f)
 
+    # Retrieve configs of detection simulation
+    pole_detection_sim_config = sim_detection_config['pole']
+    lane_detection_sim_config = sim_detection_config['lane']
+    rs_stop_detection_sim_config = sim_detection_config['rs_stop']
+
     # Load camera parameters
     with open('calib_data.pkl', 'rb') as f:
         calib_data = pickle.load(f)
@@ -125,13 +130,13 @@ def main():
                                         dist_fbumper_to_intersect,
                                         vision_config['lane'])
     rs_stop_detector = RSStopDetectionSimulator(traffic_signs,
-                                                sim_detection_config['rs_stop'])
+                                                rs_stop_detection_sim_config)
 
     # Create a pole detector that has a stronger ability to extract poles, which is for building the pole map
     # It is stronger in that it allows smaller region of poles to be extracted so the pole map can contain more poles than those
     # detected by pole_detector
-    pole_detector_for_pole_map = pole_detector = PoleDetector(
-        K, R, x0, pole_map_config['pole_extraction'])
+    pole_detector_for_pole_map = PoleDetector(K, R, x0,
+                                              pole_map_config['pole_extraction'])
 
     # Container to accumulate accurate world coordinates of poles at each step
     all_accurate_poles = []
@@ -181,9 +186,12 @@ def main():
         # remains in the current lane since it is based on the front bumper's actual location. In this case, detections will be created
         # with "Other" color and "Unknown" type. This is also the case when there is a false positive detection as the coefficients are
         # not consistent with the ground truth.
+
+        # Coeffs from detector are in descending order, while those from ground truth are in ascending order
         if left_coeffs is None:
             left_lane_makring_detections.append(None)
-        elif abs(left_coeffs[-1] - left_coeffs_gt[0]) < 0.5 and abs(left_coeffs[-2] - left_coeffs_gt[1]) < 0.5:
+        elif (abs(left_coeffs[-1] - left_coeffs_gt[0]) < lane_detection_sim_config['c0_thres'] and
+              abs(left_coeffs[-2] - left_coeffs_gt[1]) < lane_detection_sim_config['c1_thres']):
             left_lane_makring_detections.append(MELaneMarking.from_lane_marking(
                 left_coeffs, left_marking_gt, lane_id, 0.0))
         else:
@@ -192,7 +200,8 @@ def main():
 
         if right_coeffs is None:
             right_lane_marking_detections.append(None)
-        elif abs(right_coeffs[-1] - right_coeffs_gt[0]) < 0.5 and abs(right_coeffs[-2] - right_coeffs_gt[1]) < 0.5:
+        elif (abs(right_coeffs[-1] - right_coeffs_gt[0]) < lane_detection_sim_config['c0_thres'] and
+              abs(right_coeffs[-2] - right_coeffs_gt[1]) < lane_detection_sim_config['c1_thres']):
             right_lane_marking_detections.append(MELaneMarking.from_lane_marking(
                 right_coeffs, right_marking_gt, lane_id, 0.0))
         else:
