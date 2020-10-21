@@ -124,8 +124,8 @@ def main():
                                         warped_size, valid_mask,
                                         dist_fbumper_to_intersect,
                                         vision_config['lane'])
-    rs_stop_detector = RSStopDetectionSimulator(
-        traffic_signs, sim_detection_config['rs_stop_gt_extractor'], sim_detection_config['rs_stop'])
+    rs_stop_detector = RSStopDetectionSimulator(traffic_signs,
+                                                sim_detection_config['rs_stop'])
 
     # Create a pole detector that has a stronger ability to extract poles, which is for building the pole map
     # It is stronger in that it allows smaller region of poles to be extracted so the pole map can contain more poles than those
@@ -171,10 +171,10 @@ def main():
         # Lane detection (wrt front bumper)
         left_coeffs, right_coeffs = lane_detector.update_lane_coeffs(
             lane_image, yaw_rates[image_idx])
-        
+
         # Add color and type properties as part of lane detections
         # The simulated detections are first compared to the ground truth. If the coefficients are close to the ground truth,
-        # the recorded marking properties are used as the classification result. 
+        # the recorded marking properties are used as the classification result.
         # It should be noted that due to the lane detection algorithm implementation details, when the ego vehicle makes a lane
         # change, the detected lane markings will switch to the next lane before the front bumper's center actually enters the next lane.
         # That is, there will be some time points when the lane detection returns the next lane already while the recorded ground truth

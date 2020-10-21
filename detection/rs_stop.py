@@ -33,21 +33,22 @@ class RSStopDetectionSimulator(object):
     Class for road surface stop sign detection simulation.
     """
 
-    def __init__(self, traffic_signs, rs_stop_gt_config, sim_detection_config):
+    def __init__(self, traffic_signs, rs_stop_config):
         """
         Constructor.
 
         Input:
             traffic_signs: List of TrafficSigns.
-            rs_stop_gt_config: Dict of configurations for RSStopGTExtractor.
-            rs_stop_sim_detection_config: Dict of configurations for simulated detection.
+            rs_stop_config: Dict of configurations for road surface stop sign detecion simulation.
         """
+        rs_stop_gt_config = rs_stop_config['rs_stop_gt_extractor']
+
         self.rs_stop_gt_extractor = RSStopGTExtractor(
             traffic_signs, rs_stop_gt_config)
 
-        self._scale = sim_detection_config['scale']
-        self._noise_bias = sim_detection_config['noise_bias']
-        self._noise_stddev = sim_detection_config['noise_stddev']
+        self._scale = rs_stop_config['scale']
+        self._noise_bias = rs_stop_config['noise_bias']
+        self._noise_stddev = rs_stop_config['noise_stddev']
 
         # Placeholder for the detected road surface stop sign
         self.detected_rs_stop_gt = None
@@ -84,7 +85,7 @@ class RSStopDetectionSimulator(object):
     def _add_noise(self):
         self.longitudinal_dist *= self._scale
         self.longitudinal_dist += np.random.normal(self._noise_bias,
-                                            self._noise_stddev)
+                                                   self._noise_stddev)
 
 
 def main(folder_name, idx=None):
@@ -139,7 +140,7 @@ def main(folder_name, idx=None):
     plt.show(block=False)
 
     rs_stop_detector = RSStopDetectionSimulator(
-        traffic_signs, sim_detection_config['rs_stop_gt_extractor'], sim_detection_config['rs_stop'])
+        traffic_signs, sim_detection_config['rs_stop'])
 
     if idx is not None:
         raxle_location = raxle_locations[idx]
@@ -199,7 +200,8 @@ def main(folder_name, idx=None):
                 v = homo_img_coord[1] / homo_img_coord[2]
 
                 rs_stop_in_img.set_data(u, v)
-                rs_stop_gt.set_data(detected_rs_stop_gt[1], detected_rs_stop_gt[0])
+                rs_stop_gt.set_data(
+                    detected_rs_stop_gt[1], detected_rs_stop_gt[0])
                 rs_stop_detect.set_data(detected_rs_stop_gt[1], longi_dist)
             else:
                 rs_stop_in_img.set_data([], [])
