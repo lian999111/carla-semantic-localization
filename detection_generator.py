@@ -17,9 +17,9 @@ import carla
 import argparse
 import yaml
 import numpy as np
+from scipy.spatial import KDTree
 import pickle
 import matplotlib.pyplot as plt
-from sklearn.cluster import DBSCAN
 
 from detection.vision.lane import LaneMarkingDetector
 from detection.vision.pole import PoleDetector
@@ -142,8 +142,11 @@ def main():
     all_accurate_poles = []
 
     # Containers for detection sequences
-    left_lane_makring_detections = []
-    right_lane_marking_detections = []
+    pole_detection_seq = []                     # sequence of pole detecions
+    # the accurate version of detected poles in world frame
+    accurate_pole_detections_in_world_seq = []
+    left_lane_makring_detection_seq = []
+    right_lane_marking_detection_seq = []
 
     # Loop over recorded data
     for image_idx, (ss_image, depth_buffer) in enumerate(zip(ss_images, depth_buffers)):
@@ -166,14 +169,30 @@ def main():
         right_marking_gt = right_marking_seq[image_idx]
         lane_id = lane_id_seq[image_idx]
 
-        # Pole detection (wrt front bumper)
+        # Instantiate a Transform object to make transformation between front bumper and world
+        fbumper2world_tfrom = Transform.from_conventional(
+            fbumper_location, fbumper_orientation)
+
+        ############ Pole detection (wrt front bumper) ############
         # x-y coordinates assuming z = 0
         poles_xy_z0 = pole_detector.update_poles(pole_image, z=0)
-        # Accurate x-y coordinates using ground truth depth image
-        accurate__detected_pole_xyz = pole_detector.get_pole_xyz_from_depth(
+        # Accurate x-y-z coordinates using ground truth depth image
+        accurate_detected_pole_xyz = pole_detector.get_pole_xyz_from_depth(
             depth_image, dist_cam_to_fbumper)
 
-        # Lane detection (wrt front bumper)
+        if poles_xy_z0 is not None:
+            pole_detection_seq.append(
+                [Pole(coord[0], coord[1]) for coord in poles_xy_z0.T])
+            # Add accurate detected poles to the container. This is for proximity-based labelling later.
+            accurate_detected_in_world = fbumper2world_tfrom.tform_e2w_numpy_array(
+                accurate_detected_pole_xyz)
+            accurate_pole_detections_in_world_seq.append(
+                accurate_detected_in_world)
+        else:
+            pole_detection_seq.append(None)
+            accurate_pole_detections_in_world_seq.append(None)
+
+        ############ Lane detection (wrt front bumper) ############
         left_coeffs, right_coeffs = lane_detector.update_lane_coeffs(
             lane_image, yaw_rates[image_idx])
 
@@ -190,35 +209,35 @@ def main():
         # Coeffs from detector are in descending order, while those from ground truth are in ascending order
         if left_coeffs is None:
             # No detection
-            left_lane_makring_detections.append(None)
+            left_lane_makring_detection_seq.append(None)
         elif left_coeffs_gt is None or (abs(left_coeffs[-1] - left_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] and
                                         abs(left_coeffs[-2] - left_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
             # False positive
-            left_lane_makring_detections.append(MELaneMarking(
+            left_lane_makring_detection_seq.append(MELaneMarking(
                 left_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown))
         else:
             # True positive. Thresholding doesn't guarantee definite true positive nevertheless.
-            left_lane_makring_detections.append(MELaneMarking.from_lane_marking(
+            left_lane_makring_detection_seq.append(MELaneMarking.from_lane_marking(
                 left_coeffs, left_marking_gt, lane_id, lane_detection_sim_config['perturb_prob']))
 
         if right_coeffs is None:
             # No detection
-            right_lane_marking_detections.append(None)
+            right_lane_marking_detection_seq.append(None)
         elif right_coeffs_gt is None or (abs(right_coeffs[-1] - right_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] and
                                          abs(right_coeffs[-2] - right_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
             # False positive
-            right_lane_marking_detections.append(MELaneMarking(
+            right_lane_marking_detection_seq.append(MELaneMarking(
                 right_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown))
         else:
             # True positive. Thresholding doesn't guarantee definite true positive nevertheless.
-            right_lane_marking_detections.append(MELaneMarking.from_lane_marking(
+            right_lane_marking_detection_seq.append(MELaneMarking.from_lane_marking(
                 right_coeffs, right_marking_gt, lane_id, lane_detection_sim_config['perturb_prob']))
 
-        # RS stop sign detection (wrt front bumper)
+        ############ RS stop sign detection (wrt front bumper) ############
         longi_dist_to_rs_stop = rs_stop_detector.update_rs_stop(
             fbumper_location, fbumper_orientation)
 
-        # Accurate poles for building pole map
+        ############ Accurate poles for building pole map ############
         # The bases in image are stored internally in the detector
         pole_detector_for_pole_map.find_pole_bases(pole_image)
         accurate_pole_xyz = pole_detector_for_pole_map.get_pole_xyz_from_depth(
@@ -226,22 +245,45 @@ def main():
         # Filter out points that are too high to focus on the lower part of poles
         accurate_pole_xyz = accurate_pole_xyz[:, accurate_pole_xyz[2, :] < 0.5]
 
-        # Instantiate a Transform object to make transformation between front bumper and world
-        fbumper2world_tfrom = Transform.from_conventional(
-            fbumper_location, fbumper_orientation)
+        # Transform accurate poles to world frame
         accurate_pole_xyz_world = fbumper2world_tfrom.tform_e2w_numpy_array(
             accurate_pole_xyz)
 
         all_accurate_poles.append(accurate_pole_xyz_world)
         print(image_idx)
 
-    # Pole map generation
+    ############ Pole map generation ############
     # Concatenate all poles as an np.array
     all_accurate_poles_xy = np.concatenate(
         all_accurate_poles, axis=1)[0:2, :]  # 2-by-N
 
     pole_map = gen_pole_map(all_accurate_poles_xy,
                             traffic_signs, pole_map_config)
+
+    ############ Proximity-based pole detecion labelling ############
+    if __debug__:
+        for poles in accurate_pole_detections_in_world_seq:
+            if poles is not None:
+                plt.plot(poles[0, :], poles[1, :], 'ro', ms=1)
+        plt.title('Accurate Detected Poles')
+
+    # Make a kd-tree out of pole map for later queries
+    pole_map_coords = np.asarray([[pole.x, pole.y] for pole in pole_map])
+    kd_poles = KDTree(pole_map_coords)
+
+    # Loop over accurate detection sequence and try to associate it to the nearest pole landmark in the pole map
+    for detections, accurate_detections in zip(pole_detection_seq, accurate_pole_detections_in_world_seq):
+        if accurate_detections is not None:
+            for pole_idx, accurate_detection in enumerate(accurate_detections.T):
+                nearest_dist, nearest_idx = kd_poles.query(
+                    accurate_detection[0:2])
+                if nearest_dist < pole_detection_sim_config['max_dist']:
+                    detections[pole_idx].type = pole_map[nearest_idx].type
+                    detections[pole_idx].perturb_type(
+                        pole_detection_sim_config['fc_prob'])
+    plt.plot(pole_map_coords[:, 0], pole_map_coords[:, 1], 'bs', ms=0.5)
+    plt.show()
+    a = 1
 
 
 if __name__ == "__main__":

@@ -26,6 +26,21 @@ class Pole(object):
         self.y = y
         self.type = traffic_sign_type
 
+    def perturb_type(self, fc_prob):
+        """
+        Perturb the type with the given probability.
+
+        Input:
+            fc_prob: Probability of false classification.
+        """
+        if random.random() < fc_prob:
+            while True:
+                wrong_type = random.choice(list(TrafficSignType))
+                if wrong_type != self.type and wrong_type != TrafficSignType.RSStop:
+                    self.type = wrong_type
+                    break
+
+
 
 class MELaneMarkingType(Enum):
     """
