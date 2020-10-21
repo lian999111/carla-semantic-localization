@@ -31,6 +31,7 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
     labels = pole_clustering.labels_
     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
 
+    # Calculate the mean of each cluster as the location of the pole
     for label in range(n_clusters):
         mean_location = np.mean(poles_xy[:, labels == label], axis=1)
         # Add to pole_map
