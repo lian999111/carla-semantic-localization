@@ -3,17 +3,17 @@
 # Road surface stop signs
 # RSStopDetectionSimulator uses a underlying RSStopGTExtractor to get the ground truth of road surface stop signs (rs stop sign),
 # then add noise to simulate rs stop detections. Thus, configurations for the gt extractor must be set.
-
-# RS stop sign ground truth extractor
 rs_stop:
+  # RS stop sign ground truth extractor
   rs_stop_gt_extractor:
     radius: 30                     # (m) Search radius for road surface stop sign actors
     max_lateral_offset: 1.75       # (m) Max lateral offset within which the sign can be extracted
     max_yaw_diff: 0.18             # (rad) Max heading difference within which the sign can be extracted
-    
+
   # Scale longitudinal distance to simulate error
   scale: 1.0
   # Mean parameter in the noise model for longitudinal distance.
   noise_bias: 0.0
   # Standard deviation parameter in the noise model for longitudinal distance.
   noise_stddev: 0.0
+
