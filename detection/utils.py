@@ -114,7 +114,7 @@ class MELaneMarking(object):
         self.type = MELaneMarkingType(me_lane_marking_type)
 
     @classmethod
-    def from_lane_marking(cls, coeffs, lane_marking, lane_id, fc_prob=0.0):
+    def from_lane_marking(cls, coeffs, lane_marking, lane_id):
         """
         Creates an MELaneMarking with a LaneMarking and other information.
 
@@ -122,19 +122,26 @@ class MELaneMarking(object):
             coeffs: List containing coefficients of the polynomial.
             lane_marking: An instance of LaneMarking.
             lane_id: ID of the lane the ego vehicle is on.
-            fc_prob: False classification probability. If nonzero, the lane type is assigned randomly to a wrong type.
         Output:
             MELaneMarking object.
         """
         me_lane_marking_type = to_me_lane_marking_type(
             lane_id, lane_marking.type)
 
+        return cls(coeffs, lane_marking.color, me_lane_marking_type)
+
+    def perturb_type(self, fc_prob):
+        """
+        Perturb lane marking type.
+
+        Input:
+            fc_prob: Probability of false classification.
+        """
         # Perturb lane marking type
         if random.random() < fc_prob:
             while True:
                 wrong_type = random.choice(list(MELaneMarkingType))
-                if wrong_type != me_lane_marking_type:
-                    me_lane_marking_type = wrong_type
+                if wrong_type != self.type:
+                    self.type = wrong_type
                     break
 
-        return cls(coeffs, lane_marking.color, me_lane_marking_type)

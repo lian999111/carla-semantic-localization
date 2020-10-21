@@ -217,8 +217,11 @@ def main():
                 left_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown))
         else:
             # True positive. Thresholding doesn't guarantee definite true positive nevertheless.
-            left_lane_makring_detection_seq.append(MELaneMarking.from_lane_marking(
-                left_coeffs, left_marking_gt, lane_id, lane_detection_sim_config['perturb_prob']))
+            me_lane_marking = MELaneMarking.from_lane_marking(
+                left_coeffs, left_marking_gt, lane_id)
+            # Perturb lane marking type
+            me_lane_marking.perturb_type(lane_detection_sim_config['perturb_prob'])
+            left_lane_makring_detection_seq.append(me_lane_marking)
 
         if right_coeffs is None:
             # No detection
@@ -230,8 +233,11 @@ def main():
                 right_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown))
         else:
             # True positive. Thresholding doesn't guarantee definite true positive nevertheless.
-            right_lane_marking_detection_seq.append(MELaneMarking.from_lane_marking(
-                right_coeffs, right_marking_gt, lane_id, lane_detection_sim_config['perturb_prob']))
+            me_lane_marking = MELaneMarking.from_lane_marking(
+                right_coeffs, right_marking_gt, lane_id)
+            # Perturb lane marking type
+            me_lane_marking.perturb_type(lane_detection_sim_config['perturb_prob'])
+            right_lane_marking_detection_seq.append(me_lane_marking)
 
         ############ RS stop sign detection (wrt front bumper) ############
         longi_dist_to_rs_stop = rs_stop_detector.update_rs_stop(
@@ -281,9 +287,6 @@ def main():
                     detections[pole_idx].type = pole_map[nearest_idx].type
                     detections[pole_idx].perturb_type(
                         pole_detection_sim_config['fc_prob'])
-    plt.plot(pole_map_coords[:, 0], pole_map_coords[:, 1], 'bs', ms=0.5)
-    plt.show()
-    a = 1
 
 
 if __name__ == "__main__":
