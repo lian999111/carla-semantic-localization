@@ -141,8 +141,10 @@ def main():
             # Save recorded data
             sensor_recorder.save(recording_folder, 'sensor_data')
             gt_recorder.save(recording_folder, 'gt_data')
-            # Copy config files to folder for future reference
-            target_dir = os.path.join(recording_folder, 'config.yaml')
+            # Copy config files to recording folder for future reference
+            settings_dir = os.path.join(recording_folder, 'settings')
+            os.mkdir(settings_dir)
+            target_dir = os.path.join(settings_dir, 'config.yaml')
             copyfile(args.config.name, target_dir)
 
     finally:
