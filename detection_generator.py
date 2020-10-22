@@ -134,7 +134,7 @@ def main():
     # Sequence of pole detecions
     pole_detection_seq = []
     # The accurate version of detected poles in world frame
-    accurate_pole_detections_in_world_seq = [] 
+    accurate_pole_detections_in_world_seq = []
     lane_marking_detection_seq = []
     rs_stop_detecion_seq = []
 
@@ -199,8 +199,8 @@ def main():
         if left_coeffs is None:
             # No detection
             left_detection = None
-        elif left_coeffs_gt is None or (abs(left_coeffs[-1] - left_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] and
-                                        abs(left_coeffs[-2] - left_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
+        elif left_marking_gt is None or (abs(left_coeffs[-1] - left_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] and
+                                          abs(left_coeffs[-2] - left_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
             # False positive
             left_detection = MELaneMarking(
                 left_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown)
@@ -214,8 +214,8 @@ def main():
         if right_coeffs is None:
             # No detection
             right_detection = None
-        elif right_coeffs_gt is None or (abs(right_coeffs[-1] - right_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] and
-                                         abs(right_coeffs[-2] - right_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
+        elif right_marking_gt is None or (abs(right_coeffs[-1] - right_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] and
+                                          abs(right_coeffs[-2] - right_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
             # False positive
             right_detection = MELaneMarking(
                 right_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown)
@@ -226,7 +226,8 @@ def main():
             # Perturb lane marking type
             right_detection.perturb_type(lane_detection_sim_config['fc_prob'])
 
-        lane_marking_detection_seq.append(MELaneDetection(left_detection, right_detection))
+        lane_marking_detection_seq.append(
+            MELaneDetection(left_detection, right_detection))
 
         ############ RS stop sign detection (wrt front bumper) ############
         longi_dist_to_rs_stop = rs_stop_detector.update_rs_stop(
