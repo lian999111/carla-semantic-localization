@@ -143,16 +143,16 @@ def main():
     all_accurate_poles = []
 
     # Containers for detection sequences
-    pole_detection_seq = []                     # sequence of pole detecions
-    # the accurate version of detected poles in world frame
-    accurate_pole_detections_in_world_seq = []
+    # Sequence of pole detecions
+    pole_detection_seq = []
+    # The accurate version of detected poles in world frame
+    accurate_pole_detections_in_world_seq = [] 
     lane_marking_detection_seq = []
     rs_stop_detecion_seq = []
 
     # Loop over recorded data
     for image_idx, (ss_image, depth_buffer) in enumerate(zip(ss_images, depth_buffers)):
         # Retrieve data at current step
-        ss_image_copy = ss_image
         pole_image = (ss_image == 5).astype(np.uint8)
         lane_image = (ss_image == 6) | (ss_image == 8).astype(np.uint8)
         depth_image = decode_depth(depth_buffer)
