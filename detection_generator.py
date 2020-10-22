@@ -1,19 +1,7 @@
 # This script implements offline detection generation and pole map creation
 
-import glob
 import os
-import datetime
 import sys
-
-try:
-    sys.path.append(glob.glob('./carla-*%d.%d-%s.egg' % (
-        sys.version_info.major,
-        sys.version_info.minor,
-        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
-except IndexError:
-    pass
-import carla
-
 import argparse
 import yaml
 import numpy as np
@@ -308,7 +296,7 @@ def main():
         pickle.dump(detections, f)
 
     # Save pole map
-    with open(os.path.join(args.recording_dir, 'pole_map.pkl.pkl'), 'wb') as f:
+    with open(os.path.join(args.recording_dir, 'pole_map.pkl'), 'wb') as f:
         pickle.dump(pole_map, f)
 
 
