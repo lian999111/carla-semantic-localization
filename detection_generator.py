@@ -66,8 +66,6 @@ def main():
     K = calib_data['K']
     R = calib_data['R']
     x0 = calib_data['x0']
-    # 3-by-4 calibration matrix
-    P = K @ R @ np.concatenate((np.eye(3), -x0), axis=1)
 
     # Load parameters for bird's eye view projection
     with open('ipm_data.pkl', 'rb') as f:
