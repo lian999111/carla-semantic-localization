@@ -141,7 +141,7 @@ class MELaneMarking(object):
         if random.random() < fc_prob:
             while True:
                 wrong_type = random.choice(list(MELaneMarkingType))
-                if wrong_type != self.type:
+                if wrong_type != self.type and wrong_type != MELaneMarkingType.Unknown:
                     self.type = wrong_type
                     break
 
