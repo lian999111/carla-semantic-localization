@@ -28,6 +28,9 @@ def main():
         description='Visualization of Offline Detections')
     argparser.add_argument('recording_dir', type=dir_path,
                            help='directory of recording')
+    argparser.add_argument('-i', '--index', dest='image_idx', type=int,
+                           default=None,
+                           help='specific index to visualization')
     args = argparser.parse_args()
 
     # Load data in the recording folder
@@ -77,7 +80,8 @@ def main():
     left_lane = ax[0].plot([], [], ms=0.5)[0]
     right_lane = ax[0].plot([], [], ms=0.5)[0]
     left_lane_type = ax[0].text(20, 580, 'None', fontsize=8)
-    right_lane_type = ax[0].text(780, 580, 'None', fontsize=8, horizontalalignment='right')
+    right_lane_type = ax[0].text(
+        780, 580, 'None', fontsize=8, horizontalalignment='right')
 
     # Bird's eye view
     mustang = ax[1].add_patch(
@@ -96,9 +100,11 @@ def main():
     # For lane points
     x = np.linspace(0, 20, 10)
 
-    # Loop over data
-    for image_idx, ss_image in enumerate(ss_images):
+    image_idx = args.image_idx
+
+    if image_idx is not None:
         # Prepare data at current time step
+        ss_image = ss_images[image_idx]
         ss_image_copy = convert_semantic_color(ss_image)
 
         pole_detections = pole_detection_seq[image_idx]
@@ -162,10 +168,16 @@ def main():
             left_lane_type.set_text(left_marking_detection.type.name)
             # Must add an offset to make it wrt to rear axle
             left_lane_bev.set_data(y, x + dist_raxle_to_fbumper)
+            # Set text color
+            if left_marking_detection.type.name == 'Unknown':
+                left_lane_type.set_color([1, 0, 0])
+            else:
+                left_lane_type.set_color([0, 0, 0])
         else:
             left_lane.set_data([], [])
             left_lane_bev.set_data([], [])
             left_lane_type.set_text('None')
+            left_lane_type.set_color([0, 0, 0])
 
         # Right marking
         if right_marking_detection is not None:
@@ -183,10 +195,16 @@ def main():
             right_lane_type.set_text(right_marking_detection.type.name)
             # Must add an offset to make it wrt to rear axle
             right_lane_bev.set_data(y, x + dist_raxle_to_fbumper)
+            # Set text color
+            if left_marking_detection.type.name == 'Unknown':
+                right_lane_type.set_color([1, 0, 0])
+            else:
+                right_lane_type.set_color([0, 0, 0])
         else:
             right_lane.set_data([], [])
             right_lane_bev.set_data([], [])
             right_lane_type.set_text('None')
+            right_lane_type.set_color([0, 0, 0])
 
         # Visualize rs stop sign
         if rs_stop_detection is not None:
@@ -198,9 +216,127 @@ def main():
 
         im.set_data(ss_image_copy)
         ax[1].set_title(image_idx)
-        plt.pause(0.001)
 
         print(image_idx)
+    else:
+        # Loop over data
+        for image_idx, ss_image in enumerate(ss_images):
+            # Prepare data at current time step
+            ss_image_copy = convert_semantic_color(ss_image)
+
+            pole_detections = pole_detection_seq[image_idx]
+            lane_detection = lane_detection_seq[image_idx]
+            rs_stop_detection = rs_stop_detecion_seq[image_idx]
+
+            raxle_location = raxle_locations[image_idx]
+            raxle_orientation = raxle_orientations[image_idx]
+            raxle_tform = Transform.from_conventional(
+                raxle_location, raxle_orientation)
+
+            # Visualize pole landmarks
+            pole_map_coords_ego = raxle_tform.tform_w2e_numpy_array(
+                pole_map_coords)
+            pole_landmarks.set_data(pole_map_coords_ego[1, :],
+                                    pole_map_coords_ego[0, :])
+
+            # Visualize pole detections
+            if pole_detections is not None:
+                # Pole detections wrt front bumper
+                detections_wrt_fbumper = np.asarray(
+                    [[pole.x, pole.y, 0] for pole in pole_detections]).T
+                bases_in_image = world2im(P, detections_wrt_fbumper)
+
+                # Pole detections wrt rear axle
+                detections_wrt_raxle = detections_wrt_fbumper
+                detections_wrt_raxle[0, :] += dist_raxle_to_fbumper
+
+                # Visualization
+                for pole_idx, base_coord in enumerate(bases_in_image.T):
+                    if pole_detections[pole_idx].type == TrafficSignType.Unknown:
+                        color = [0, 0, 0]
+                    else:
+                        color = [255, 0, 0]
+                    ss_image_copy = cv2.circle(
+                        ss_image_copy, (base_coord[0], base_coord[1]), 10, color=color, thickness=5)
+
+                pole0.set_data(
+                    detections_wrt_raxle[1, :], detections_wrt_raxle[0, :])
+            else:
+                pole0.set_data([], [])
+
+            # Visualize lane
+            left_marking_detection = lane_detection.left_marking_detection
+            right_marking_detection = lane_detection.right_marking_detection
+
+            # Left marking
+            if left_marking_detection is not None:
+                # x-y is wrt front bumper
+                y = np.zeros(x.shape)
+                for idx, coeff in enumerate(reversed(left_marking_detection.coeffs)):
+                    y += coeff * x**idx
+
+                # Project lane marking to image
+                homo_img_coords = P @ np.array([x, y,
+                                                np.zeros(x.shape), np.ones(x.shape)])
+                u = homo_img_coords[0, :] / homo_img_coords[2, :]
+                v = homo_img_coords[1, :] / homo_img_coords[2, :]
+
+                left_lane.set_data(u, v)
+                left_lane_type.set_text(left_marking_detection.type.name)
+                # Must add an offset to make it wrt to rear axle
+                left_lane_bev.set_data(y, x + dist_raxle_to_fbumper)
+                # Set text color
+                if left_marking_detection.type.name == 'Unknown':
+                    left_lane_type.set_color([1, 0, 0])
+                else:
+                    left_lane_type.set_color([0, 0, 0])
+            else:
+                left_lane.set_data([], [])
+                left_lane_bev.set_data([], [])
+                left_lane_type.set_text('None')
+                left_lane_type.set_color([0, 0, 0])
+
+            # Right marking
+            if right_marking_detection is not None:
+                y = np.zeros(x.shape)
+                for idx, coeff in enumerate(reversed(right_marking_detection.coeffs)):
+                    y += coeff * x**idx
+
+                # Project lane marking to image
+                homo_img_coords = P @ np.array([x, y,
+                                                np.zeros(x.shape), np.ones(x.shape)])
+                u = homo_img_coords[0, :] / homo_img_coords[2, :]
+                v = homo_img_coords[1, :] / homo_img_coords[2, :]
+
+                right_lane.set_data(u, v)
+                right_lane_type.set_text(right_marking_detection.type.name)
+                # Must add an offset to make it wrt to rear axle
+                right_lane_bev.set_data(y, x + dist_raxle_to_fbumper)
+                # Set text color
+                if right_marking_detection.type.name == 'Unknown':
+                    right_lane_type.set_color([1, 0, 0])
+                else:
+                    right_lane_type.set_color([0, 0, 0])
+            else:
+                right_lane.set_data([], [])
+                right_lane_bev.set_data([], [])
+                right_lane_type.set_text('None')
+                right_lane_type.set_color([0, 0, 0])
+
+            # Visualize rs stop sign
+            if rs_stop_detection is not None:
+                rs_stop_wrt_raxle = rs_stop_detection + dist_raxle_to_fbumper
+                rs_stop.set_data(
+                    [-1.75, 1.75], [rs_stop_wrt_raxle, rs_stop_wrt_raxle])
+            else:
+                rs_stop.set_data([], [])
+
+            im.set_data(ss_image_copy)
+            ax[1].set_title(image_idx)
+            plt.pause(0.001)
+
+            print(image_idx)
+    plt.show()
 
 
 if __name__ == "__main__":
