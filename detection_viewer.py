@@ -11,7 +11,7 @@ import cv2
 
 from detection.vision.utils import convert_semantic_color
 from detection.vision.camproj import world2im
-from carlasim.utils import Transform
+from carlasim.utils import Transform, TrafficSignType
 
 
 def dir_path(path):
@@ -76,6 +76,8 @@ def main():
         np.uint8), vmin=0, vmax=255)
     left_lane = ax[0].plot([], [], ms=0.5)[0]
     right_lane = ax[0].plot([], [], ms=0.5)[0]
+    left_lane_type = ax[0].text(20, 580, 'None', fontsize=8)
+    right_lane_type = ax[0].text(780, 580, 'None', fontsize=8, horizontalalignment='right')
 
     # Bird's eye view
     mustang = ax[1].add_patch(
@@ -126,9 +128,13 @@ def main():
             detections_wrt_raxle[0, :] += dist_raxle_to_fbumper
 
             # Visualization
-            for base_coord in bases_in_image.T:
+            for pole_idx, base_coord in enumerate(bases_in_image.T):
+                if pole_detections[pole_idx].type == TrafficSignType.Unknown:
+                    color = [0, 0, 0]
+                else:
+                    color = [255, 0, 0]
                 ss_image_copy = cv2.circle(
-                    ss_image_copy, (base_coord[0], base_coord[1]), 10, color=[12, 0, 0], thickness=5)
+                    ss_image_copy, (base_coord[0], base_coord[1]), 10, color=color, thickness=5)
 
             pole0.set_data(
                 detections_wrt_raxle[1, :], detections_wrt_raxle[0, :])
@@ -153,11 +159,13 @@ def main():
             v = homo_img_coords[1, :] / homo_img_coords[2, :]
 
             left_lane.set_data(u, v)
+            left_lane_type.set_text(left_marking_detection.type.name)
             # Must add an offset to make it wrt to rear axle
             left_lane_bev.set_data(y, x + dist_raxle_to_fbumper)
         else:
             left_lane.set_data([], [])
             left_lane_bev.set_data([], [])
+            left_lane_type.set_text('None')
 
         # Right marking
         if right_marking_detection is not None:
@@ -172,18 +180,21 @@ def main():
             v = homo_img_coords[1, :] / homo_img_coords[2, :]
 
             right_lane.set_data(u, v)
+            right_lane_type.set_text(right_marking_detection.type.name)
+            # Must add an offset to make it wrt to rear axle
             right_lane_bev.set_data(y, x + dist_raxle_to_fbumper)
         else:
             right_lane.set_data([], [])
             right_lane_bev.set_data([], [])
+            right_lane_type.set_text('None')
 
         # Visualize rs stop sign
         if rs_stop_detection is not None:
             rs_stop_wrt_raxle = rs_stop_detection + dist_raxle_to_fbumper
-            rs_stop.set_data([-1.75, 1.75], [rs_stop_wrt_raxle, rs_stop_wrt_raxle])
+            rs_stop.set_data(
+                [-1.75, 1.75], [rs_stop_wrt_raxle, rs_stop_wrt_raxle])
         else:
             rs_stop.set_data([], [])
-        
 
         im.set_data(ss_image_copy)
         ax[1].set_title(image_idx)
