@@ -502,12 +502,12 @@ class LaneGTExtractor(object):
 
         return candidate_markings_in_ego, candidate_markings
 
-    def _get_marking_pts(self, waypoint: carla.Waypoint, tform: Transform, side: Direction):
+    def _get_marking_pts(self, ref_waypoint: carla.Waypoint, tform: Transform, side: Direction):
         """ 
         Get marking points along the lane marking of specified side in ego frame (right-handed z-up).
 
         Input:
-            waypoint: Carla.Waypont object of the lane marking of interest.
+            ref_waypoint: Carla.Waypoint object as the reference of the lane.
             tform: Transform object that can perform world-to-ego transformation.
             side: Direction object specifying the side of interest.
         Output:
@@ -522,7 +522,13 @@ class LaneGTExtractor(object):
 
             It obtains the point of lane marking by projecting the half lane width.
             """
-            if self._check_same_direction_as_ego_lane(waypoint_of_interest):
+            # Check if the reference waypoint has the same direction with the waypoint of ego lane.
+            # Occasionally, different OpenDrive roads in the map are stitched to form a continuous road even
+            # if they have opposite road directions; that is, at such a stitch point, the lane ID could suddenly
+            # change its sign although it is still the same lane in the visual sense. This function thus uses 
+            # just the given initial reference waypoint rather than each waypoint along the lane to determine 
+            # if the current lane has the same direction as the ego lane.
+            if self._check_same_direction_as_ego_lane(ref_waypoint):
                 half_width = 0.5 * waypoint_of_interest.lane_width
             else:
                 half_width = -0.5 * waypoint_of_interest.lane_width
@@ -536,12 +542,12 @@ class LaneGTExtractor(object):
             return tform.tform_w2e_carla_vector3D(lane_pt_in_world)
 
         # Local helper functions
-        def get_next_waypoint(waypoint_of_interest, distance, direction):
+        def get_next_waypoint(ref_waypoint, distance, direction):
             """ 
             Get the next waypoint in the specified direction (forward or backward).
 
             Input:
-                waypoint_of_interest: Carla.Waypoint object of interest.
+                ref_waypoint: Carla.Waypoint object as the reference to search next waypoint.
                 distance: Distance in meters to query the next waypoint.
                 direction: Direction object specifying forward or backward with respect to the ego lane.
             Output:
@@ -549,19 +555,19 @@ class LaneGTExtractor(object):
             """
             next_waypt = None
             if direction == Direction.Forward:
-                if self._check_same_direction_as_ego_lane(waypoint_of_interest):
+                if self._check_same_direction_as_ego_lane(ref_waypoint):
                     # next() returns a list with at most one element
-                    new_waypt = waypoint_of_interest.next(distance)
+                    new_waypt = ref_waypoint.next(distance)
                 else:
                     # previous() returns a list with at most one element
-                    new_waypt = waypoint_of_interest.previous(distance)
+                    new_waypt = ref_waypoint.previous(distance)
                 if len(new_waypt) != 0:
                     next_waypt = new_waypt[0]
             elif direction == Direction.Backward:
-                if self._check_same_direction_as_ego_lane(waypoint_of_interest):
-                    new_waypt = waypoint_of_interest.previous(distance)
+                if self._check_same_direction_as_ego_lane(ref_waypoint):
+                    new_waypt = ref_waypoint.previous(distance)
                 else:
-                    new_waypt = waypoint_of_interest.next(distance)
+                    new_waypt = ref_waypoint.next(distance)
                 if len(new_waypt) != 0:
                     next_waypt = new_waypt[0]
 
@@ -579,7 +585,7 @@ class LaneGTExtractor(object):
         # One advantage is we can just add the marking points with valid types.
         for distance in reversed(range(1, 11)):
             backward_waypt = get_next_waypoint(
-                waypoint, distance, Direction.Backward)
+                ref_waypoint, distance, Direction.Backward)
             if backward_waypt is not None:
                 lane_marking = self._get_lane_marking(
                     backward_waypt, side)
@@ -591,18 +597,18 @@ class LaneGTExtractor(object):
             else:
                 continue
 
-        # The given waypoint
-        lane_marking = self._get_lane_marking(waypoint, side)
+        # The given reference waypoint
+        lane_marking = self._get_lane_marking(ref_waypoint, side)
         if lane_marking.type != carla.LaneMarkingType.NONE:
-            lane_pts_in_ego.append(get_lane_marking_pt_in_ego_frame(waypoint))
+            lane_pts_in_ego.append(get_lane_marking_pt_in_ego_frame(ref_waypoint))
             lane_markings.append(lane_marking)
 
-        # Next waypointes of the given waypoint
+        # Next waypointes of the given reference waypoint
         # Here a for loop is used instead of next_until_lane_end() for finding waypoints forwards.
         # One advantage is we can just add the marking points with valid types.
         for distance in range(1, 11):
             forward_waypt = get_next_waypoint(
-                waypoint, distance, Direction.Forward)
+                ref_waypoint, distance, Direction.Forward)
             if forward_waypt is not None:
                 lane_marking = self._get_lane_marking(
                     forward_waypt, side)
