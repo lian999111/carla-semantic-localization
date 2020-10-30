@@ -197,7 +197,7 @@ def main():
         if left_coeffs is None:
             # No detection
             left_detection = None
-        elif left_marking_gt is None or (abs(left_coeffs[-1] - left_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] and
+        elif left_marking_gt is None or (abs(left_coeffs[-1] - left_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] or
                                           abs(left_coeffs[-2] - left_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
             # False positive
             left_detection = MELaneMarking(
@@ -212,7 +212,7 @@ def main():
         if right_coeffs is None:
             # No detection
             right_detection = None
-        elif right_marking_gt is None or (abs(right_coeffs[-1] - right_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] and
+        elif right_marking_gt is None or (abs(right_coeffs[-1] - right_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] or
                                           abs(right_coeffs[-2] - right_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
             # False positive
             right_detection = MELaneMarking(
