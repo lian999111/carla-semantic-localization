@@ -123,6 +123,12 @@ def main():
                 lane_gt['left_marking_coeffs'][0] if lane_gt['left_marking'] else -10,
                 lane_gt['right_marking_coeffs'][0] if lane_gt['right_marking'] else -10,
                 lane_gt['next_right_marking_coeffs'][0] if lane_gt['next_right_marking'] else -10))
+            # c1
+            print('{:.2f}   {:.2f}   {:.2f}   {:.2f}'.format(
+                lane_gt['next_left_marking_coeffs'][1] if lane_gt['next_left_marking'] else -10,
+                lane_gt['left_marking_coeffs'][1] if lane_gt['left_marking'] else -10,
+                lane_gt['right_marking_coeffs'][1] if lane_gt['right_marking'] else -10,
+                lane_gt['next_right_marking_coeffs'][1] if lane_gt['next_right_marking'] else -10))
             # Marking type
             print('{}   {}   {}   {}'.format(
                 lane_gt['next_left_marking'].type if lane_gt['next_left_marking'] else None,
