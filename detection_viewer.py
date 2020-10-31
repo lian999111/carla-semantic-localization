@@ -196,7 +196,7 @@ def main():
             # Must add an offset to make it wrt to rear axle
             right_lane_bev.set_data(y, x + dist_raxle_to_fbumper)
             # Set text color
-            if left_marking_detection.type.name == 'Unknown':
+            if right_marking_detection.type.name == 'Unknown':
                 right_lane_type.set_color([1, 0, 0])
             else:
                 right_lane_type.set_color([0, 0, 0])
