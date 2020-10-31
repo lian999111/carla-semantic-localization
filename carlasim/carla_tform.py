@@ -251,7 +251,7 @@ class Transform:
             'zyx', [-rotation.yaw, -rotation.pitch, rotation.roll], degrees=True).as_matrix().T
 
     def _init_tform_w2e(self):
-        """ Helper method to create rotation matrix _tform_w2e. """
+        """ Helper method to create homogeneous transform matrix _tform_w2e. """
         if self._rotm_w2e is None:
             self._init_rotm_w2e()
         self._tform_w2e = np.zeros((4, 4), dtype=np.float)
@@ -275,7 +275,7 @@ class Transform:
             'zyx', [-rotation.yaw, -rotation.pitch, rotation.roll], degrees=True).as_matrix()
 
     def _init_tform_e2w(self):
-        """ Helper method to create rotation matrix _tform_e2w. """
+        """ Helper method to create homogeneous transform matrix _tform_e2w. """
         if self._rotm_e2w is None:
             self._init_rotm_e2w()
         self._tform_e2w = np.zeros((4, 4), dtype=np.float)
@@ -283,4 +283,4 @@ class Transform:
         self._tform_e2w[0:3, 0:3] = self._rotm_e2w
         self._tform_e2w[0:3, 3] = np.array([self._carla_tform.location.x,
                           -self._carla_tform.location.y,
-                          -self._carla_tform.location.z])
+                          self._carla_tform.location.z])
