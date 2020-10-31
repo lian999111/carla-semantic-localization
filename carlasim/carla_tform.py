@@ -259,7 +259,7 @@ class Transform:
         self._tform_w2e[0:3, 0:3] = self._rotm_w2e
         trvec = np.array([self._carla_tform.location.x,
                           -self._carla_tform.location.y,
-                          -self._carla_tform.location.z])
+                          self._carla_tform.location.z])
         self._tform_w2e[0:3, 3] = - self._rotm_w2e.dot(trvec)
     
     def _init_rotm_e2w(self):
