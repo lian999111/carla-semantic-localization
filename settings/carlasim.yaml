@@ -1,7 +1,7 @@
 ## Defines configurations of Carla simulation
 
 ## General setup
-sim_duration: 10  # sec
+sim_duration: 30  # sec
 
 # Carla recorder for simulation replay
 carla_recorder: On
@@ -38,6 +38,8 @@ world:
 
 ## Autopilot
 autopilot:
+  # For more info:
+  # https://github.com/carla-simulator/carla/issues/2966
   auto_lane_change: True
   ignore_lights_percentage: 100
   vehicle_percentage_speed_difference: 0    # When set to negative, vehicles move beyond the speed limit
@@ -48,9 +50,9 @@ ego_veh:
   use_random_spawn_point: False
   # x, y, z in Carla's coordinate system (left-handed z-up)
   spawn_location:
-    - 236.5
-    - -44.7
-    - 0.0
+    - -13.5
+    - -180
+    - 0
   # pitch, yaw, roll (deg) in Carla's coordinate system (right-handed z-down)
   spawn_orientation:
     - 0.0
@@ -114,7 +116,7 @@ gt:
     raxle_to_cg: *raxle_to_cg              # (m) Distance from rear axle to center of gravity in x
     raxle_to_fbumper: *raxle_to_fbumper    # (m) Distance from rear axle to front bumper in x
   lane:
-    radius: 9      # (m) Search radius for lane markings
+    radius: 50      # (m) Search radius for lane markings
 
 ## Recorder
 # Each toggle specifies whether its corresponding data are recoreded when the recorder is activated
