@@ -52,9 +52,8 @@ class GroundTruthExtractor(object):
             ego_veh: Carla.Actor obj of the ego vehicle. Carla.Actor provides a get_world() method to get the 
                      Carla.World it belongs to; thus, ego vehicle actor is sufficient to retrieve other info.
         """
-        # Retrieve other necessary objects from ego vehicle Carla.Actor object
+        # Retrieve carla.World object from ego vehicle carla.Actor object
         carla_world = ego_veh.get_world()
-        carla_map = carla_world.get_map()
 
         # Dict as an buffer to store all ground truth data of interest
         # Using dict helps automate data selection during recording since data can be queried by keys
@@ -73,7 +72,7 @@ class GroundTruthExtractor(object):
         # Pose ground truth extractor
         self.pose_gt = PoseGTExtractor(ego_veh, gt_config['pose'])
         # Lane ground truth extractor
-        self.lane_gt = LaneGTExtractor(carla_map, gt_config['lane'])
+        self.lane_gt = LaneGTExtractor(carla_world, gt_config['lane'])
 
         # Set up buffer for sequential data
         # Refer to pose ground truth extractor's gt buffer
@@ -234,8 +233,9 @@ class LaneGTExtractor(object):
     It can be updated with an specified pose in the right-handed z-up convention and extract the lane ground truth.
     """
 
-    def __init__(self, carla_map: carla.Map, lane_gt_config):
-        self.map = carla_map
+    def __init__(self, carla_world: carla.World, lane_gt_config):
+        self.carla_world = carla_world
+        self.map = carla_world.get_map()
 
         # carla.Transform of current query point
         self._carla_tform = None
@@ -343,6 +343,10 @@ class LaneGTExtractor(object):
                 # Compute c0 and c1
                 c1 = (pt2[1] - pt1[1]) / (pt2[0] - pt1[0])
                 c0 = pt1[1] - c1*pt1[0]
+
+                # Mark the ground truth lane markings
+                pt2_in_world = self._carla_tform.transform(carla.Location(pt2[0], -pt2[1], 0))
+                self.carla_world.debug.draw_line(pt2_in_world, pt2_in_world + carla.Location(z=2))
 
                 # Use the marking of pt2
                 candidate_marking_obj = candidate_markings[idx][first_pos_idx]
