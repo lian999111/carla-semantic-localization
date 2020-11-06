@@ -344,9 +344,10 @@ class LaneGTExtractor(object):
                 c1 = (pt2[1] - pt1[1]) / (pt2[0] - pt1[0])
                 c0 = pt1[1] - c1*pt1[0]
 
-                # Mark the ground truth lane markings
-                pt2_in_world = self._carla_tform.transform(carla.Location(pt2[0], -pt2[1], 0))
-                self.carla_world.debug.draw_line(pt2_in_world, pt2_in_world + carla.Location(z=2))
+                if __debug__:
+                    # Mark the ground truth lane markings
+                    pt2_in_world = self._carla_tform.transform(carla.Location(pt2[0], -pt2[1], 0))
+                    self.carla_world.debug.draw_line(pt2_in_world, pt2_in_world + carla.Location(z=2))
 
                 # Use the marking of pt2
                 candidate_marking_obj = candidate_markings[idx][first_pos_idx]
