@@ -279,7 +279,7 @@ class LaneGTExtractor(object):
             x=location[0], y=-location[1], z=location[2])
         rotation = rotation * 180/np.pi  # to deg
         carla_rotation = carla.Rotation(
-            roll=rotation[0], pitch=rotation[1], yaw=rotation[2])
+            roll=rotation[0], pitch=-rotation[1], yaw=-rotation[2])
         return self.update_using_carla_transform(
             carla.Transform(carla_location, carla_rotation))
 
