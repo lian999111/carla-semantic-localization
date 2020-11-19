@@ -234,7 +234,7 @@ class TestCarlaW2ETform(unittest.TestCase):
     # Construct
     def test_from_conventional(self):
         # In right-handed z-up coordinate system
-        conventional_location = [0, 10, 0]
+        conventional_location = [0, 10, 10]
         conventional_orientation = [0, 0, np.pi/2]
         tform = Transform.from_conventional(
             conventional_location, conventional_orientation)
@@ -245,11 +245,11 @@ class TestCarlaW2ETform(unittest.TestCase):
         np_pts_in_ego = tform.tform_w2e_numpy_array(np_pts_in_world)
 
         np.testing.assert_array_almost_equal(
-            np_pts_in_ego, np.array([-20, 0, 0]).reshape((3, -1)))
+            np_pts_in_ego, np.array([-20, 0, -10]).reshape((3, -1)))
 
     def test_from_conventional_with_column_vector(self):
         # In right-handed z-up coordinate system
-        conventional_location = np.array([0, 10, 0]).reshape((3, 1))
+        conventional_location = np.array([0, 10, 10]).reshape((3, 1))
         conventional_orientation = np.array([0, 0, np.pi/2]).reshape((3, 1))
         tform = Transform.from_conventional(
             conventional_location, conventional_orientation)
@@ -260,7 +260,7 @@ class TestCarlaW2ETform(unittest.TestCase):
         np_pts_in_ego = tform.tform_w2e_numpy_array(np_pts_in_world)
 
         np.testing.assert_array_almost_equal(
-            np_pts_in_ego, np.array([-20, 0, 0]).reshape((3, -1)))
+            np_pts_in_ego, np.array([-20, 0, -10]).reshape((3, -1)))
 
 
 if __name__ is '__main__':
