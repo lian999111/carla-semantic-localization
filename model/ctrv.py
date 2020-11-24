@@ -20,7 +20,7 @@ def predict_motion_from_ego_frame(vx, yaw_rate, delta_t, Q=None):
         delta_x, delta_y, delta_theta, cov
     """
     # Initialize L, the 3-by-2 Jacobian of displacement wrt noise in vx and yaw_rate
-    if Q:
+    if Q is not None:
         L = np.zeros((3, 2))
 
     if yaw_rate > 1e-3:
@@ -30,7 +30,7 @@ def predict_motion_from_ego_frame(vx, yaw_rate, delta_t, Q=None):
         delta_y = r * (-np.cos(yaw_rate_T) + 1)
         delta_theta = yaw_rate_T
 
-        if Q:
+        if Q is not None:
             L[0, 0] = 1/yaw_rate * np.sin(yaw_rate_T)
             L[0, 1] = -r/yaw_rate * np.sin(yaw_rate_T) + r*delta_t*np.cos(yaw_rate_T)
             L[1, 0] = 1/yaw_rate * (-np.cos(yaw_rate_T) + 1)
@@ -40,18 +40,22 @@ def predict_motion_from_ego_frame(vx, yaw_rate, delta_t, Q=None):
         delta_x = vx*delta_t
         delta_y = 0.0
 
-        if Q:
+        if Q is not None:
             L[0, 0] = delta_t
         
         if vx > 0.1:
             delta_theta = yaw_rate * delta_t
-            if Q:
+            if Q is not None:
                 L[2, 1] = delta_t
         else:
             # Do not update theta if vx is small
             delta_theta = 0.0
-    if Q:
-        cov = L @ Q @ L.T + np.eye(3)*0.000001     # add a small diagnol matrix to stabilize cov
+            
+    if Q is not None:
+        # LQL.T along gives a rank-deficient (only rank 2) covariance, which makes it impossible to use
+        # since inverse must be taken during optimization.
+        # As a compensation, add a small diagnol matrix to make it full-rank again.
+        cov = L @ Q @ L.T + np.eye(3)*1e-4
     else:
         cov = None
 
