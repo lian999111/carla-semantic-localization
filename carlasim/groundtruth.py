@@ -31,8 +31,6 @@ class Direction(Enum):
     Forward = 3
     Backward = 4
 
-# TODO: extract traffic signs, especially stop signs
-
 
 class GroundTruthExtractor(object):
     """ 

@@ -570,6 +570,3 @@ class World(object):
             carla_sensor.destroy()
 
         self.carla_sensors.clear()
-
-
-# TODO: make carlatform vectorized
