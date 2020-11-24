@@ -11,6 +11,6 @@ ctrv:
   stddev_yaw_rate: 0.1  # Standard deviation in the noise model for yaw rate.
 
 # Parameters for lane boundary factors
-lane:
+geometric_lane:
   stddev_c0: 0.2  # Standard deviation in the measurement noise model for c0.
   stddev_c1: 0.2  # Standard deviation in the measurement noise model for c1.
