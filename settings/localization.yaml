@@ -1,0 +1,16 @@
+## Defines parameters for localization
+
+# Parameters for GPS factor
+gnss:
+  stddev_x: 3.0  # Standard deviation in the noise model for x.
+  stddev_y: 3.0  # Standard deviation in the noise model for y.
+
+# Parameter for ctrv odometry factor
+ctrv:
+  stddev_vx: 0.1        # Standard deviation in the noise model for vx.
+  stddev_yaw_rate: 0.1  # Standard deviation in the noise model for yaw rate.
+
+# Parameters for lane boundary factors
+lane:
+  stddev_c0: 0.2  # Standard deviation in the measurement noise model for c0.
+  stddev_c1: 0.2  # Standard deviation in the measurement noise model for c1.
