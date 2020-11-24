@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 
 from carlasim.groundtruth import LaneGTExtractor
 from localization.gnss import GNSSFactor
-from localization.lane import LaneBoundaryFactor
+from localization.lane import GeometricLaneBoundaryFactor
 from localization.odom import create_ctrv_between_factor
 
 
@@ -88,7 +88,13 @@ def main():
     #     detections = pickle.load(f)
     # with open(os.path.join(args.recording_dir, 'pole_map.pkl'), 'rb') as f:
     #     pole_map = pickle.load(f)
-    
+
+    # Read carla simulation configs of the recording for dist_raxle_to_fbumper
+    path_to_config = os.path.join(args.recording_dir, 'settings/config.yaml')
+    with open(path_to_config, 'r') as f:
+        carla_config = yaml.safe_load(f)
+    dist_raxle_to_fbumper = carla_config['ego_veh']['raxle_to_fbumper']
+
     # Read configurations for localization
     with args.localization_config as f:
         localization_config = yaml.safe_load(f)
@@ -121,20 +127,14 @@ def main():
 
     lane_gt_extractor = LaneGTExtractor(carla_world, {'radius': 10})
 
-    ctrv_config = {'stddev_vx': 0.1, 'stddev_yaw_rate': 0.1}
-
     # Create a factor graph
     graph = FactorGraph()
     initials = Variables()
 
-    # Losses
-    gnss_loss = DiagonalLoss.Sigmas(np.array([3, 3]))
-    lane_loss = DiagonalLoss.Sigmas(np.array([0.2, 0.2]))
-
     np.random.seed(2)
 
-    init_idx = 200
-    end_idx = 300
+    init_idx = 30
+    end_idx = 100
 
     for idx, timestamp in enumerate(timestamp_seq):
         if idx < init_idx or idx > end_idx:
@@ -144,21 +144,14 @@ def main():
         yaw_rate = gyro_z_seq[idx] + np.random.normal(0, 0.1)
 
         lane_id = lane_id_seq[idx]
-        left_marking_coeffs = left_marking_coeffs_seq[idx]
+        left_marking_coeffs = np.asarray(left_marking_coeffs_seq[idx])
 
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(0.0, 0.0)
+        noised_gnss_x = gnss_x + np.random.normal(-1.0, 0.0)
         noised_gnss_y = gnss_y + np.random.normal(-1.0, 0.0)
 
         yaw_gt = raxle_orientations[idx][2]
-
-        # if idx == init_idx:
-        #     # Add prior factor
-        #     priorNoise = DiagonalLoss.Sigmas(
-        #         np.array([2, 2, 0.5]))
-        #     graph.add(PriorFactor(key('x', init_idx+1),
-        #                           SE2(SO2(yaw_gt), np.array([noised_gnss_x, noised_gnss_y])), priorNoise))
 
         if idx >= init_idx:
             # GNSS factor
@@ -167,8 +160,11 @@ def main():
                                  localization_config['gnss']))
 
             # Lane factor
-            # graph.add(LaneBoundaryFactor(
-            #     key('x', idx+1), left_marking_coeffs, lane_loss, lane_gt_extractor, lane_id))
+            graph.add(GeometricLaneBoundaryFactor(key('x', idx+1),
+                                                  left_marking_coeffs,
+                                                  dist_raxle_to_fbumper,
+                                                  lane_gt_extractor,
+                                                  localization_config['geometric_lane']))
 
         # Initials
         initials.add(key('x', idx+1), SE2(SO2(yaw_gt+np.random.normal(0.0, 0.0)),
@@ -180,7 +176,10 @@ def main():
         # graph.add(BetweenFactor(key('x', idx+1), key('x', idx+2),
         #                         SE2(SO2(delta_yaw), np.array([delta_x, delta_y])), odomLoss))
         graph.add(create_ctrv_between_factor(key('x', idx+1),
-                                             key('x', idx+2), vx, yaw_rate, delta_t, ctrv_config))
+                                             key('x', idx+2),
+                                             vx, yaw_rate,
+                                             delta_t,
+                                             localization_config['ctrv']))
 
     print(graph)
     print(initials, '\n')
