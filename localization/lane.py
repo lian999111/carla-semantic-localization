@@ -6,7 +6,7 @@ from minisam import Factor, key, DiagonalLoss, CauchyLoss
 
 from carlasim.carla_tform import Transform
 
-
+# TODO: Add docstring
 class GeometricLaneBoundaryFactor(Factor):
     """ Basic lane boundary factor. """
 
