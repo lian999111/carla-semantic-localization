@@ -1,5 +1,8 @@
 ## Defines parameters for localization
 
+graph:
+  win_size: 10   # Size of sliding window. e.g. 10 means the graph contains the just last 10 poses.
+
 # Parameters for GPS factor
 gnss:
   stddev_x: 3.0  # Standard deviation in the noise model for x.
