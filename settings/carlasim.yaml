@@ -1,7 +1,7 @@
 ## Defines configurations of Carla simulation
 
 ## General setup
-sim_duration: 30  # sec
+sim_duration: 600  # sec
 
 # Carla recorder for simulation replay
 carla_recorder: On
@@ -13,7 +13,9 @@ world:
   
   # Synchronous mode and the simulation time step (must be <= 0.1 sec for simulation fidelity)
   sync_mode: True
-  delta_seconds: &delta_seconds 0.1  # seconds per tick
+  # Note: For behavior agent's controller to work, time step 0.05 is recommended.
+  #       If autopilot is used, then 0.1 is sufficient.
+  delta_seconds: &delta_seconds 0.05  # seconds per tick
   
   # Built-in map
   map: Town04
@@ -36,13 +38,54 @@ world:
   # 14 - WetSunset
   weather: 0
 
+# Currently, 2 methods to control the ego vehicle are provided:
+# 1. Autopilot: 
+#    Use the traffic manager built in Carla. It allows for some basic behavior settings,               
+#    but the car can only roam around randomly.              
+#    For more info: https://github.com/carla-simulator/carla/issues/2966
+# 2. Behavior Agent:
+#    Use the BehaviorAgent class defined in the "agent" package found in Carla's repository.
+#    This utility class is used in several example codes for demonstrations. However, it is not
+#    officially documented and its use here is solely based on the examination of the example codes with some very minor changes.
+#    It has the advantage that it can accept a set of waypoints to follow. Downside is, for it's PID controller to work, 
+#    simulation time step must not be too large (0.05 sec/tick has been found to work just fine for normal mode with max speed at 50 kph) 
+#    and the car doesn't run as smoothly as when autopilot is used (especially inferior in sharp turns).
+# The following are configurations for the 2 mentioned methods. Either one set of them is used in the actual code.
+
 ## Autopilot
 autopilot:
-  # For more info:
-  # https://github.com/carla-simulator/carla/issues/2966
   auto_lane_change: True
   ignore_lights_percentage: 100
   vehicle_percentage_speed_difference: 0    # When set to negative, vehicles move beyond the speed limit
+
+## Behavior Agent
+behavior_agent:
+  ignore_traffic_light: True
+  behavior: 'normal'    # 'cautious', 'normal', 'aggressive'  Note: 'aggressive' often cause instability.
+  # x, y, z in Carla's coordinate system (left-handed z-up)
+  # These are just rough coordinates. 
+  # The nearest carla.Waypoints will be retrieved around these rough goals.
+  goals:    
+    - 
+      x: 12
+      y: 100
+      z: 0
+    - 
+      x: 8
+      y: 0
+      z: 0
+    # - 
+    #   x: 12
+    #   y: 0
+    #   z: 0
+    - 
+      x: 8 
+      y: -100
+      z: 0
+    - 
+      x: 60
+      y: -170 
+      z: 0
 
 ## Ego Vehicle
 ego_veh:
@@ -50,13 +93,13 @@ ego_veh:
   use_random_spawn_point: False
   # x, y, z in Carla's coordinate system (left-handed z-up)
   spawn_location:
-    - -13.5
-    - -180
+    - 16.5
+    - 180
     - 0
   # pitch, yaw, roll (deg) in Carla's coordinate system (right-handed z-down)
   spawn_orientation:
     - 0.0
-    - 90.0
+    - -90.0
     - 0.0
   # Carla uses center of gravity as the model's origin
   # The following is roughly measured from Carla's Mustang model

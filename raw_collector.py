@@ -82,8 +82,22 @@ def main():
             # Record static ground truth data
             gt_recorder.record_static(world.ground_truth.all_gt['static'])
 
-        # Launch autopilot for ego vehicle
-        world.set_ego_autopilot(True, config['autopilot'])
+        # Launch the controller for ego vehicle
+        # Currently, 2 methods to control the ego vehicle are provided:
+        # 1. Autopilot: 
+        #    Use the traffic manager built in Carla. It allows for some basic behavior settings,               
+        #    but the car can only roam around randomly.              
+        #    For more info: https://github.com/carla-simulator/carla/issues/2966
+        # 2. Behavior Agent:
+        #    Use the BehaviorAgent class defined in the "agent" package found in Carla's repository.
+        #    This utility class is used in several example codes for demonstrations. However, it is not
+        #    officially documented and its use here is solely based on the examination of the example codes with some very minor changes.
+        #    It has the advantage that it can accept a set of waypoints to follow. Downside is, for it's PID controller to work, 
+        #    simulation time step must not be too large (0.05 sec/tick has been found to work just fine for normal mode with max speed at 50 kph) 
+        #    and the car doesn't run as smoothly as when autopilot is used (especially inferior in sharp turns).
+
+        # world.set_ego_autopilot(True, config['autopilot'])
+        world.set_behavior_agent(config['behavior_agent'])
 
         if args.record:
             recording_folder = os.path.join(os.getcwd(), 'recordings',
@@ -101,7 +115,8 @@ def main():
         # Simulation loop
         to_left = True
         for idx in range(n_ticks):
-            world.step_forward()
+            
+            keep_running = world.step_forward()
             world.see_ego_veh()
 
             # Record sequential data
@@ -136,9 +151,13 @@ def main():
                 lane_gt['right_marking'].type if lane_gt['right_marking'] else None,
                 lane_gt['next_right_marking'].type if lane_gt['next_right_marking'] else None))
 
-            if (idx+1) % int(3/config['world']['delta_seconds']) == 0:
-                world.force_lane_change(to_left=to_left)
-                to_left = not to_left
+            # if (idx+1) % int(10/config['world']['delta_seconds']) == 0 and idx > 50:
+            #     world.force_lane_change(to_left=to_left)
+            #     to_left = not to_left
+
+            if not keep_running:
+                print("Final goal reached, mission accomplished...")
+                break
 
         if args.record:
             # Stop Carla's recorder

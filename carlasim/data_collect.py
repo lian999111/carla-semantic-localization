@@ -25,9 +25,11 @@ import re
 import random
 import numpy as np
 import queue
+from collections import deque
 
 from carlasim.groundtruth import GroundTruthExtractor
 from carlasim.carla_tform import Transform
+from agents.navigation.behavior_agent import BehaviorAgent
 
 # %% ================= Global function =================
 
@@ -103,8 +105,8 @@ class CarlaSensor(object):
     """ Base class for sensors provided by carla. """
 
     def __init__(self, name, parent_actor=None):
-        """ 
-        Constructor method. 
+        """
+        Constructor method.
 
         Input:
             name: Str of sensor name.
@@ -122,7 +124,6 @@ class CarlaSensor(object):
         # Here the queue is expected to be used in listen() instead. The callback simply puts the sensor data into the queue,
         # then the data can be obtained in update() using get() which blocks and make sure synchronization.
         self._queue = queue.Queue()
-        
 
     def update(self):
         """ Wait for sensro event to be put in queue and update data. """
@@ -438,6 +439,12 @@ class World(object):
         # Tick the world to bring the ego vehicle actor into effect
         self.carla_world.tick()
 
+        # Placeholder for the behavior agent
+        # See set_behavior_agent() method.
+        self._behavior_agent = None
+        # Placeholder for goals of behavior agent
+        self._agent_goals = None
+
     def restart(self, config, spawn_point=None):
         """
         Start the simulation with the configuration arguments.
@@ -512,11 +519,11 @@ class World(object):
         self.all_sensor_data[carla_sensor.name] = carla_sensor.data
 
     def set_ego_autopilot(self, active, autopilot_config=None):
-        """ 
-        Set traffic manager and register ego vehicle to it. 
+        """
+        Set traffic manager and register ego vehicle to it.
 
         This makes use of the traffic manager provided by Carla to control the ego vehicle.
-        See https://carla.readthedocs.io/en/latest/adv_traffic_manager/ for more info.     
+        See https://carla.readthedocs.io/en/latest/adv_traffic_manager/ for more info.
         """
         if autopilot_config:
             self.tm.auto_lane_change(
@@ -540,15 +547,79 @@ class World(object):
         # carla uses true for right
         self.tm.force_lane_change(self.ego_veh, not to_left)
 
+    def set_behavior_agent(self, agent_config):
+        """
+        Set up a BehaviorAgent object to control the ego vehicle to follow a set of waypoints.
+
+        Warning: BehaviorAgent class directly copied from Carla's repository under PythonAPI/carla.
+        It is used in several carla example codes to control the car. However the whole agent package
+        is not officially documented and the its use here is based on the examination of the example codes.
+
+        Input:
+            agent_config: dict storing configurations for behavior agent.
+        """
+        self._behavior_agent = BehaviorAgent(
+            self.ego_veh, agent_config['ignore_traffic_light'], agent_config['behavior'])
+        self._agent_goals = deque()
+
+        for goal in agent_config['goals']:
+            self._agent_goals.append(carla.Location(goal['x'],
+                                                    goal['y'],
+                                                    goal['z']))
+
+        # Set the first goal
+        self._behavior_agent.set_destination(
+            self.ego_veh.get_location(), self._agent_goals.popleft())
+
+    def run_agent_step(self):
+        """
+        Run the behavior agent at the current step.
+
+        It first checks if it should add the next goal into the internal waypoints to follow, then
+        update and apply the control signal.
+
+        Output:
+            bool to indicate if should keep running.
+        """
+        # Set a new goal if about to reach the current goal
+        if len(self._behavior_agent.get_local_planner().waypoints_queue) < 21 and self._agent_goals:
+            new_start = self._behavior_agent.get_local_planner(
+            ).waypoints_queue[-1][0].transform.location
+            new_goal = self._agent_goals.popleft()
+            self._behavior_agent.set_destination(
+                new_start, new_goal, clean=False)
+            print("New target: {}".format(new_goal))
+
+        elif len(self._behavior_agent.get_local_planner().waypoints_queue) == 0:
+            return False
+
+
+        self._behavior_agent.update_information(self.ego_veh)
+        control = self._behavior_agent.run_step(debug=False)
+        self.ego_veh.apply_control(control)
+        return True
+
     def step_forward(self):
-        """ Tick carla world to take simulation one step forward. """
+        """ 
+        Tick carla world to take simulation one step forward. 
+
+        Output:
+            bool to indicate if should keep running.
+        """
+        keep_running = True
         self.carla_world.tick()
+
+        # Run behavior agent if used
+        if self._behavior_agent:
+            keep_running = self.run_agent_step()
 
         # Update CarlaSensors' data
         for carla_sensor in self.carla_sensors.values():
             carla_sensor.update()
 
         self.ground_truth.update()
+
+        return keep_running
 
     def see_ego_veh(self, following_dist=5, height=5, tilt_ang=-30):
         """ Aim the spectator down to the ego vehicle. """
