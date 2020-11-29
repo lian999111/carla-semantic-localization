@@ -512,7 +512,12 @@ class World(object):
         self.all_sensor_data[carla_sensor.name] = carla_sensor.data
 
     def set_ego_autopilot(self, active, autopilot_config=None):
-        """ Set traffic manager and register ego vehicle to it. """
+        """ 
+        Set traffic manager and register ego vehicle to it. 
+
+        This makes use of the traffic manager provided by Carla to control the ego vehicle.
+        See https://carla.readthedocs.io/en/latest/adv_traffic_manager/ for more info.     
+        """
         if autopilot_config:
             self.tm.auto_lane_change(
                 self.ego_veh, autopilot_config['auto_lane_change'])
@@ -527,8 +532,10 @@ class World(object):
         Force ego vehicle to change the lane regardless collision with other vehicles.
 
         It only allows lane changes in the possible direction.
-        Performing a left lane change on the left-most lane is not possible.
-        Carla's traffic manager doesn't seem to make car change to a left turn lane in built-in town (tested in Town03)
+        Carla's traffic manager doesn't seem to always respect this command.
+
+        Input:
+            to_left: boolean to indicate the direction of lane change.
         """
         # carla uses true for right
         self.tm.force_lane_change(self.ego_veh, not to_left)
