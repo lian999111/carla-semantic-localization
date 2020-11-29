@@ -694,10 +694,10 @@ class RSStopGTExtractor(object):
 
     def update(self, location, rotation):
         """
-        Update lane ground truth at the current tick. 
+        Update road surface stop sign ground truth at the current tick. 
 
         The ground truth result is wrt to the given pose.
-        e.g. If the front bumper's pose is given, the resulting lane markings are wrt the front bumper.
+        e.g. If the front bumper's pose is given, the resulting stop sign ground truth are wrt the front bumper.
 
         Input:
             location: Array-like 3D query point in world (right-handed z-up).
