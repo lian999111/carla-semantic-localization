@@ -595,6 +595,7 @@ class World(object):
 
 
         self._behavior_agent.update_information(self.ego_veh)
+        # If debug set to True, imminent waypoints will be drawn
         control = self._behavior_agent.run_step(debug=False)
         self.ego_veh.apply_control(control)
         return True
