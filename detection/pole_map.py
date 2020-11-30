@@ -6,6 +6,7 @@ from scipy.spatial import KDTree
 
 from detection.utils import Pole
 
+
 def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
     """
     Generate a pole map.
@@ -26,7 +27,7 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
     # Use DBSCAN to cluster pole points
     clustering_config = pole_map_config['clustering']
     pole_clustering = DBSCAN(eps=clustering_config['eps'],
-                            min_samples=clustering_config['min_samples']).fit(poles_xy.T)
+                             min_samples=clustering_config['min_samples']).fit(poles_xy.T)
 
     labels = pole_clustering.labels_
     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
@@ -40,7 +41,7 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
         if __debug__:
             plt.plot(mean_location[0], mean_location[1], 's')
             plt.plot(poles_xy[0, labels == label],
-                    poles_xy[1, labels == label], '.', ms=0.5)
+                     poles_xy[1, labels == label], '.', ms=0.5)
 
     # Assign types to poles based on proximity
     classification_config = pole_map_config['classification']
@@ -53,17 +54,19 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
             # Plot all traffic signs
             plt.plot(traffic_sign.x, traffic_sign.y, 'bs', ms=2)
 
-        nearest_idc = kd_poles.query_ball_point([traffic_sign.x, traffic_sign.y], classification_config['perimeter'])
+        nearest_idc = kd_poles.query_ball_point(
+            [traffic_sign.x, traffic_sign.y], classification_config['perimeter'])
         if len(nearest_idc) == 1:
             pole_map[nearest_idc[0]].type = traffic_sign.type
-            
+
             if __debug__:
-                plt.plot(pole_map[nearest_idc[0]].x, pole_map[nearest_idc[0]].y, 'r+', ms=3)
+                plt.plot(pole_map[nearest_idc[0]].x,
+                         pole_map[nearest_idc[0]].y, 'r+', ms=3)
         else:
             continue
 
     if __debug__:
         plt.legend()
         plt.show()
-        
+
     return pole_map
