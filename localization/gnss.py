@@ -11,13 +11,12 @@ class GNSSFactor(Factor):
     """
 
     def __init__(self, key, point, gnss_factor_config):
-        """
-        Constructor.
+        """Constructor.
 
-        Input:
-            key:    key to the connected node.
+        Args:
+            key:    Key to the connected node.
             point:  1D numpy array of GNSS x-y point measurement.
-            loss:   minisam loss object.
+            gnss_factor_config (dict):   Configurations for GNSS factor.
         """
         self.p_ = point
         self.config = gnss_factor_config
