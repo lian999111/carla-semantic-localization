@@ -17,6 +17,10 @@ def create_ctrv_between_factor(key1, key2, vx, yaw_rate, delta_t, ctrv_config):
         yaw_rate: Yaw rate. (rad/s)
         delta_t:  Time difference. (sec)
         ctrv_config (dict): Configurations for ctrv factor.
+    
+    Return:
+        BetweenFactor obj instantiated based on the CTRV model.
+        Tuple of prediced motion (delta x, delta y, delta theta, covariance).
     """
     # Initizlize noise covariance matrix of vx and yaw_rate
     Q = np.zeros((2, 2))
