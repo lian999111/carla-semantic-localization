@@ -1,14 +1,13 @@
-# Implementation of GNSS minisam factor
+""" Implementation of GNSS minisam factor """
 
 import numpy as np
 from math import sin, cos
 
 from minisam import Factor, keyString, DiagonalLoss
 
+
 class GNSSFactor(Factor):
-    """
-    GNSS factor.
-    """
+    """GNSS factor."""
 
     def __init__(self, key, point, gnss_factor_config):
         """Constructor.
@@ -21,26 +20,21 @@ class GNSSFactor(Factor):
         self.p_ = point
         self.config = gnss_factor_config
 
-        loss = DiagonalLoss.Sigmas(np.array([self.config['stddev_x'], self.config['stddev_y']]))
+        loss = DiagonalLoss.Sigmas(
+            np.array([self.config['stddev_x'], self.config['stddev_y']]))
         Factor.__init__(self, 1, [key], loss)
 
     def copy(self):
-        """
-        Deep copy.
-        """
+        """Deep copy."""
         return GNSSFactor(self.keys()[0], self.p_, self.config)
 
     def error(self, variables):
-        """
-        Compute error.
-        """
+        """Compute error."""
         pose = variables.at(self.keys()[0])
         return pose.translation() - self.p_
 
     def jacobians(self, variables):
-        """
-        Compute the jacobian at the current linearization point.
-        """
+        """Compute the jacobian at the current linearization point."""
         # GTSAM and thus minisam requires Jacobian to be defined wrt the body frame
         pose = variables.at(self.keys()[0])
         theta = pose.so2().theta()
