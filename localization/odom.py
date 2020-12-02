@@ -23,7 +23,11 @@ def create_ctrv_between_factor(key1, key2, vx, yaw_rate, delta_t, ctrv_config):
     Q[0, 0] = ctrv_config['stddev_vx']**2
     Q[1, 1] = ctrv_config['stddev_yaw_rate']**2
 
-    delta_x, delta_y, delta_theta, cov = predict_motion_from_ego_frame(vx, yaw_rate, delta_t, Q)
+    delta_x, delta_y, delta_theta, cov = predict_motion_from_ego_frame(
+        vx, yaw_rate, delta_t, Q)
     ctrv_noise = GaussianLoss.Covariance(cov)
 
-    return BetweenFactor(key1, key2, SE2(SO2(delta_theta),np.array([delta_x, delta_y])), ctrv_noise)
+    between_factor = BetweenFactor(key1, key2, SE2(
+        SO2(delta_theta), np.array([delta_x, delta_y])), ctrv_noise)
+
+    return between_factor, (delta_x, delta_y, delta_theta, cov)
