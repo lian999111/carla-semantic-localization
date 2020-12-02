@@ -237,14 +237,15 @@ def main():
         pole_detector_for_pole_map.find_pole_bases(pole_image)
         accurate_pole_xyz = pole_detector_for_pole_map.get_pole_xyz_from_depth(
             depth_image, dist_cam_to_fbumper)
-        # Filter out points that are too high to focus on the lower part of poles
-        accurate_pole_xyz = accurate_pole_xyz[:, accurate_pole_xyz[2, :] < 0.5]
+        if accurate_pole_xyz is not None:
+            # Filter out points that are too high to focus on the lower part of poles
+            accurate_pole_xyz = accurate_pole_xyz[:, accurate_pole_xyz[2, :] < 0.5]
 
-        # Transform accurate poles to world frame
-        accurate_pole_xyz_world = fbumper2world_tfrom.tform_e2w_numpy_array(
-            accurate_pole_xyz)
+            # Transform accurate poles to world frame
+            accurate_pole_xyz_world = fbumper2world_tfrom.tform_e2w_numpy_array(
+                accurate_pole_xyz)
 
-        all_accurate_poles.append(accurate_pole_xyz_world)
+            all_accurate_poles.append(accurate_pole_xyz_world)
         print(image_idx)
 
     ############ Pole map generation ############
