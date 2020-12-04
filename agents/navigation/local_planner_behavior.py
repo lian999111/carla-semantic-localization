@@ -274,6 +274,10 @@ _prev_waypoint
             else:
                 break
 
+    def waypoints_in_buffer(self):
+        """True if waypoints exist in buffer."""
+        return len(self._waypoint_buffer) > 0
+
     def _get_projection(self):
         """Get the projection of current vehicle position between prev and target waypoints.
 
