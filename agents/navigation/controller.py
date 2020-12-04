@@ -19,7 +19,6 @@ class VehiclePIDController():
     low level control a vehicle from client side
     """
 
-
     def __init__(self, vehicle, args_lateral, args_longitudinal, max_throttle=0.75, max_brake=0.3, max_steering=0.8):
         """
         Constructor method.
@@ -44,22 +43,24 @@ class VehiclePIDController():
         self._vehicle = vehicle
         self._world = self._vehicle.get_world()
         self.past_steering = self._vehicle.get_control().steer
-        self._lon_controller = PIDLongitudinalController(self._vehicle, **args_longitudinal)
-        self._lat_controller = PIDLateralController(self._vehicle, **args_lateral)
+        self._lon_controller = PIDLongitudinalController(
+            self._vehicle, **args_longitudinal)
+        self._lat_controller = PIDLateralController(
+            self._vehicle, **args_lateral)
 
-    def run_step(self, target_speed, waypoint):
+    def run_step(self, target_speed, waypoint_loc):
         """
         Execute one step of control invoking both lateral and longitudinal
         PID controllers to reach a target waypoint
         at a given target_speed.
 
             :param target_speed: desired vehicle speed
-            :param waypoint: target location encoded as a waypoint
+            :param waypoint_loc: target location
             :return: distance (in meters) to the waypoint
         """
 
         acceleration = self._lon_controller.run_step(target_speed)
-        current_steering = self._lat_controller.run_step(waypoint)
+        current_steering = self._lat_controller.run_step(waypoint_loc)
         control = carla.VehicleControl()
         if acceleration >= 0.0:
             control.throttle = min(acceleration, self.max_throt)
@@ -92,7 +93,6 @@ class PIDLongitudinalController():
     """
     PIDLongitudinalController implements longitudinal control using a PID.
     """
-
 
     def __init__(self, vehicle, K_P=1.0, K_D=0.0, K_I=0.0, dt=0.03):
         """
@@ -147,6 +147,7 @@ class PIDLongitudinalController():
 
         return np.clip((self._k_p * error) + (self._k_d * _de) + (self._k_i * _ie), -1.0, 1.0)
 
+
 class PIDLateralController():
     """
     PIDLateralController implements lateral control using a PID.
@@ -169,23 +170,23 @@ class PIDLateralController():
         self._dt = dt
         self._e_buffer = deque(maxlen=10)
 
-    def run_step(self, waypoint):
+    def run_step(self, waypoint_loc):
         """
         Execute one step of lateral control to steer
         the vehicle towards a certain waypoin.
 
-            :param waypoint: target waypoint
+            :param waypoint_loc: target waypoint location
             :return: steering control in the range [-1, 1] where:
             -1 maximum steering to left
             +1 maximum steering to right
         """
-        return self._pid_control(waypoint, self._vehicle.get_transform())
+        return self._pid_control(waypoint_loc, self._vehicle.get_transform())
 
-    def _pid_control(self, waypoint, vehicle_transform):
+    def _pid_control(self, waypoint_loc, vehicle_transform):
         """
         Estimate the steering angle of the vehicle based on the PID equations
 
-            :param waypoint: target waypoint
+            :param waypoint_loc: target waypoint location
             :param vehicle_transform: current transform of the vehicle
             :return: steering control in the range [-1, 1]
         """
@@ -194,9 +195,9 @@ class PIDLateralController():
                                          y=math.sin(math.radians(vehicle_transform.rotation.yaw)))
 
         v_vec = np.array([v_end.x - v_begin.x, v_end.y - v_begin.y, 0.0])
-        w_vec = np.array([waypoint.transform.location.x -
-                          v_begin.x, waypoint.transform.location.y -
-                          v_begin.y, 0.0])
+        w_vec = np.array([waypoint_loc.x - v_begin.x,
+                          waypoint_loc.y - v_begin.y,
+                          0.0])
         _dot = math.acos(np.clip(np.dot(w_vec, v_vec) /
                                  (np.linalg.norm(w_vec) * np.linalg.norm(v_vec)), -1.0, 1.0))
 
@@ -209,6 +210,7 @@ class PIDLateralController():
         if len(self._e_buffer) >= 2:
             _de = (self._e_buffer[-1] - self._e_buffer[-2]) / self._dt
             _ie = sum(self._e_buffer) * self._dt
+            self._e_buffer.popleft()
         else:
             _de = 0.0
             _ie = 0.0

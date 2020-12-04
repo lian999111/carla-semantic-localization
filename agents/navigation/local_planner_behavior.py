@@ -11,6 +11,8 @@ low-level waypoint following based on PID controllers. """
 
 from collections import deque
 from enum import Enum
+import numpy as np
+import math
 
 import carla
 from agents.navigation.controller import VehiclePIDController
@@ -47,7 +49,7 @@ class LocalPlanner(object):
     # (e.g. within 80% of total distance)
 
     # FPS used for dt
-    FPS = 20
+    FPS = 10
 
     def __init__(self, agent):
         """
@@ -67,9 +69,11 @@ class LocalPlanner(object):
         self._vehicle_controller = None
         self._global_plan = None
         self._pid_controller = None
-        self.waypoints_queue = deque(maxlen=20000)  # queue with tuples of (waypoint, RoadOption)
-        self._buffer_size = 5
+        # queue with tuples of (waypoint, RoadOption)
+        self.waypoints_queue = deque(maxlen=20000)
+        self._buffer_size = 10
         self._waypoint_buffer = deque(maxlen=self._buffer_size)
+        self._prev_waypoint = None
 
         self._init_controller()  # initializing controller
 
@@ -85,7 +89,7 @@ class LocalPlanner(object):
         dt -- time difference between physics control in seconds.
         This is can be fixed from server side
         using the arguments -benchmark -fps=F, since dt = 1/F
-
+_prev_waypoint
         target_speed -- desired cruise speed in km/h
 
         min_distance -- minimum distance to remove waypoint from queue
@@ -118,7 +122,9 @@ class LocalPlanner(object):
             'K_I': 0.07,
             'dt': 1.0 / self.FPS}
 
-        self._current_waypoint = self._map.get_waypoint(self._vehicle.get_location())
+        self._current_waypoint = self._map.get_waypoint(
+            self._vehicle.get_location())
+        self._prev_waypoint = self._current_waypoint
 
         self._global_plan = False
 
@@ -153,6 +159,9 @@ class LocalPlanner(object):
                 else:
                     break
 
+        # Put waypoints from global queue to buffer
+        self._buffer_waypoints()
+
         self._global_plan = True
 
     def get_incoming_waypoint_and_direction(self, steps=3):
@@ -161,12 +170,12 @@ class LocalPlanner(object):
 
             :param steps: number of steps to get the incoming waypoint.
         """
-        if len(self.waypoints_queue) > steps:
-            return self.waypoints_queue[steps]
+        if len(self._waypoint_buffer) > steps:
+            return self._waypoint_buffer[steps]
 
         else:
             try:
-                wpt, direction = self.waypoints_queue[-1]
+                wpt, direction = self._waypoint_buffer[-1]
                 return wpt, direction
             except IndexError as i:
                 print(i)
@@ -189,7 +198,10 @@ class LocalPlanner(object):
         else:
             self._target_speed = self._vehicle.get_speed_limit()
 
-        if len(self.waypoints_queue) == 0:
+        # Buffering the waypoints
+        self._buffer_waypoints(debug=debug)
+
+        if len(self._waypoint_buffer) == 0:
             control = carla.VehicleControl()
             control.steer = 0.0
             control.throttle = 0.0
@@ -198,20 +210,18 @@ class LocalPlanner(object):
             control.manual_gear_shift = False
             return control
 
-        # Buffering the waypoints
-        if not self._waypoint_buffer:
-            for i in range(self._buffer_size):
-                if self.waypoints_queue:
-                    self._waypoint_buffer.append(
-                        self.waypoints_queue.popleft())
-                else:
-                    break
-
         # Current vehicle waypoint
-        self._current_waypoint = self._map.get_waypoint(self._vehicle.get_location())
+        self._current_waypoint = self._map.get_waypoint(
+            self._vehicle.get_location())
+
+        veh_vel = self._vehicle.get_velocity()
+        speed = math.sqrt(veh_vel.x**2 + veh_vel.y**2) * 3.6    # kph
+        look_ahead = max(1, speed / 5)
 
         # Target waypoint
         self.target_waypoint, self.target_road_option = self._waypoint_buffer[0]
+
+        look_ahead_loc = self._get_look_ahead_location(look_ahead)
 
         if target_speed > 50:
             args_lat = self.args_lat_hw_dict
@@ -220,11 +230,13 @@ class LocalPlanner(object):
             args_lat = self.args_lat_city_dict
             args_long = self.args_long_city_dict
 
-        self._pid_controller = VehiclePIDController(self._vehicle,
-                                                    args_lateral=args_lat,
-                                                    args_longitudinal=args_long)
+        if not self._pid_controller:
+            self._pid_controller = VehiclePIDController(self._vehicle,
+                                                        args_lateral=args_lat,
+                                                        args_longitudinal=args_long)
 
-        control = self._pid_controller.run_step(self._target_speed, self.target_waypoint)
+        control = self._pid_controller.run_step(
+            self._target_speed, look_ahead_loc)
 
         # Purge the queue of obsolete waypoints
         vehicle_transform = self._vehicle.get_transform()
@@ -236,9 +248,115 @@ class LocalPlanner(object):
                 max_index = i
         if max_index >= 0:
             for i in range(max_index + 1):
-                self._waypoint_buffer.popleft()
+                if i == max_index:
+                    self._prev_waypoint = self._waypoint_buffer.popleft()[0]
+                else:
+                    self._waypoint_buffer.popleft()
 
         if debug:
             draw_waypoints(self._vehicle.get_world(),
-                           [self.target_waypoint], 1.0)
+                           [look_ahead_loc], 1.0)
         return control
+
+    def _buffer_waypoints(self, debug=False):
+        """Put waypoints into the buffer."""
+        num_waypoints_to_add = self._buffer_size - len(self._waypoint_buffer)
+        for _ in range(num_waypoints_to_add):
+            if self.waypoints_queue:
+                next_waypoint = self.waypoints_queue.popleft()
+                self._waypoint_buffer.append(next_waypoint)
+                if debug:
+                    carla_world = self._vehicle.get_world()
+                    carla_world.debug.draw_line(next_waypoint[0].transform.location,
+                                                next_waypoint[0].transform.location +
+                                                carla.Location(z=0.5),
+                                                color=carla.Color(255, 0, 255))
+            else:
+                break
+
+    def _get_projection(self):
+        """Get the projection of current vehicle position between prev and target waypoints.
+
+        Returns:
+            carla.Location: Location of the current projection point.
+            numpy.ndarray: 3D vector formed by the prev and incoming waypoints.
+        """
+        # Vector between prev and target waypoints
+        waypt_location_diff = self.target_waypoint.transform.location - \
+            self._prev_waypoint.transform.location
+        vec_waypoints = np.array(
+            [waypt_location_diff.x, waypt_location_diff.y, waypt_location_diff.z])
+
+        # Vector between prev waypoint and current vehicle's location
+        veh_location_diff = self._vehicle.get_location(
+        ) - self._prev_waypoint.transform.location
+        vec_vehicle = np.array(
+            [veh_location_diff.x, veh_location_diff.y, veh_location_diff.z])
+
+        proj_pt = vec_vehicle @ vec_waypoints * \
+            vec_waypoints / np.linalg.norm(vec_waypoints)**2
+
+        prev_waypt_loc = self._prev_waypoint.transform.location
+
+        proj_loc = carla.Location(proj_pt[0] + prev_waypt_loc.x,
+                                  proj_pt[1] + prev_waypt_loc.y,
+                                  proj_pt[2] + prev_waypt_loc.z)
+
+        return proj_loc, vec_waypoints
+
+    def _get_look_ahead_location(self, look_ahead):
+        """Get location of look ahead point along path formed by waypoints."""
+        proj_loc, vec_waypoints = self._get_projection()
+        target_loc = self.target_waypoint.transform.location
+
+        # Distance between current projection point and the incoming target waypoint
+        dist_to_next_waypoint = proj_loc.distance(target_loc)
+
+        if look_ahead <= dist_to_next_waypoint:
+            # Vector scaled by look ahead distance
+            vec_look_ahead = vec_waypoints / \
+                np.linalg.norm(vec_waypoints) * look_ahead
+
+            look_ahead_location = carla.Location(proj_loc.x + vec_look_ahead[0],
+                                                 proj_loc.y +
+                                                 vec_look_ahead[1],
+                                                 proj_loc.z + vec_look_ahead[2])
+
+        else:
+            # Loop over buffered waypoints to find the section where the look ahead point
+            # lies in, then compute the location of the look ahead point
+            idx = 0
+            while True:
+                # If out of waypoints in buffer, use the last waypoint in buffer as look ahead point
+                if idx+2 > len(self._waypoint_buffer):
+                    look_ahead_location = self._waypoint_buffer[-1][0].transform.location
+                    break
+
+                # Comput look ahead distacne in the current section
+                look_ahead -= dist_to_next_waypoint
+
+                # Vector formed by start and end waypoints of the current section
+                vec = self._waypoint_buffer[idx+1][0].transform.location - \
+                    self._waypoint_buffer[idx][0].transform.location
+                vec = np.array([vec.x, vec.y, vec.z])
+
+                dist_to_next_waypoint = np.linalg.norm(vec)
+
+                # If look ahead distance exceeds length of current section, go to next one
+                if look_ahead > dist_to_next_waypoint:
+                    idx += 1
+                    continue
+
+                # Section found, compute look ahead location
+                else:
+                    # Vector scaled by remaining look ahead distance
+                    vec_look_ahead = vec / dist_to_next_waypoint * look_ahead
+
+                    base_waypt_loc = self._waypoint_buffer[idx][0].transform.location
+                    look_ahead_location = carla.Location(
+                        base_waypt_loc.x + vec_look_ahead[0],
+                        base_waypt_loc.y + vec_look_ahead[1],
+                        base_waypt_loc.z + vec_look_ahead[2])
+                    break
+
+        return look_ahead_location
