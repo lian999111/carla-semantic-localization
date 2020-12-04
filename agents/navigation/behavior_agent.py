@@ -363,6 +363,7 @@ class BehaviorAgent(Agent):
 
             :param debug: boolean for debugging
             :return control: carla.VehicleControl
+            :return waypoints_in_buffer: bool indicating if waypoints still exist in local planner's buffer.
         """
         control = None
         if self.behavior.tailgate_counter > 0:
@@ -425,4 +426,6 @@ class BehaviorAgent(Agent):
             control = self._local_planner.run_step(
                 target_speed=min(self.behavior.max_speed, self.speed_limit - self.behavior.speed_lim_dist), debug=debug)
 
-        return control
+        waypoints_in_buffer = self._local_planner.waypoints_in_buffer()
+
+        return control, waypoints_in_buffer
