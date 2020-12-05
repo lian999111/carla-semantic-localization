@@ -88,6 +88,15 @@ class VehiclePIDController():
 
         return control
 
+    def set_lon_controller_params(self, K_P=None, K_D=None, K_I=None, dt=None):
+        """Set longitudinal controller parameters."""
+        self._lon_controller.set_pid_params(K_P, K_D, K_I, dt)
+
+    def set_lat_controller_params(self, K_P=None, K_D=None, K_I=None, dt=None):
+        """Set lateral controller parameters."""
+        self._lat_controller.set_pid_params(K_P, K_D, K_I, dt)
+
+
 
 class PIDLongitudinalController():
     """
@@ -125,6 +134,17 @@ class PIDLongitudinalController():
             print('Current speed = {}'.format(current_speed))
 
         return self._pid_control(target_speed, current_speed)
+    
+    def set_pid_params(self, K_P=None, K_D=None, K_I=None, dt=None):
+        """Set parameters for pid controller."""
+        if K_P:
+            self._k_p = K_P
+        if K_D:
+            self._k_d = K_D
+        if K_I:
+            self._k_i = K_I
+        if dt:
+            self._dt = dt
 
     def _pid_control(self, target_speed, current_speed):
         """
@@ -181,6 +201,17 @@ class PIDLateralController():
             +1 maximum steering to right
         """
         return self._pid_control(waypoint_loc, self._vehicle.get_transform())
+
+    def set_pid_params(self, K_P=None, K_D=None, K_I=None, dt=None):
+        """Set parameters for pid controller."""
+        if K_P:
+            self._k_p = K_P
+        if K_D:
+            self._k_d = K_D
+        if K_I:
+            self._k_i = K_I
+        if dt:
+            self._dt = dt
 
     def _pid_control(self, waypoint_loc, vehicle_transform):
         """
