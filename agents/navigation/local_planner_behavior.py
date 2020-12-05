@@ -16,7 +16,7 @@ import math
 
 import carla
 from agents.navigation.controller import VehiclePIDController
-from agents.tools.misc import distance_vehicle, draw_waypoints
+from agents.tools.misc import distance_vehicle, draw_waypoints, get_speed
 
 
 class RoadOption(Enum):
@@ -89,7 +89,7 @@ class LocalPlanner(object):
         dt -- time difference between physics control in seconds.
         This is can be fixed from server side
         using the arguments -benchmark -fps=F, since dt = 1/F
-_prev_waypoint
+
         target_speed -- desired cruise speed in km/h
 
         min_distance -- minimum distance to remove waypoint from queue
@@ -198,8 +198,8 @@ _prev_waypoint
         else:
             self._target_speed = self._vehicle.get_speed_limit()
 
-        # Buffering the waypoints
-        self._buffer_waypoints(debug=debug)
+        # Buffer waypoints
+        self._buffer_waypoints()
 
         if len(self._waypoint_buffer) == 0:
             control = carla.VehicleControl()
@@ -214,8 +214,7 @@ _prev_waypoint
         self._current_waypoint = self._map.get_waypoint(
             self._vehicle.get_location())
 
-        veh_vel = self._vehicle.get_velocity()
-        speed = math.sqrt(veh_vel.x**2 + veh_vel.y**2) * 3.6    # kph
+        speed = get_speed(self._vehicle)   # kph
         look_ahead = max(1, speed / 5)
 
         # Target waypoint
@@ -254,23 +253,29 @@ _prev_waypoint
                     self._waypoint_buffer.popleft()
 
         if debug:
-            draw_waypoints(self._vehicle.get_world(),
-                           [look_ahead_loc], 1.0)
+            carla_world = self._vehicle.get_world()
+
+            # Draw current buffered waypoint
+            buffered_waypts = [elem[0] for elem in self._waypoint_buffer]
+            draw_waypoints(carla_world, buffered_waypts)
+
+            # Draw current look ahead point
+            look_ahead_loc
+            carla_world.debug.draw_line(look_ahead_loc,
+                                        look_ahead_loc+carla.Location(z=0.2),
+                                        color=carla.Color(255, 255, 0),
+                                        thickness=0.2,
+                                        life_time=1.0)
+
         return control
 
-    def _buffer_waypoints(self, debug=False):
-        """Put waypoints into the buffer."""
+    def _buffer_waypoints(self):
+        """Put waypoints from global queue into the buffer."""
         num_waypoints_to_add = self._buffer_size - len(self._waypoint_buffer)
         for _ in range(num_waypoints_to_add):
             if self.waypoints_queue:
                 next_waypoint = self.waypoints_queue.popleft()
                 self._waypoint_buffer.append(next_waypoint)
-                if debug:
-                    carla_world = self._vehicle.get_world()
-                    carla_world.debug.draw_line(next_waypoint[0].transform.location,
-                                                next_waypoint[0].transform.location +
-                                                carla.Location(z=0.5),
-                                                color=carla.Color(255, 0, 255))
             else:
                 break
 
