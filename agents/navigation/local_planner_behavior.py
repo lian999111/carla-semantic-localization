@@ -215,7 +215,7 @@ class LocalPlanner(object):
             self._vehicle.get_location())
 
         speed = get_speed(self._vehicle)   # kph
-        look_ahead = max(1, speed / 5)
+        look_ahead = max(2, speed / 4.5)
 
         # Target waypoint
         self.target_waypoint, self.target_road_option = self._waypoint_buffer[0]
@@ -233,6 +233,9 @@ class LocalPlanner(object):
             self._pid_controller = VehiclePIDController(self._vehicle,
                                                         args_lateral=args_lat,
                                                         args_longitudinal=args_long)
+        else:
+            self._pid_controller.set_lon_controller_params(**args_long)
+            self._pid_controller.set_lat_controller_params(**args_lat)
 
         control = self._pid_controller.run_step(
             self._target_speed, look_ahead_loc)
