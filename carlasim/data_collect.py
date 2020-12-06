@@ -590,15 +590,11 @@ class World(object):
                 new_start, new_goal, clean=False)
             print("New target: {}".format(new_goal))
 
-        elif len(self._behavior_agent.get_local_planner().waypoints_queue) == 0:
-            return False
-
-
         self._behavior_agent.update_information(self.ego_veh)
         # If debug set to True, imminent waypoints will be drawn
-        control = self._behavior_agent.run_step(debug=False)
+        control, keep_running = self._behavior_agent.run_step(debug=True)
         self.ego_veh.apply_control(control)
-        return True
+        return keep_running
 
     def step_forward(self):
         """ 
