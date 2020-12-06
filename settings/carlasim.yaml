@@ -15,7 +15,7 @@ world:
   sync_mode: True
   # Note: For behavior agent's controller to work, time step 0.05 is recommended.
   #       If autopilot is used, then 0.1 is sufficient.
-  delta_seconds: &delta_seconds 0.05  # seconds per tick
+  delta_seconds: &delta_seconds 0.1  # seconds per tick
   
   # Built-in map
   map: Town04
@@ -46,19 +46,19 @@ world:
 # 2. Behavior Agent:
 #    Use the BehaviorAgent class defined in the "agent" package found in Carla's repository.
 #    This utility class is used in several example codes for demonstrations. However, it is not
-#    officially documented and its use here is solely based on the examination of the example codes with some very minor changes.
-#    It has the advantage that it can accept a set of waypoints to follow. Downside is, for it's PID controller to work, 
-#    simulation time step must not be too large (0.05 sec/tick has been found to work just fine for normal mode with max speed at 50 kph) 
-#    and the car doesn't run as smoothly as when autopilot is used (especially inferior in sharp turns).
-# The following are configurations for the 2 mentioned methods. Either one set of them is used in the actual code.
+#    officially documented and its use here is solely based on the examination of the example codes 
+#    with some improvements and fundamental bug fixes. I also extend the behavior agent such that 
+#    the controller follows look ahead point placed a certain distance ahead instead of just the 
+#    next waypoint. 
+# The following are configurations for the 2 mentioned methods.
 
-## Autopilot
-autopilot:
-  auto_lane_change: True
-  ignore_lights_percentage: 100
-  vehicle_percentage_speed_difference: 0    # When set to negative, vehicles move beyond the speed limit
+## Autopilot (uncomment this section to use autopilot)
+# autopilot:
+#   auto_lane_change: True
+#   ignore_lights_percentage: 100
+#   vehicle_percentage_speed_difference: 0    # When set to negative, vehicles move beyond the speed limit
 
-## Behavior Agent
+## Behavior Agent (uncomment this section to use behavior agent)
 behavior_agent:
   ignore_traffic_light: True
   behavior: 'normal'    # 'cautious', 'normal', 'aggressive'  Note: 'aggressive' often cause instability.
@@ -83,8 +83,12 @@ behavior_agent:
       y: -100
       z: 0
     - 
-      x: 60
+      x: 150
       y: -170 
+      z: 0
+    - 
+      x: 255
+      y: -205 
       z: 0
 
 ## Ego Vehicle
@@ -159,7 +163,7 @@ gt:
     raxle_to_cg: *raxle_to_cg              # (m) Distance from rear axle to center of gravity in x
     raxle_to_fbumper: *raxle_to_fbumper    # (m) Distance from rear axle to front bumper in x
   lane:
-    radius: 50      # (m) Search radius for lane markings
+    radius: 10      # (m) Search radius for lane markings
 
 ## Recorder
 # Each toggle specifies whether its corresponding data are recoreded when the recorder is activated
