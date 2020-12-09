@@ -1,19 +1,26 @@
 ## Defines parameters for localization
 
 graph:
-  win_size: 10   # Size of sliding window. e.g. 10 means the graph contains the just last 10 poses.
+  win_size: 10 # Size of sliding window. e.g. 10 means the graph contains the just last 10 poses.
+  # True to use previous a posteriori of the last node as a priori when it becomes the first node as the sliding window moves.
+  use_prev_posteriori: True
+
+prior:
+  stddev_x: 5.0 # Standard deviation in the noise model for x.
+  stddev_y: 5.0 # Standard deviation in the noise model for y.
+  stddev_theta: 5.0 # Standard deviation in the noise model for heading.
 
 # Parameters for GPS factor
 gnss:
-  stddev_x: 3.0  # Standard deviation in the noise model for x.
-  stddev_y: 3.0  # Standard deviation in the noise model for y.
+  stddev_x: 3.0 # Standard deviation in the noise model for x.
+  stddev_y: 3.0 # Standard deviation in the noise model for y.
 
 # Parameter for ctrv odometry factor
 ctrv:
-  stddev_vx: 0.1        # Standard deviation in the noise model for vx.
-  stddev_yaw_rate: 0.1  # Standard deviation in the noise model for yaw rate.
+  stddev_vx: 0.1 # Standard deviation in the noise model for vx.
+  stddev_yaw_rate: 0.1 # Standard deviation in the noise model for yaw rate.
 
 # Parameters for lane boundary factors
 geometric_lane:
-  stddev_c0: 0.2  # Standard deviation in the measurement noise model for c0.
-  stddev_c1: 0.2  # Standard deviation in the measurement noise model for c1.
+  stddev_c0: 0.2 # Standard deviation in the measurement noise model for c0.
+  stddev_c1: 0.2 # Standard deviation in the measurement noise model for c1.
