@@ -197,12 +197,9 @@ def main():
         
         plt.axis('equal')
 
-        # mid_pos = sw_graph.optimized_results.at(
-        #     ms.key('x', sw_graph.get_idc_in_graph()[-1])).translation()
-        # ax.set_xlim((mid_pos[0]-10, mid_pos[0]+10))
-        # ax.set_ylim((mid_pos[1]-10, mid_pos[1]+10))
-        # ax.set_xlim((0, 10))
-        # ax.set_ylim((145, 160))
+        last_pos = sw_graph.last_optimized_se2.translation()
+        ax.set_xlim((last_pos[0]-10, last_pos[0]+10))
+        ax.set_ylim((last_pos[1]-10, last_pos[1]+10))
         
 
         # plt.axis('equal')
