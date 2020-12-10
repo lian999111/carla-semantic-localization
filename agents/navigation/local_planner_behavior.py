@@ -48,6 +48,7 @@ class LocalPlanner(object):
     # Minimum distance to target waypoint as a percentage
     # (e.g. within 80% of total distance)
 
+    # TODO: Set FPS in constructor
     # FPS used for dt
     FPS = 10
 
