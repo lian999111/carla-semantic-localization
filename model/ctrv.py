@@ -3,13 +3,14 @@
 from math import sin, cos
 import numpy as np
 
+
 def predict_motion_from_ego_frame(vx, yaw_rate, delta_t, Q=None):
     """ 
     Predict the expected CTRV motion with respect to current ego frame given the control and time difference.
-    
+
     That is, get the expected CTRV motion while viewed from the current pose.    
     When yaw rate is very small, CV model is used instead to avoid division-by-zero.
-    
+
     Note: The resultant covarinace matrix of delta_x, delta_y, delta_theta is obtained by transforming 
     the covariance matrix of vx and yaw rate based on the Jacobian of the CTRV model. This method results
     in a rank-deficient matrix and causes problems during optimization. Thus, a small diagonal matrix is
@@ -40,9 +41,11 @@ def predict_motion_from_ego_frame(vx, yaw_rate, delta_t, Q=None):
 
         if Q is not None:
             L[0, 0] = 1/yaw_rate * np.sin(yaw_rate_T)
-            L[0, 1] = -r/yaw_rate * np.sin(yaw_rate_T) + r*delta_t*np.cos(yaw_rate_T)
+            L[0, 1] = -r/yaw_rate * \
+                np.sin(yaw_rate_T) + r*delta_t*np.cos(yaw_rate_T)
             L[1, 0] = 1/yaw_rate * (-np.cos(yaw_rate_T) + 1)
-            L[1, 1] = -r/yaw_rate * (-np.cos(yaw_rate_T) + 1) + r*delta_t*np.sin(yaw_rate_T)
+            L[1, 1] = -r/yaw_rate * \
+                (-np.cos(yaw_rate_T) + 1) + r*delta_t*np.sin(yaw_rate_T)
             L[2, 1] = delta_t
     else:
         delta_x = vx*delta_t
@@ -50,7 +53,7 @@ def predict_motion_from_ego_frame(vx, yaw_rate, delta_t, Q=None):
 
         if Q is not None:
             L[0, 0] = delta_t
-        
+
         if vx > 0.1:
             delta_theta = yaw_rate * delta_t
             if Q is not None:
@@ -58,7 +61,7 @@ def predict_motion_from_ego_frame(vx, yaw_rate, delta_t, Q=None):
         else:
             # Do not update theta if vx is small
             delta_theta = 0.0
-            
+
     if Q is not None:
         # LQL.T along gives a rank-deficient (only rank 2) covariance, which makes it impossible to use
         # since inverse must be taken during optimization.
@@ -68,3 +71,19 @@ def predict_motion_from_ego_frame(vx, yaw_rate, delta_t, Q=None):
         cov = None
 
     return delta_x, delta_y, delta_theta, cov
+
+
+def compute_F(x, y, theta, vx, yaw_rate, delta_t):
+    """Compute linearized F matrix for ctrv model."""
+    F = np.diag([1., 1., 1.])
+
+    if yaw_rate > 1e-3:
+        r = vx/yaw_rate
+        theta_plus_yaw_rate_dt = theta + yaw_rate * delta_t
+        F[0, 2] = r * (cos(theta_plus_yaw_rate_dt) - cos(theta))
+        F[1, 2] = r * (sin(theta_plus_yaw_rate_dt) - sin(theta))
+    else:
+        F[0, 2] = -vx * sin(theta) * delta_t
+        F[1, 2] = vx * cos(theta) * delta_t
+
+    return F
