@@ -63,6 +63,10 @@ class SlidingWindowGraphManager(object):
         self.last_optimized_se2 = None
         #: np.ndarray: Covariance matrix of last optimized pose
         self.last_optimized_cov = None
+        
+        #: np.ndarray: Stores the covariance matrix of the new node predicted using CTRV model.
+        # This is used for gating and computing weights for data association
+        self.pred_cov = None
 
         #: bool: True if new pose node already has a corresponding initial guess
         self.new_node_guessed = False
@@ -155,25 +159,33 @@ class SlidingWindowGraphManager(object):
         self.next_node_idx += 1
         self.new_node_guessed = False
 
-        # Predict pose a priori as initial guess using CTRV model
-        last_trans = self.last_optimized_se2.translation()
-        last_x, last_y = last_trans[0], last_trans[1]
-        last_theta = self.last_optimized_se2.so2().theta()
-        # The delta motion is wrt the local frame of the last pose, must make it wrt the global frame
-        delta_x, delta_y, delta_theta = motion
-        rotm = np.array([[cos(last_theta), -sin(last_theta)],
-                         [sin(last_theta), cos(last_theta)]])
-        delta = rotm @ np.array([delta_x, delta_y])
-        delta_x_global = delta[0]
-        delta_y_global = delta[1]
-
-        # Predict pose a priori
-        prior_x = last_x + delta_x_global
-        prior_y = last_y + delta_y_global
-        prior_theta = last_theta + delta_theta
+        # Predict uncertainty of the new pose node from last pose and odom.
+        # This will be used for gating and data association for other types of factors.
+        # Note since minisam always considers uncertainty wrt local frames, theta used for 
+        # computing F is 0 as the last pose has the coordinate (x=0, y=0, theta=0) wrt its own frame.
+        F = compute_F(0., vx, yaw_rate, delta_t)
+        motion_uncert = motion[3]
+        self.pred_cov = F @ self.last_optimized_cov @ F.T + motion_uncert
 
         # Add CTRV based initial guess for the new pose node
         if add_init_guess:
+            # Predict pose a priori as initial guess using CTRV model
+            last_trans = self.last_optimized_se2.translation()
+            last_x, last_y = last_trans[0], last_trans[1]
+            last_theta = self.last_optimized_se2.so2().theta()
+            # The delta motion is wrt the local frame of the last pose, must make it wrt the global frame
+            delta_x, delta_y, delta_theta = motion[0:3]
+            rotm = np.array([[cos(last_theta), -sin(last_theta)],
+                            [sin(last_theta), cos(last_theta)]])
+            delta = rotm @ np.array([delta_x, delta_y])
+            delta_x_global = delta[0]
+            delta_y_global = delta[1]
+
+            # Predict pose a priori
+            prior_x = last_x + delta_x_global
+            prior_y = last_y + delta_y_global
+            prior_theta = last_theta + delta_theta
+
             # Use prior as initial guess
             guessed_pose = sophus.SE2(sophus.SO2(
                 prior_theta), np.array([prior_x, prior_y]))

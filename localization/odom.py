@@ -34,4 +34,4 @@ def create_ctrv_between_factor(key1, key2, vx, yaw_rate, delta_t, ctrv_config):
     between_factor = BetweenFactor(key1, key2, SE2(
         SO2(delta_theta), np.array([delta_x, delta_y])), ctrv_noise)
 
-    return between_factor, (delta_x, delta_y, delta_theta)
+    return between_factor, (delta_x, delta_y, delta_theta, cov)
