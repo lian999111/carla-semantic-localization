@@ -61,7 +61,7 @@ class SlidingWindowGraphManager(object):
         self.optimized_results = None
         #: ms.sophus.SE2: Last optimized SE2 pose
         self.last_optimized_se2 = None
-        #: ms.GaussianLoss: Noise model of last optimized pose
+        #: np.ndarray: Covariance matrix of last optimized pose
         self.last_optimized_cov = None
 
         #: bool: True if new pose node already has a corresponding initial guess
