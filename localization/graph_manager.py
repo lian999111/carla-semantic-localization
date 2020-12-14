@@ -146,18 +146,17 @@ class SlidingWindowGraphManager(object):
         last_trans = self.last_optimized_se2.translation()
         last_x, last_y = last_trans[0], last_trans[1]
         last_theta = self.last_optimized_se2.so2().theta()
-        # The delta motion is wrt the local frame of the last pose, must convert it
-        # to be wrt the global frame
+        # The delta motion is wrt the local frame of the last pose, must make it wrt the global frame
         delta_x, delta_y, delta_theta = motion
         rotm = np.array([[cos(last_theta), -sin(last_theta)],
                          [sin(last_theta), cos(last_theta)]])
         delta = rotm @ np.array([delta_x, delta_y])
-        delta_x = delta[0]
-        delta_y = delta[1]
+        delta_x_global = delta[0]
+        delta_y_global = delta[1]
 
         # Predict pose a priori
-        prior_x = last_x + delta_x
-        prior_y = last_y + delta_y
+        prior_x = last_x + delta_x_global
+        prior_y = last_y + delta_y_global
         prior_theta = last_theta + delta_theta
 
         # Add CTRV based initial guess for the new pose node
