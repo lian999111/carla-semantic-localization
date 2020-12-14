@@ -66,6 +66,14 @@ class SlidingWindowGraphManager(object):
 
         #: bool: True if new pose node already has a corresponding initial guess
         self.new_node_guessed = False
+        #: bool: True if odom factor has been added at the current time step.
+        # As in the current implementation, a odom factor should be added as the first operation
+        # at every time step to introduce a new node. This flag is used to check the abovementioned
+        # is not violated.
+        # This flag is set to False after optimization is carried out in the end of every time step.
+        # When trying to add a factor other than a odom factor without already adding a odom factor,
+        # an Exceptio will be raised.
+        self.odom_added = False
 
     def add_prior_factor(self, x, y, theta, prior_noise=None):
         """Add prior factor to first pose node.
@@ -100,8 +108,6 @@ class SlidingWindowGraphManager(object):
         if self.use_prev_posteriori:
             self.prior_node_idx += 1
 
-        self.new_node_guessed = False
-
         # Add initial guess
         self.initials.add(prior_node_key,
                           sophus.SE2(sophus.SO2(theta), np.array([x, y])))
@@ -111,7 +117,9 @@ class SlidingWindowGraphManager(object):
         """Add CTRV based between factor.
 
         This method extends the graph by adding a new ctrv between factor to the last pose node.
-        This method should be the first action to introduce a new node into the graph in most cases.
+        This method should be the first operation at every time step to introduce a new node into 
+        the graph in most cases. An exception is the very first time step where a prior node should
+        be added beforehand.
 
         Args:
             vx: Velocity in x. (m/s)
@@ -124,6 +132,10 @@ class SlidingWindowGraphManager(object):
         if not self._idc_in_graph:
             raise RuntimeError(
                 'Between factor cannot be added to an empty graph!')
+        if self.odom_added:
+            raise RuntimeError(
+                'Between factor already added for this time step. \
+                    Optimize the current factor graph to proceed to the next time step.')
 
         last_node_idx = self._idc_in_graph[-1]
         last_node_key = ms.key('x', last_node_idx)
@@ -139,6 +151,7 @@ class SlidingWindowGraphManager(object):
         self._idc_in_graph.append(self.next_node_idx)
 
         # Increment the index of the next node to be added
+        self.odom_added = True
         self.next_node_idx += 1
         self.new_node_guessed = False
 
@@ -175,17 +188,13 @@ class SlidingWindowGraphManager(object):
             add_init_guess (bool): True to use gnss as initial guess.
                 This can be used when odom or imu is not applicable.
         """
-        # Check if there are nodes already in the graph except the prior node
-        if self.get_graph_size() > 1:
-            new_node_key = ms.key('x', self._idc_in_graph[-1])
-        else:
-            # No existing nodes other than the prior node, add a new node into graph
-            new_node_key = ms.key('x', self.next_node_idx)
-            self._idc_in_graph.append(self.next_node_idx)
-            self.next_node_idx += 1
-            self.new_node_guessed = False
+        if not self.odom_added:
+            raise RuntimeError(
+                'Between (odom) factor should be added first at every time step.')
 
-        self.graph.add(GNSSFactor(new_node_key,
+        node_key = ms.key('x', self._idc_in_graph[-1])
+
+        self.graph.add(GNSSFactor(node_key,
                                   point,
                                   self.config['gnss']))
 
@@ -199,7 +208,7 @@ class SlidingWindowGraphManager(object):
                 # Simply guess 0 as heading
                 theta_guess = 0.0
 
-            self.initials.add(new_node_key,
+            self.initials.add(node_key,
                               sophus.SE2(sophus.SO2(theta_guess), point))
             self.new_node_guessed = True
 
@@ -272,6 +281,10 @@ class SlidingWindowGraphManager(object):
 
         # Use the results as the initials for the next iteration
         self.initials = self.optimized_results
+
+        # After optimization at the current time step, set this flag to false so the first
+        # factor added at the next time step can be ensured to be a odom (between) factor
+        self.odom_added = False
 
         if status != ms.NonlinearOptimizationStatus.SUCCESS:
             print("optimization error: ", status)
