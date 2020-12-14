@@ -73,9 +73,21 @@ def predict_motion_from_ego_frame(vx, yaw_rate, delta_t, Q=None):
     return delta_x, delta_y, delta_theta, cov
 
 
-def compute_F(x, y, theta, vx, yaw_rate, delta_t):
-    """Compute linearized F matrix for ctrv model."""
-    F = np.diag([1., 1., 1.])
+def compute_F(theta, vx, yaw_rate, delta_t):
+    """Compute linearized F matrix for ctrv model.
+
+    F is independent of x and y.
+    
+    Args:
+        theta:      Current heading. (rad)
+        vx:         Velocity in x-axis of the ego frame. (m/s)
+        yaw_rate:   Yaw rate. (rad/s)
+        delta_t:    Time difference. (sec)
+
+    Returns:
+        F: Linearized F matrix.
+    """
+    F = np.eye(3)
 
     if yaw_rate > 1e-3:
         r = vx/yaw_rate
