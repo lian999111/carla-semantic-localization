@@ -109,7 +109,7 @@ class MELaneMarking(object):
             marking_color: The color of the lane marking.
             me_lane_marking_type: The ME type of the lane marking.
         """
-        self.coeffs = coeffs
+        self.coeffs = coeffs    # in descending order
         self.color = LaneMarkingColor(marking_color)
         self.type = MELaneMarkingType(me_lane_marking_type)
 
