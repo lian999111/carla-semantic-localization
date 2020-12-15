@@ -136,7 +136,7 @@ def main():
             # Visualization
             for pole_idx, base_coord in enumerate(bases_in_image.T):
                 if pole_detections[pole_idx].type == TrafficSignType.Unknown:
-                    color = [0, 0, 0]
+                    color = [0, 0, 255]
                 else:
                     color = [255, 0, 0]
                 ss_image_copy = cv2.circle(
@@ -253,7 +253,7 @@ def main():
                 # Visualization
                 for pole_idx, base_coord in enumerate(bases_in_image.T):
                     if pole_detections[pole_idx].type == TrafficSignType.Unknown:
-                        color = [0, 0, 0]
+                        color = [50, 50, 50]
                     else:
                         color = [255, 0, 0]
                     ss_image_copy = cv2.circle(
