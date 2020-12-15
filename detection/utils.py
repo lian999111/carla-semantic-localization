@@ -148,6 +148,8 @@ class MELaneMarking(object):
 class MELaneDetection(object):
     """
     Class for mobileye-like lane detecion.
+
+    This class wraps the left and right MELaneMarking objects as a whole. 
     """
 
     def __init__(self, left_me_marking, right_me_marking):
