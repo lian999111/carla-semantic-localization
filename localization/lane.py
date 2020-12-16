@@ -11,7 +11,7 @@ from .utils import ExpectedLaneExtractor
 # TODO: Add docstring
 
 
-class GeometricLaneBoundaryFactor(Factor):
+class GeoLaneBoundaryFactor(Factor):
     """ Basic lane boundary factor. """
     gate = chi2.ppf(0.99, df=2)
 
@@ -40,7 +40,7 @@ class GeometricLaneBoundaryFactor(Factor):
         Factor.__init__(self, 1, [key], loss)
 
     def copy(self):
-        return GeometricLaneBoundaryFactor(self.keys()[0], self.lane_detection, self.pose_uncert, self.px, self.config, self._expected_lane_extractor)
+        return GeoLaneBoundaryFactor(self.keys()[0], self.lane_detection, self.pose_uncert, self.px, self.config, self._expected_lane_extractor)
 
     def error(self, variables):
         ########## Expectation ##########
