@@ -9,6 +9,7 @@ import minisam.sophus as sophus
 from model.ctrv import compute_F
 from .odom import create_ctrv_between_factor
 from .gnss import GNSSFactor
+from .lane import GeometricLaneBoundaryFactor
 from .utils import copy_se2
 
 
@@ -63,7 +64,7 @@ class SlidingWindowGraphManager(object):
         self.last_optimized_se2 = None
         #: np.ndarray: Covariance matrix of last optimized pose
         self.last_optimized_cov = None
-        
+
         #: np.ndarray: Stores the covariance matrix of the new node predicted using CTRV model.
         # This is used for gating and computing weights for data association
         self.pred_cov = None
@@ -161,7 +162,7 @@ class SlidingWindowGraphManager(object):
 
         # Predict uncertainty of the new pose node from last pose and odom.
         # This will be used for gating and data association for other types of factors.
-        # Note since minisam always considers uncertainty wrt local frames, theta used for 
+        # Note since minisam always considers uncertainty wrt local frames, theta used for
         # computing F is 0 as the last pose has the coordinate (x=0, y=0, theta=0) wrt its own frame.
         F = compute_F(0., vx, yaw_rate, delta_t)
         motion_uncert = motion[3]
@@ -176,7 +177,7 @@ class SlidingWindowGraphManager(object):
             # The delta motion is wrt the local frame of the last pose, must make it wrt the global frame
             delta_x, delta_y, delta_theta = motion[0:3]
             rotm = np.array([[cos(last_theta), -sin(last_theta)],
-                            [sin(last_theta), cos(last_theta)]])
+                             [sin(last_theta), cos(last_theta)]])
             delta = rotm @ np.array([delta_x, delta_y])
             delta_x_global = delta[0]
             delta_y_global = delta[1]
@@ -223,6 +224,22 @@ class SlidingWindowGraphManager(object):
             self.initials.add(node_key,
                               sophus.SE2(sophus.SO2(theta_guess), point))
             self.new_node_guessed = True
+
+    def add_geo_lane_factor(self, lane_detection, expected_lane_extractor):
+        """
+        """
+        if not self.odom_added:
+            raise RuntimeError(
+                'Between (odom) factor should be added first at every time step.')
+
+        node_key = ms.key('x', self._idc_in_graph[-1])
+
+        self.graph.add(GeometricLaneBoundaryFactor(node_key,
+                                                   lane_detection,
+                                                   self.pred_cov,
+                                                   3.8,
+                                                   self.config['geometric_lane'],
+                                                   expected_lane_extractor))
 
     def solve_one_step(self):
         """Solve the graph and corresponding covariance matrices for the current step.
