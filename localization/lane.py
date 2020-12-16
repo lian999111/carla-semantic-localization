@@ -102,9 +102,7 @@ class GeoLaneBoundaryFactor(Factor):
         if self._left_null_hypo:
             e_left = np.zeros((2,))
         else:
-            # e_left = np.zeros((2,))
             e_left = errors[marking_idx].squeeze()
-            # e_left = (np.asarray(self.expected_left_coeffs).reshape(2, -1) - left_coeffs).squeeze()
 
         self._right_null_hypo = True
         # Right marking measurement
@@ -135,8 +133,6 @@ class GeoLaneBoundaryFactor(Factor):
             e_right = errors[marking_idx].squeeze()
 
         return np.concatenate((e_left, e_right), axis=None)
-        # return e_left
-        # return e_right
 
     def jacobians(self, variables):
         # Left marking
@@ -173,9 +169,7 @@ class GeoLaneBoundaryFactor(Factor):
             if self._right_null_hypo:
                 jacob_right *= 0.01
 
-        # return [np.concatenate((jacob_left, jacob_right), axis=0)]
-        return [jacob_left]
-        # return [jacob_right]
+        return [np.concatenate((jacob_left, jacob_right), axis=0)]
 
     def _compute_normal_form_line_coeffs(self, expected_c0, expected_c1):
         alpha = np.arctan(expected_c1)
