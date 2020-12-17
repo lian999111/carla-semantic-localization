@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 
 from carlasim.groundtruth import LaneGTExtractor
 from localization.graph_manager import SlidingWindowGraphManager
+from localization.utils import ExpectedLaneExtractor
 
 
 def plotSE2WithCov(pose, cov, vehicle_size=0.5, line_color='k', vehicle_color='r'):
@@ -113,7 +114,7 @@ def main():
     # Connect to Carla server
     client = carla.Client('localhost', 2000)
     client.set_timeout(5.0)
-    carla_world = client.load_world('Town04')
+    carla_world = client.load_world(carla_config['world']['map'])
 
     settings = carla_world.get_settings()
     settings.synchronous_mode = False
@@ -122,6 +123,7 @@ def main():
     carla_world.apply_settings(settings)
 
     lane_gt_extractor = LaneGTExtractor(carla_world, {'radius': 10})
+    expected_lane_extractor = ExpectedLaneExtractor(lane_gt_extractor)
 
     np.random.seed(2)
 
@@ -172,7 +174,7 @@ def main():
 
         # Add prior factor
         if idx == init_idx:
-            sw_graph.add_prior_factor(noised_gnss_x, noised_gnss_y, 0.0)
+            sw_graph.add_prior_factor(noised_gnss_x, noised_gnss_y, yaw_gt)
         
         if idx > init_idx:
             # Add CTRV between factor
@@ -181,6 +183,13 @@ def main():
             # Add GNSS factor
             sw_graph.add_gnss_factor(
                 np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
+            # Add geometric lane factor factor
+            sw_graph.add_geo_lane_factor(lane_detection, expected_lane_extractor)
+            # sw_graph.add_geo_lane_factor(lane_detection.left_marking_detection, expected_lane_extractor)
+            # sw_graph.add_geo_lane_factor(lane_detection.right_marking_detection, expected_lane_extractor)
+            # if idx - init_idx > 2:
+            #     # Add geometric lane factor factor
+            #     sw_graph.add_geo_lane_factor(lane_detection, expected_lane_extractor)
 
         sw_graph.try_move_sliding_window_forward()
 

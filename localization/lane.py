@@ -8,6 +8,55 @@ from carlasim.carla_tform import Transform
 from carlasim.utils import get_fbumper_location
 from .utils import ExpectedLaneExtractor
 
+
+def compute_normal_form_line_coeffs(px, expected_c0, expected_c1):
+    """Compute normal form of lane boundary given expected c0 and c1 coefficients.
+
+    Normal form parameters of a line are a, b, c, and alpha, which describe the line
+    with respect to the referecen frame in the form:
+        ax + by = c
+        alpha: Relative heading of the line.
+
+    Args:
+        px: Logitudinal distance from the local frame to the front bumper. 
+        expected_c0: Expected c0 coefficient of lane boundary.
+        expected_c1: Expected c1 coefficient of lane boundary.
+
+    Returns:
+        Normal form parameters a, b, c, and alpha.
+    """
+    alpha = np.arctan(expected_c1)
+    a_L = -np.sin(alpha)
+    b_L = np.cos(alpha)
+    c_L = a_L*px + b_L*expected_c0
+
+    return a_L, b_L, c_L, alpha
+
+
+def compute_H(px, expected_c0, expected_c1):
+    """Compute H matrix given expected c0 and c1.
+
+    H matrix is the jacobian of the measurement model wrt the pose.
+
+    Args:
+        px: Logitudinal distance from the local frame to the front bumper. 
+        expected_c0: Expected c0 coefficient of lane boundary.
+        expected_c1: Expected c1 coefficient of lane boundary.
+
+    Returns:
+        H matrix as np.ndarray.
+    """
+    a, b, c, alpha = compute_normal_form_line_coeffs(px,
+                                                     expected_c0,
+                                                     expected_c1)
+
+    h13 = -px + (-a*c + a*a*px)/b**2
+
+    H = np.array([[expected_c1, -1, h13],
+                  [0, 0, -1/np.cos(alpha)**2]])
+
+    return H
+
 # TODO: Add docstring
 
 
@@ -59,11 +108,8 @@ class GeoLaneBoundaryFactor(Factor):
         innov_matrices = []
         for expected_coeffs in expected_coeffs_list:
             # Compute innovation matrix for current expected marking
-            a, b, c, alpha = self._compute_normal_form_line_coeffs(expected_coeffs[0],
-                                                                   expected_coeffs[1])
-            h13 = -self.px + (-a*c + a*a*self.px)/b**2
-            H = np.array(
-                [[expected_coeffs[1], -1, h13], [0, 0, -1/np.cos(alpha)**2]])
+            expected_c0, expected_c1 = expected_coeffs
+            H = compute_H(self.px, expected_c0, expected_c1)
             innov = H @ self.pose_uncert @ H.T + self.noise_cov
             innov_matrices.append(innov)
 
@@ -134,16 +180,8 @@ class GeoLaneBoundaryFactor(Factor):
         if self.expected_left_coeffs is None:
             jacob_left = np.array([[1, 1, 1], [0, 0, 1]]) * 1e-1
         else:
-            expected_c0 = self.expected_left_coeffs[0]
-            expected_c1 = self.expected_left_coeffs[1]
-
-            a, b, c, alpha = self._compute_normal_form_line_coeffs(
-                expected_c0, expected_c1)
-
-            h13 = -self.px + (-a*c + a*a*self.px)/b**2
-
-            jacob_left = np.array(
-                [[expected_c1, -1, h13], [0, 0, -1/np.cos(alpha)**2]])
+            expected_c0, expected_c1 = self.expected_left_coeffs
+            jacob_left = compute_H(self.px, expected_c0, expected_c1)
 
             if self._left_null_hypo:
                 jacob_left *= 0.01
@@ -152,27 +190,14 @@ class GeoLaneBoundaryFactor(Factor):
         if self.expected_right_coeffs is None:
             jacob_right = np.array([[1, 1, 1], [0, 0, 1]]) * 1e-5
         else:
-            expected_c0 = self.expected_right_coeffs[0]
-            expected_c1 = self.expected_right_coeffs[1]
-
-            a, b, c, alpha = self._compute_normal_form_line_coeffs(
-                expected_c0, expected_c1)
-
-            h13 = -self.px + (-a*c + a*a*self.px)/b**2
-
-            jacob_right = np.array(
-                [[expected_c1, -1, h13], [0, 0, -1/np.cos(alpha)**2]])
+            expected_c0, expected_c1 = self.expected_right_coeffs
+            jacob_right = compute_H(self.px, expected_c0, expected_c1)
 
             if self._right_null_hypo:
                 jacob_right *= 0.01
 
         return [np.concatenate((jacob_left, jacob_right), axis=0)]
 
-    def _compute_normal_form_line_coeffs(self, expected_c0, expected_c1):
-        alpha = np.arctan(expected_c1)
-        a_L = -np.sin(alpha)
-        b_L = np.cos(alpha)
-        c_L = a_L*self.px + b_L*expected_c0
 
         return a_L, b_L, c_L, alpha
 
