@@ -200,194 +200,173 @@ class GeoLaneBoundaryFactor(Factor):
         return [np.concatenate((jacob_left, jacob_right), axis=0)]
 
 
-        return a_L, b_L, c_L, alpha
+class GeoStaticLaneBoundaryFactor(Factor):
+    """ Basic lane boundary factor with static expectation. """
+    gate = chi2.ppf(0.99, df=2)
 
+    def __init__(self, key, lane_detection, pose_uncert, dist_raxle_to_fbumper, geo_lane_factor_config, expected_lane_extractor):
+        self.lane_detection = lane_detection
+        self.pose_uncert = pose_uncert
+        self.px = dist_raxle_to_fbumper
+        self.config = geo_lane_factor_config
+        self.noise_cov = np.diag([geo_lane_factor_config['stddev_c0'],
+                                  geo_lane_factor_config['stddev_c1']])
 
-# class GeoStaticLaneBoundaryFactor(Factor):
-#     """ Basic lane boundary factor with static expectation. """
-#     gate = chi2.ppf(0.99, df=2)
+        # For getting expected lane marking measurements
+        self._expected_lane_extractor = expected_lane_extractor
+        self.in_junction = False
+        self.me_format_lane_markings = None
+        self.init_pose = None
+        self.init_normal_forms = None
 
-#     def __init__(self, key, lane_detection, pose_uncert, dist_raxle_to_fbumper, geo_lane_factor_config, expected_lane_extractor):
-#         self.lane_detection = lane_detection
-#         self.pose_uncert = pose_uncert
-#         self.px = dist_raxle_to_fbumper
-#         self.config = geo_lane_factor_config
-#         self.noise_cov = np.diag([geo_lane_factor_config['stddev_c0'],
-#                                   geo_lane_factor_config['stddev_c1']])
+        self.expected_left_coeffs = None
+        self.expected_right_coeffs = None
+        self._left_null_hypo = False
+        self._right_null_hypo = False
 
-#         # For getting expected lane marking measurements
-#         self._expected_lane_extractor = expected_lane_extractor
-#         self.in_junction = False
-#         self.me_format_lane_markings = None
-#         self.init_pose = None
-#         self.init_normal_forms = None
+        loss = DiagonalLoss.Sigmas(np.array(
+            [geo_lane_factor_config['stddev_c0'],
+             geo_lane_factor_config['stddev_c1'],
+             geo_lane_factor_config['stddev_c0'],
+             geo_lane_factor_config['stddev_c1']]))
 
-#         self.expected_left_coeffs = None
-#         self.expected_right_coeffs = None
-#         self._left_null_hypo = False
-#         self._right_null_hypo = False
+        Factor.__init__(self, 1, [key], loss)
 
-#         loss = DiagonalLoss.Sigmas(np.array(
-#             [geo_lane_factor_config['stddev_c0'],
-#              geo_lane_factor_config['stddev_c1'],
-#              geo_lane_factor_config['stddev_c0'],
-#              geo_lane_factor_config['stddev_c1']]))
+    def copy(self):
+        return GeoStaticLaneBoundaryFactor(self.keys()[0], self.lane_detection, self.pose_uncert, self.px, self.config, self._expected_lane_extractor)
 
-#         Factor.__init__(self, 1, [key], loss)
+    def error(self, variables):
+        ########## Expectation ##########
+        pose = variables.at(self.keys()[0])
+        location = np.append(pose.translation(), 0)  # append z = 0
+        orientation = np.array([0, 0, pose.so2().theta()])  # expand to 3D
+        fbumper_location = get_fbumper_location(location, orientation, self.px)
+        if self.me_format_lane_markings is None:
+            # The first time evaluating the error right after this factor is created, the snapshot
+            # of the expected lane boundaries according to the initial guess is stored.
+            # The snapshot will be used for later error computation assuming the lane boundaries
+            # can be approximated using straight lines locally. This can reduce the access to the
+            # Carla server for lane boundary ground truth and speed up optimization.
+            self.in_junction, self.me_format_lane_markings = self._expected_lane_extractor.extract(
+                fbumper_location, orientation)
 
-#     def copy(self):
-#         return GeoStaticLaneBoundaryFactor(self.keys()[0], self.lane_detection, self.pose_uncert, self.px, self.config, self._expected_lane_extractor)
+            self.init_tform = Transform.from_conventional(
+                location, orientation)
+            self.init_orientation = orientation
 
-#     def error(self, variables):
-#         ########## Expectation ##########
-#         pose = variables.at(self.keys()[0])
-#         location = np.append(pose.translation(), 0)  # append z = 0
-#         orientation = np.array([0, 0, pose.so2().theta()])
-#         fbumper_location = get_fbumper_location(location, orientation, self.px)
-#         if self.me_format_lane_markings is None:
-#             self.in_junction, self.me_format_lane_markings = self._expected_lane_extractor.extract(
-#                 fbumper_location, orientation)
-#             self.init_pose = pose
-#             expected_coeffs_list = [expected.get_c0c1_list()
-#                                     for expected in self.me_format_lane_markings]
-#             self.init_normal_forms = [self._compute_normal_form_line_coeffs(c[0], c[1])
-#                                       for c in expected_coeffs_list]
+            expected_coeffs_list = [expected.get_c0c1_list()
+                                    for expected in self.me_format_lane_markings]
 
-#         else:
-#             init_location = np.append(
-#                 self.init_pose.translation(), 0)  # append z = 0
-#             init_orientation = np.array([0, 0, self.init_pose.so2().theta()])
-#             tform = Transform.from_conventional(init_location, init_orientation)
-#             delta = tform.tform_w2e_numpy_array(location).squeeze()
-#             dx = delta[0]
-#             dy = delta[1]
-#             dtheta = orientation[2] - init_orientation[2]
-#             print(dx)
+            # The snapshot is stored in their normal forms; i.e. a, b, c, and alpha describing the line
+            self.init_normal_forms = [compute_normal_form_line_coeffs(self.px, c[0], c[1])
+                                      for c in expected_coeffs_list]
 
-#             expected_coeffs_list = []
-#             for normal_form in self.init_normal_forms:
-#                 a, b, c, alpha = normal_form
-#                 c0 = (c - a*dx - a*self.px*np.cos(dtheta) - b*dy - b*self.px*np.sin(dtheta)) \
-#                     / (-a*np.sin(dtheta) + b*np.cos(dtheta))
-#                 c1 = np.tan(alpha - dtheta)
-#                 expected_coeffs_list.append((c0, c1))
+        else:
+            # Pose difference must be wrt local frame
+            delta = self.init_tform.tform_w2e_numpy_array(location).squeeze()
+            dx = delta[0]
+            dy = delta[1]
+            dtheta = orientation[2] - self.init_orientation[2]
 
-#         # List of each expected marking's innovation matrix
-#         innov_matrices = []
-#         for expected_coeffs in expected_coeffs_list:
-#             # Compute innovation matrix for current expected marking
-#             a, b, c, alpha = self._compute_normal_form_line_coeffs(expected_coeffs[0],
-#                                                                    expected_coeffs[1])
-#             h13 = -self.px + (-a*c + a*a*self.px)/b**2
-#             H = np.array(
-#                 [[expected_coeffs[1], -1, h13], [0, 0, -1/np.cos(alpha)**2]])
-#             innov = H @ self.pose_uncert @ H.T + self.noise_cov
-#             innov_matrices.append(innov)
-#         ########## Measurement ##########
-#         left_marking_detection = self.lane_detection.left_marking_detection
-#         right_marking_detection = self.lane_detection.right_marking_detection
+            # Compute expected lane boundary coefficients using the snapshot
+            expected_coeffs_list = []
+            for normal_form in self.init_normal_forms:
+                a, b, c, alpha = normal_form
+                c0 = (c - a*dx - a*self.px*np.cos(dtheta) - b*dy - b*self.px*np.sin(dtheta)) \
+                    / (-a*np.sin(dtheta) + b*np.cos(dtheta))
+                c1 = np.tan(alpha - dtheta)
+                expected_coeffs_list.append((c0, c1))
 
-#         self._left_null_hypo = True
-#         # Left marking measurement
-#         if left_marking_detection is not None and abs(left_marking_detection.coeffs[-1]) < 3.5:
-#             left_coeffs = np.asarray(
-#                 left_marking_detection.get_c0c1_list()).reshape(2, -1)
+        # List of each expected marking's innovation matrix
+        innov_matrices = []
+        for expected_coeffs in expected_coeffs_list:
+            # Compute innovation matrix for current expected marking
+            expected_c0, expected_c1 = expected_coeffs
+            H = compute_H(self.px, expected_c0, expected_c1)
+            innov = H @ self.pose_uncert @ H.T + self.noise_cov
+            innov_matrices.append(innov)
 
-#             # Nearest neighbor association
-#             mahala_dists = []
-#             errors = []
-#             for expected_coeffs, innov in zip(expected_coeffs_list, innov_matrices):
-#                 e = np.asarray(expected_coeffs).reshape(2, -1) - left_coeffs
-#                 mahala_dists.append(e.T @ np.linalg.inv(innov) @ e)
-#                 errors.append(e)
+        ########## Measurement ##########
+        left_marking_detection = self.lane_detection.left_marking_detection
+        right_marking_detection = self.lane_detection.right_marking_detection
 
-#             if mahala_dists:
-#                 mahala_dists = np.asarray(mahala_dists)
-#                 marking_idx = np.argmin(mahala_dists)
+        self._left_null_hypo = True
+        # Left marking measurement
+        if left_marking_detection is not None and abs(left_marking_detection.coeffs[-1]) < 3.5:
+            left_coeffs = np.asarray(
+                left_marking_detection.get_c0c1_list()).reshape(2, -1)
 
-#                 self.expected_left_coeffs = expected_coeffs_list[marking_idx]
+            # Nearest neighbor association
+            mahala_dists = []
+            errors = []
+            for expected_coeffs, innov in zip(expected_coeffs_list, innov_matrices):
+                e = np.asarray(expected_coeffs).reshape(2, -1) - left_coeffs
+                mahala_dists.append(e.T @ np.linalg.inv(innov) @ e)
+                errors.append(e)
 
-#                 if mahala_dists[marking_idx] <= self.gate and not self.in_junction:
-#                     self._left_null_hypo = False
+            if mahala_dists:
+                mahala_dists = np.asarray(mahala_dists)
+                marking_idx = np.argmin(mahala_dists)
 
-#         if self._left_null_hypo:
-#             e_left = np.zeros((2,))
-#         else:
-#             e_left = errors[marking_idx].squeeze()
+                self.expected_left_coeffs = expected_coeffs_list[marking_idx]
 
-#         self._right_null_hypo = True
-#         # Right marking measurement
-#         if right_marking_detection is not None and abs(right_marking_detection.coeffs[-1]) < 3.5:
-#             right_coeffs = np.asarray(
-#                 right_marking_detection.get_c0c1_list()).reshape(2, -1)
+                if mahala_dists[marking_idx] <= self.gate and not self.in_junction:
+                    self._left_null_hypo = False
 
-#             # Nearest neighbor association
-#             mahala_dists = []
-#             errors = []
-#             for expected_coeffs, innov in zip(expected_coeffs_list, innov_matrices):
-#                 e = np.asarray(expected_coeffs).reshape(2, -1) - right_coeffs
-#                 mahala_dists.append(e.T @ np.linalg.inv(innov) @ e)
-#                 errors.append(e)
+        if self._left_null_hypo:
+            e_left = np.zeros((2,))
+        else:
+            e_left = errors[marking_idx].squeeze()
 
-#             if mahala_dists:
-#                 mahala_dists = np.asarray(mahala_dists)
-#                 marking_idx = np.argmin(mahala_dists)
+        self._right_null_hypo = True
+        # Right marking measurement
+        if right_marking_detection is not None and abs(right_marking_detection.coeffs[-1]) < 3.5:
+            right_coeffs = np.asarray(
+                right_marking_detection.get_c0c1_list()).reshape(2, -1)
 
-#                 self.expected_right_coeffs = expected_coeffs_list[marking_idx]
+            # Nearest neighbor association
+            mahala_dists = []
+            errors = []
+            for expected_coeffs, innov in zip(expected_coeffs_list, innov_matrices):
+                e = np.asarray(expected_coeffs).reshape(2, -1) - right_coeffs
+                mahala_dists.append(e.T @ np.linalg.inv(innov) @ e)
+                errors.append(e)
 
-#                 if mahala_dists[marking_idx] <= self.gate and not self.in_junction:
-#                     self._right_null_hypo = False
+            if mahala_dists:
+                mahala_dists = np.asarray(mahala_dists)
+                marking_idx = np.argmin(mahala_dists)
 
-#         if self._right_null_hypo:
-#             e_right = np.zeros((2,))
-#         else:
-#             e_right = errors[marking_idx].squeeze()
+                self.expected_right_coeffs = expected_coeffs_list[marking_idx]
 
-#         return np.concatenate((e_left, e_right), axis=None)
+                if mahala_dists[marking_idx] <= self.gate and not self.in_junction:
+                    self._right_null_hypo = False
 
-#     def jacobians(self, variables):
-#         # Left marking
-#         if self.expected_left_coeffs is None:
-#             jacob_left = np.array([[1, 1, 1], [0, 0, 1]]) * -1e-1
-#         else:
-#             expected_c0 = self.expected_left_coeffs[0]
-#             expected_c1 = self.expected_left_coeffs[1]
+        if self._right_null_hypo:
+            e_right = np.zeros((2,))
+        else:
+            e_right = errors[marking_idx].squeeze()
 
-#             a, b, c, alpha = self._compute_normal_form_line_coeffs(
-#                 expected_c0, expected_c1)
+        return np.concatenate((e_left, e_right), axis=None)
 
-#             h13 = -self.px + (-a*c + a*a*self.px)/b**2
+    def jacobians(self, variables):
+        # Left marking
+        if self.expected_left_coeffs is None:
+            jacob_left = np.array([[1, 1, 1], [0, 0, 1]]) * 1e-1
+        else:
+            expected_c0, expected_c1 = self.expected_left_coeffs
+            jacob_left = compute_H(self.px, expected_c0, expected_c1)
 
-#             jacob_left = np.array(
-#                 [[expected_c1, -1, h13], [0, 0, -1/np.cos(alpha)**2]])
+            if self._left_null_hypo:
+                jacob_left *= 0.01
 
-#             if self._left_null_hypo:
-#                 jacob_left *= 0.01
+        # Right marking
+        if self.expected_right_coeffs is None:
+            jacob_right = np.array([[1, 1, 1], [0, 0, 1]]) * 1e-5
+        else:
+            expected_c0, expected_c1 = self.expected_right_coeffs
+            jacob_right = compute_H(self.px, expected_c0, expected_c1)
 
-#         # Right marking
-#         if self.expected_right_coeffs is None:
-#             jacob_right = np.array([[1, -1, 1], [0, 0, 1]]) * -1e-5
-#         else:
-#             expected_c0 = self.expected_right_coeffs[0]
-#             expected_c1 = self.expected_right_coeffs[1]
+            if self._right_null_hypo:
+                jacob_right *= 0.01
 
-#             a, b, c, alpha = self._compute_normal_form_line_coeffs(
-#                 expected_c0, expected_c1)
-
-#             h13 = -self.px + (-a*c + a*a*self.px)/b**2
-
-#             jacob_right = np.array(
-#                 [[expected_c1, -1, h13], [0, 0, -1/np.cos(alpha)**2]])
-
-#             if self._right_null_hypo:
-#                 jacob_right *= 0.01
-
-#         return [np.concatenate((jacob_left, jacob_right), axis=0)]
-
-#     def _compute_normal_form_line_coeffs(self, expected_c0, expected_c1):
-#         alpha = np.arctan(expected_c1)
-#         a_L = -np.sin(alpha)
-#         b_L = np.cos(alpha)
-#         c_L = a_L*self.px + b_L*expected_c0
-
-#         return a_L, b_L, c_L, alpha
+        return [np.concatenate((jacob_left, jacob_right), axis=0)]

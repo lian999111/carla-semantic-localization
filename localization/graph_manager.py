@@ -9,7 +9,7 @@ import minisam.sophus as sophus
 from model.ctrv import compute_F
 from .odom import create_ctrv_between_factor
 from .gnss import GNSSFactor
-from .lane import GeoLaneBoundaryFactor
+from .lane import GeoLaneBoundaryFactor, GeoStaticLaneBoundaryFactor
 from .utils import copy_se2
 
 
@@ -42,8 +42,17 @@ class SlidingWindowGraphManager(object):
         # Optimizer parameter
         self.opt_params = ms.LevenbergMarquardtOptimizerParams()
         self.opt_params.verbosity_level = ms.NonlinearOptimizerVerbosityLevel.ITERATION
+        # self.opt_params.max_iterations = 1
         # Optimizer
         self.opt = ms.LevenbergMarquardtOptimizer(self.opt_params)
+
+        # # Optimizer parameter
+        # self.opt_params = ms.GaussNewtonOptimizerParams()
+        # self.opt_params.verbosity_level = ms.NonlinearOptimizerVerbosityLevel.ITERATION
+        # self.opt_params.max_iterations = 1
+        # # Optimizer
+        # self.opt = ms.GaussNewtonOptimizer(self.opt_params)
+
         # Marginal covarnaince solver
         self.mcov_solver = ms.MarginalCovarianceSolver()
 
@@ -234,12 +243,19 @@ class SlidingWindowGraphManager(object):
 
         node_key = ms.key('x', self._idc_in_graph[-1])
 
+        # TODO: 3.8
         self.graph.add(GeoLaneBoundaryFactor(node_key,
                                              lane_detection,
                                              self.pred_cov,
                                              3.8,
                                              self.config['geometric_lane'],
                                              expected_lane_extractor))
+        # self.graph.add(GeoStaticLaneBoundaryFactor(node_key,
+        #                                            lane_detection,
+        #                                            self.pred_cov,
+        #                                            3.8,
+        #                                            self.config['geometric_lane'],
+        #                                            expected_lane_extractor))
 
     def solve_one_step(self):
         """Solve the graph and corresponding covariance matrices for the current step.
