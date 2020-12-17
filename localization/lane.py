@@ -98,6 +98,7 @@ class GeoLaneBoundaryFactor(Factor):
         orientation = np.array([0, 0, pose.so2().theta()])
         fbumper_location = get_fbumper_location(location, orientation, self.px)
 
+        # Extract ground truth from the Carla server
         in_junction, me_format_lane_markings = self._expected_lane_extractor.extract(
             fbumper_location, orientation)
 
