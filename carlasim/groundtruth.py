@@ -127,7 +127,7 @@ class GroundTruthExtractor(object):
             # If the sign is within 1 meter from the closest waypoint, it is most likely on the road surface without a pole.
             # In this case, simply ignore the actor.
             # Although some traffic sign actors with an actual pole are found to be strangely placed in a lane in Town04 and
-            # will be ignored incorrectly, they should be rare and acceptable. 
+            # will be ignored incorrectly, they should be rare and acceptable.
             if location.distance(closest_waypt.transform.location) < 1:
                 continue
 
@@ -143,7 +143,7 @@ class GroundTruthExtractor(object):
             # If the sign is within 1 meter from the closest waypoint, it is most likely on the road surface without a pole.
             # In this case, simply ignore the actor.
             # Although some traffic sign actors with an actual pole are found to be strangely placed in a lane in Town04 and
-            # will be ignored incorrectly, they should be rare and acceptable. 
+            # will be ignored incorrectly, they should be rare and acceptable.
             if location.distance(closest_waypt.transform.location) < 1:
                 continue
 
@@ -159,8 +159,9 @@ class GroundTruthExtractor(object):
                 actor, TrafficSignType.TrafficLight))
 
             location = actor.get_location()
-            carla_world.debug.draw_arrow(
-                location, location + carla.Location(z=50), color=carla.Color(255, 255, 0))
+            if __debug__:
+                carla_world.debug.draw_arrow(
+                    location, location + carla.Location(z=50), color=carla.Color(255, 255, 0))
 
         return traffic_signs
 
@@ -353,8 +354,10 @@ class LaneGTExtractor(object):
 
                 if __debug__:
                     # Mark the ground truth lane markings
-                    pt2_in_world = self._carla_tform.transform(carla.Location(pt2[0], -pt2[1], 0))
-                    self.carla_world.debug.draw_line(pt2_in_world, pt2_in_world + carla.Location(z=2))
+                    pt2_in_world = self._carla_tform.transform(
+                        carla.Location(pt2[0], -pt2[1], 0))
+                    self.carla_world.debug.draw_line(
+                        pt2_in_world, pt2_in_world + carla.Location(z=2))
 
                 # Use the marking of pt2
                 candidate_marking_obj = candidate_markings[idx][first_pos_idx]
@@ -537,8 +540,8 @@ class LaneGTExtractor(object):
             # Check if the reference waypoint has the same direction with the waypoint of ego lane.
             # Occasionally, different OpenDrive roads in the map are stitched to form a continuous road even
             # if they have opposite road directions; that is, at such a stitch point, the lane ID could suddenly
-            # change its sign although it is still the same lane in the visual sense. This function thus uses 
-            # just the given initial reference waypoint rather than each waypoint along the lane to determine 
+            # change its sign although it is still the same lane in the visual sense. This function thus uses
+            # just the given initial reference waypoint rather than each waypoint along the lane to determine
             # if the current lane has the same direction as the ego lane.
             if self._check_same_direction_as_ego_lane(ref_waypoint):
                 half_width = 0.5 * waypoint_of_interest.lane_width
