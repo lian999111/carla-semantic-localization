@@ -132,6 +132,8 @@ def main():
                 imu_data['vx'], imu_data['vy'], imu_data['gyro_z'] * 180 / pi))
             print('in junction: {}'.format(
                 lane_gt['in_junction']))
+            print('into junction: {}'.format(
+                lane_gt['into_junction']))
             # c0
             print('{:.2f}   {:.2f}   {:.2f}   {:.2f}'.format(
                 lane_gt['next_left_marking_coeffs'][0] if lane_gt['next_left_marking'] else -10,

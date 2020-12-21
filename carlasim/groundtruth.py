@@ -248,6 +248,8 @@ class LaneGTExtractor(object):
         self.gt['in_junction'] = False
         # Current lane id (to know the order of double marking types)
         self.gt['lane_id'] = None
+        # Flag indicating ego vehicle is going into junction
+        self.gt['into_junction'] = False
         # Carla.LaneMarking object of each marking
         self.gt['left_marking'] = None
         self.gt['next_left_marking'] = None
@@ -305,6 +307,13 @@ class LaneGTExtractor(object):
 
         self.gt['in_junction'] = self.waypoint.is_junction
         self.gt['lane_id'] = self.waypoint.lane_id
+
+        # Check if is going into junction
+        waypt_ahead = self._get_next_waypoint(self.waypoint, self._radius, Direction.Forward)
+        if waypt_ahead is not None:
+            self.gt['into_junction'] = waypt_ahead.is_junction
+        else:
+            self.gt['into_junction'] = False
 
         if carla_location.distance(self.waypoint.transform.location) >= self._radius:
             self.waypoint = None
@@ -544,38 +553,6 @@ class LaneGTExtractor(object):
                     carla.Location(y=half_width))
             return tform.tform_w2e_carla_vector3D(lane_pt_in_world)
 
-        # Local helper functions
-        def get_next_waypoint(ref_waypoint, distance, direction):
-            """ 
-            Get the next waypoint in the specified direction (forward or backward).
-
-            Input:
-                ref_waypoint: Carla.Waypoint object as the reference to search next waypoint.
-                distance: Distance in meters to query the next waypoint.
-                direction: Direction object specifying forward or backward with respect to the ego lane.
-            Output:
-                carla.Waypoint object. None if not found. 
-            """
-            next_waypt = None
-            if direction == Direction.Forward:
-                if self._check_same_direction_as_ego_lane(ref_waypoint):
-                    # next() returns a list with at most one element
-                    new_waypt = ref_waypoint.next(distance)
-                else:
-                    # previous() returns a list with at most one element
-                    new_waypt = ref_waypoint.previous(distance)
-                if len(new_waypt) != 0:
-                    next_waypt = new_waypt[0]
-            elif direction == Direction.Backward:
-                if self._check_same_direction_as_ego_lane(ref_waypoint):
-                    new_waypt = ref_waypoint.previous(distance)
-                else:
-                    new_waypt = ref_waypoint.next(distance)
-                if len(new_waypt) != 0:
-                    next_waypt = new_waypt[0]
-
-            return next_waypt
-
         # Containers for lane marking points and their types
         # Stored in ascending order (from back to forth)
         # a list 3D points in ego frame (right-handed z-up)
@@ -587,7 +564,7 @@ class LaneGTExtractor(object):
         # Here a for loop is used instead of previous_until_lane_start() for finding waypoints backwards.
         # One advantage is we can just add the marking points with valid types.
         for distance in reversed(range(1, 11)):
-            backward_waypt = get_next_waypoint(
+            backward_waypt = self._get_next_waypoint(
                 ref_waypoint, distance, Direction.Backward)
             if backward_waypt is not None:
                 lane_marking = self._get_lane_marking(
@@ -603,14 +580,15 @@ class LaneGTExtractor(object):
         # The given reference waypoint
         lane_marking = self._get_lane_marking(ref_waypoint, side)
         if lane_marking.type != carla.LaneMarkingType.NONE:
-            lane_pts_in_ego.append(get_lane_marking_pt_in_ego_frame(ref_waypoint))
+            lane_pts_in_ego.append(
+                get_lane_marking_pt_in_ego_frame(ref_waypoint))
             lane_markings.append(lane_marking)
 
         # Next waypointes of the given reference waypoint
         # Here a for loop is used instead of next_until_lane_end() for finding waypoints forwards.
         # One advantage is we can just add the marking points with valid types.
         for distance in range(1, 11):
-            forward_waypt = get_next_waypoint(
+            forward_waypt = self._get_next_waypoint(
                 ref_waypoint, distance, Direction.Forward)
             if forward_waypt is not None:
                 lane_marking = self._get_lane_marking(
@@ -629,6 +607,37 @@ class LaneGTExtractor(object):
         if waypoint_of_interest is None:
             return None
         return (self.waypoint.lane_id * waypoint_of_interest.lane_id) > 0
+
+    def _get_next_waypoint(self, ref_waypoint, distance, direction):
+        """ 
+        Get the next waypoint in the specified direction (forward or backward).
+
+        Input:
+            ref_waypoint: Carla.Waypoint object as the reference to search next waypoint.
+            distance: Distance in meters to query the next waypoint.
+            direction: Direction object specifying forward or backward with respect to the ego lane.
+        Output:
+            carla.Waypoint object. None if not found. 
+        """
+        next_waypt = None
+        if direction == Direction.Forward:
+            if self._check_same_direction_as_ego_lane(ref_waypoint):
+                # next() returns a list with at most one element
+                new_waypt = ref_waypoint.next(distance)
+            else:
+                # previous() returns a list with at most one element
+                new_waypt = ref_waypoint.previous(distance)
+            if len(new_waypt) != 0:
+                next_waypt = new_waypt[0]
+        elif direction == Direction.Backward:
+            if self._check_same_direction_as_ego_lane(ref_waypoint):
+                new_waypt = ref_waypoint.previous(distance)
+            else:
+                new_waypt = ref_waypoint.next(distance)
+            if len(new_waypt) != 0:
+                next_waypt = new_waypt[0]
+
+        return next_waypt
 
     def _get_next_lane(self, waypoint_of_interest, direction):
         """ Get waypoint of next lane in specified direction (left or right) with respect to ego lane. """

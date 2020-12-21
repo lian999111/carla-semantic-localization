@@ -234,6 +234,7 @@ recorder:
         # The properties of the closest Carla.Waypoint
         in_junction: On
         lane_id: On
+        into_junction: On
 
         # Carla.LaneMarking objects
         left_marking: On
