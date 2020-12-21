@@ -9,7 +9,7 @@ import minisam.sophus as sophus
 from model.ctrv import compute_F
 from .odom import create_ctrv_between_factor
 from .gnss import GNSSFactor
-from .lane import GeoLaneBoundaryFactor, GeoStaticLaneBoundaryFactor
+from .lane import GeoLaneBoundaryFactor
 from .utils import copy_se2
 
 
@@ -250,12 +250,6 @@ class SlidingWindowGraphManager(object):
                                              3.8,
                                              self.config['geometric_lane'],
                                              expected_lane_extractor))
-        # self.graph.add(GeoStaticLaneBoundaryFactor(node_key,
-        #                                            lane_detection,
-        #                                            self.pred_cov,
-        #                                            3.8,
-        #                                            self.config['geometric_lane'],
-        #                                            expected_lane_extractor))
 
     def solve_one_step(self):
         """Solve the graph and corresponding covariance matrices for the current step.

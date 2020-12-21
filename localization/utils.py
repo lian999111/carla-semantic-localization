@@ -44,6 +44,7 @@ class ExpectedLaneExtractor(object):
 
         in_junction = expected_lane_gt['in_junction']
         lane_id = expected_lane_gt['lane_id']
+        into_junction = expected_lane_gt['into_junction']
 
         coeffs_keys = ['next_left_marking_coeffs', 'left_marking_coeffs',
                        'right_marking_coeffs', 'next_right_marking_coeffs']
@@ -58,4 +59,4 @@ class ExpectedLaneExtractor(object):
                 coeffs = expected_lane_gt[coeffs_key][::-1] # make it in descending order
                 me_format_lane_markings.append(MELaneMarking.from_lane_marking(coeffs, lane_marking, lane_id))
 
-        return in_junction, me_format_lane_markings
+        return in_junction, into_junction, me_format_lane_markings
