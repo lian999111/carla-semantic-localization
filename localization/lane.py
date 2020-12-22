@@ -274,4 +274,7 @@ class GeoLaneBoundaryFactor(Factor):
 
     @classmethod
     def set_expected_lane_extractor(cls, expected_lane_extractor):
+        """Set class attribute expected lane extractor.
+        
+        This must be called before instantiating any of this class."""
         cls.expected_lane_extractor = expected_lane_extractor
