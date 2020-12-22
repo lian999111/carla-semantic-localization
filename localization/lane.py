@@ -144,11 +144,8 @@ class GeoLaneBoundaryFactor(Factor):
                 self._first_time = False
             else:
                 # Not first time, use snapshot of lane boundaries extracted the first time to compute error
-                # Pose difference must be wrt local frame
-                delta = self._init_tform.tform_w2e_numpy_array(
-                    location).squeeze()
-                dx, dy = delta[0], delta[1]
-                dtheta = orientation[2] - self._init_orientation[2]
+                # Pose difference is wrt local frame
+                dx, dy, dtheta = self._get_pose_diff(location, orientation)
 
                 # Compute expected lane boundary coefficients using the snapshot
                 expected_coeffs_list = []
@@ -263,6 +260,17 @@ class GeoLaneBoundaryFactor(Factor):
                 jacob_right *= 0.01
 
         return [np.concatenate((jacob_left, jacob_right), axis=0)]
+
+    def _get_pose_diff(self, location, orientation):
+        """Get pose difference from the initial guess."""
+        if self._init_tform is None or self._init_orientation is None:
+            raise RuntimeError('Initial pose not initialized yet.')
+
+        delta = self._init_tform.tform_w2e_numpy_array(
+                    location).squeeze()
+        dx, dy = delta[0], delta[1]
+        dtheta = orientation[2] - self._init_orientation[2]
+        return dx, dy, dtheta
 
     @classmethod
     def set_expected_lane_extractor(cls, expected_lane_extractor):
