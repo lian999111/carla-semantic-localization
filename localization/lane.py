@@ -76,9 +76,6 @@ class GeoLaneBoundaryFactor(Factor):
         self.noise_cov = np.diag([geo_lane_factor_config['stddev_c0'],
                                   geo_lane_factor_config['stddev_c1']])
 
-        # For getting expected lane marking measurements
-        self._expected_lane_extractor = expected_lane_extractor
-
         # bool: True to activate static mode
         self.static = self.config['static']
 
@@ -122,7 +119,6 @@ class GeoLaneBoundaryFactor(Factor):
         pose = variables.at(self.keys()[0])
         location = np.append(pose.translation(), 0)  # append z = 0
         orientation = np.array([0, 0, pose.so2().theta()])
-        fbumper_location = get_fbumper_location(location, orientation, self.px)
 
         if self._first_time:
             # Store the initially guessed pose when computing error the first time
