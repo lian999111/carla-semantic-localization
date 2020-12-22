@@ -94,6 +94,10 @@ class GeoLaneBoundaryFactor(Factor):
         self._init_tform = None
         # ndarray: RPY of initially guessed pose
         self._init_orientation = None
+
+        # Attributes for static expected lane boundary extraction
+        # bool: True if error is computed the first time
+        self._first_time = True
         # tuple: a, b, c, and alpha describing the lines extracted using initially guessed pose
         self._init_normal_forms = None
 
@@ -120,15 +124,18 @@ class GeoLaneBoundaryFactor(Factor):
         orientation = np.array([0, 0, pose.so2().theta()])
         fbumper_location = get_fbumper_location(location, orientation, self.px)
 
-        if self.static:
-            # Static mode
-            if not self._extracted:
-                # First time extracting expected land boundaries
+        if self._first_time:
+            # Store the initially guessed pose when computing error the first time
                 self._init_tform = Transform.from_conventional(
                     location, orientation)
                 self._init_orientation = orientation
 
-                self.in_junction, self.into_junction, self.me_format_expected_markings = self._expected_lane_extractor.extract(
+        if self.static:
+            # Static mode
+            if self._first_time:
+                # First time extracting expected land boundaries
+                fbumper_location = get_fbumper_location(location, orientation, self.px)
+                self.in_junction, self.into_junction, self.me_format_expected_markings = self.expected_lane_extractor.extract(
                     fbumper_location, orientation)
 
                 expected_coeffs_list = [expected.get_c0c1_list()
@@ -138,11 +145,12 @@ class GeoLaneBoundaryFactor(Factor):
                 self._init_normal_forms = [compute_normal_form_line_coeffs(self.px, c[0], c[1])
                                            for c in expected_coeffs_list]
 
-                self._extracted = True
+                self._first_time = False
             else:
                 # Not first time, use snapshot of lane boundaries extracted the first time to compute error
                 # Pose difference must be wrt local frame
-                delta = self._init_tform.tform_w2e_numpy_array(location).squeeze()
+                delta = self._init_tform.tform_w2e_numpy_array(
+                    location).squeeze()
                 dx, dy = delta[0], delta[1]
                 dtheta = orientation[2] - self._init_orientation[2]
 
@@ -157,7 +165,8 @@ class GeoLaneBoundaryFactor(Factor):
         else:
             # Not static mode
             # Extract ground truth from the Carla server
-            self.in_junction, self.into_junction, self.me_format_expected_markings = self._expected_lane_extractor.extract(
+            fbumper_location = get_fbumper_location(location, orientation, self.px)
+            self.in_junction, self.into_junction, self.me_format_expected_markings = self.expected_lane_extractor.extract(
                 fbumper_location, orientation)
 
             # List of expected markings' coefficients
