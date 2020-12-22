@@ -84,7 +84,7 @@ class GeoLaneBoundaryFactor(Factor):
 
         self.in_junction = False
         self.into_junction = False
-        # List of MELaneDetection:
+        # List of MELaneDetection: Describing expected markings in mobileye-like formats
         self.me_format_expected_markings = None
 
         # Attributes for static expected lane boundary extraction
@@ -209,6 +209,7 @@ class GeoLaneBoundaryFactor(Factor):
                 if mahala_dists[asso_idx] <= self.gate and not (self.in_junction or self.into_junction):
                     self._left_null_hypo = False
 
+        # TODO: Better handling of null hypothesis using null normal form
         if self._left_null_hypo:
             e_left = np.zeros((2,))
         else:
