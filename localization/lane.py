@@ -63,8 +63,12 @@ def compute_H(px, expected_c0, expected_c1):
 class GeoLaneBoundaryFactor(Factor):
     """ Basic lane boundary factor. """
     gate = chi2.ppf(0.99, df=2)
+    expected_lane_extractor = None
 
-    def __init__(self, key, lane_detection, pose_uncert, dist_raxle_to_fbumper, geo_lane_factor_config, expected_lane_extractor):
+    def __init__(self, key, lane_detection, pose_uncert, dist_raxle_to_fbumper, geo_lane_factor_config):
+        if self.expected_lane_extractor is None:
+            raise RuntimeError('Extractor for expected lane should be initialized first.')
+
         self.lane_detection = lane_detection
         self.pose_uncert = pose_uncert
         self.px = dist_raxle_to_fbumper
@@ -107,7 +111,7 @@ class GeoLaneBoundaryFactor(Factor):
         Factor.__init__(self, 1, [key], loss)
 
     def copy(self):
-        return GeoLaneBoundaryFactor(self.keys()[0], self.lane_detection, self.pose_uncert, self.px, self.config, self._expected_lane_extractor)
+        return GeoLaneBoundaryFactor(self.keys()[0], self.lane_detection, self.pose_uncert, self.px, self.config)
 
     def error(self, variables):
         ########## Expectation ##########
@@ -253,3 +257,7 @@ class GeoLaneBoundaryFactor(Factor):
                 jacob_right *= 0.01
 
         return [np.concatenate((jacob_left, jacob_right), axis=0)]
+
+    @classmethod
+    def set_expected_lane_extractor(cls, expected_lane_extractor):
+        cls.expected_lane_extractor = expected_lane_extractor

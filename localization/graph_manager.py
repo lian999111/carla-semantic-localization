@@ -16,12 +16,14 @@ from .utils import copy_se2
 class SlidingWindowGraphManager(object):
     """Class for management and optimization of sliding window factor graph."""
 
-    def __init__(self, config, first_node_idx=0):
+    def __init__(self, config, expected_lane_extractor, first_node_idx=0):
         """Constructor method.
 
         Args:
             config (dict): Container for all configurations related to factor graph based localization.
                 This should be read from the configuration .yaml file.
+            expected_lane_extractor: Expected lane extractor for lane boundary factor.
+                This is for lane boundary factors to query the map for expected lane boundaries.
             first_node_idx (int): Index of the first node.
                 Sometimes it is more convenient to let indices consistent with recorded data.
                 Especially when performing localization using only part of data that don't start from 
@@ -29,6 +31,10 @@ class SlidingWindowGraphManager(object):
         """
         # Config
         self.config = config
+
+        # Set expected lane extractor for the lane boundary factor
+        GeoLaneBoundaryFactor.set_expected_lane_extractor(
+            expected_lane_extractor)
 
         # Factor graph
         self.graph = ms.FactorGraph()
@@ -234,7 +240,7 @@ class SlidingWindowGraphManager(object):
                               sophus.SE2(sophus.SO2(theta_guess), point))
             self.new_node_guessed = True
 
-    def add_geo_lane_factor(self, lane_detection, expected_lane_extractor):
+    def add_geo_lane_factor(self, lane_detection):
         """
         """
         if not self.odom_added:
@@ -248,8 +254,7 @@ class SlidingWindowGraphManager(object):
                                              lane_detection,
                                              self.pred_cov,
                                              3.8,
-                                             self.config['geometric_lane'],
-                                             expected_lane_extractor))
+                                             self.config['geometric_lane']))
 
     def solve_one_step(self):
         """Solve the graph and corresponding covariance matrices for the current step.

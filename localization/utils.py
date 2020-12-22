@@ -56,7 +56,9 @@ class ExpectedLaneExtractor(object):
         for _, (coeffs_key, marking_obj_key) in enumerate(zip(coeffs_keys, marking_obj_keys)):
             lane_marking = expected_lane_gt[marking_obj_key] if expected_lane_gt[marking_obj_key] is not None else None
             if lane_marking is not None:
-                coeffs = expected_lane_gt[coeffs_key][::-1] # make it in descending order
-                me_format_lane_markings.append(MELaneMarking.from_lane_marking(coeffs, lane_marking, lane_id))
+                # make it in descending order
+                coeffs = expected_lane_gt[coeffs_key][::-1]
+                me_format_lane_markings.append(
+                    MELaneMarking.from_lane_marking(coeffs, lane_marking, lane_id))
 
         return in_junction, into_junction, me_format_lane_markings
