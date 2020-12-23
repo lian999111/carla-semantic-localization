@@ -8,7 +8,7 @@ pole:
 
 # Lane detection
 lane:
-  c0_thres: 0.4       # (m) Threshold of c0 within which a detected lane marking is associated to a ground truth lane marking 
+  c0_thres: 0.5       # (m) Threshold of c0 within which a detected lane marking is associated to a ground truth lane marking 
   c1_thres: 0.4       #  Threshold of c1 within which a detected lane marking is associated to a ground truth lane marking
   fc_prob: 0.05   # [0.0 - 1.0] Probability of false classification
 
