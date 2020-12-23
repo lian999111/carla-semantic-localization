@@ -80,8 +80,6 @@ class GeoLaneBoundaryFactor(Factor):
         # bool: True to activate static mode
         self.static = self.config['static']
 
-        # TODO: Single side
-
         self.in_junction = False
         self.into_junction = False
         # List of MELaneDetection: Describing expected markings in mobileye-like formats
