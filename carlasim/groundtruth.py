@@ -310,7 +310,14 @@ class LaneGTExtractor(object):
         self.gt['lane_id'] = self.waypoint.lane_id
 
         # Check if is going into junction
-        waypt_ahead = self._get_next_waypoint(self.waypoint, self._radius, Direction.Forward)
+        # We need to first check if the heading of query point aligns with that of the waypoint.
+        # If the query point is in the opposite direction from the waypoint, query the next waypoint backwards.
+        query_heading = self._carla_tform.rotation.yaw
+        waypt_heading = self.waypoint.transform.rotation.yaw
+        if abs(waypt_heading - query_heading) <= 90:
+            waypt_ahead = self._get_next_waypoint(self.waypoint, self._radius, Direction.Forward)
+        else:
+            waypt_ahead = self._get_next_waypoint(self.waypoint, self._radius, Direction.Backward)
         if waypt_ahead is not None:
             self.gt['into_junction'] = waypt_ahead.is_junction
         else:
