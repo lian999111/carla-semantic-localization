@@ -65,12 +65,12 @@ class GeoLaneBoundaryFactor(Factor):
     gate = chi2.ppf(0.99, df=2)
     expected_lane_extractor = None
 
-    def __init__(self, key, lane_detection, pose_uncert, dist_raxle_to_fbumper, geo_lane_factor_config):
+    def __init__(self, key, detected_marking, pose_uncert, dist_raxle_to_fbumper, geo_lane_factor_config):
         if self.expected_lane_extractor is None:
             raise RuntimeError(
                 'Extractor for expected lane should be initialized first.')
 
-        self.lane_detection = lane_detection
+        self.detected_marking = detected_marking
         self.pose_uncert = pose_uncert
         self.px = dist_raxle_to_fbumper
         self.config = geo_lane_factor_config
@@ -102,21 +102,17 @@ class GeoLaneBoundaryFactor(Factor):
         # tuple: a, b, c, and alpha describing the lines extracted using initially guessed pose
         self._init_normal_forms = None
 
-        self.expected_left_coeffs = None
-        self.expected_right_coeffs = None
-        self._left_null_hypo = False
-        self._right_null_hypo = False
+        self.expected_coeffs = None
+        self._null_hypo = False
 
         loss = DiagonalLoss.Sigmas(np.array(
             [self.config['stddev_c0'],
-             self.config['stddev_c1'],
-             self.config['stddev_c0'],
              self.config['stddev_c1']]))
 
         Factor.__init__(self, 1, [key], loss)
 
     def copy(self):
-        return GeoLaneBoundaryFactor(self.keys()[0], self.lane_detection, self.pose_uncert, self.px, self.config)
+        return GeoLaneBoundaryFactor(self.keys()[0], self.detected_marking, self.pose_uncert, self.px, self.config)
 
     def error(self, variables):
         ########## Expectation ##########
@@ -179,27 +175,21 @@ class GeoLaneBoundaryFactor(Factor):
             innov_matrices.append(innov)
 
         ########## Measurement ##########
-        left_marking_detection = self.lane_detection.left_marking_detection
-        right_marking_detection = self.lane_detection.right_marking_detection
+        measured_coeffs = np.asarray(
+            self.detected_marking.get_c0c1_list()).reshape(2, -1)
 
         if self.in_junction or self.into_junction:
-            self._left_null_hypo = True
-        elif left_marking_detection is None:
-            self._left_null_hypo = True
-        elif abs(left_marking_detection.coeffs[-1]) > 3.5:
-            self._left_null_hypo = True
+            self._null_hypo = True
         elif not expected_coeffs_list:
-            self._left_null_hypo = True
+            self._null_hypo = True
         else:
-            left_coeffs = np.asarray(
-                left_marking_detection.get_c0c1_list()).reshape(2, -1)
-
             # Nearest neighbor association
             squared_mahala_dists = []
             errors = []
             gated_coeffs_list = []
             for expected_coeffs, innov in zip(expected_coeffs_list, innov_matrices):
-                e = np.asarray(expected_coeffs).reshape(2, -1) - left_coeffs
+                e = np.asarray(expected_coeffs).reshape(
+                    2, -1) - measured_coeffs
                 squared_mahala_dist = e.T @ np.linalg.inv(innov) @ e
                 # Gating
                 if squared_mahala_dist <= self.gate:
@@ -213,91 +203,32 @@ class GeoLaneBoundaryFactor(Factor):
                 squared_mahala_dists = np.asarray(squared_mahala_dists)
                 asso_idx = np.argmin(squared_mahala_dists)
 
-                self.expected_left_coeffs = gated_coeffs_list[asso_idx]
-                e_left = errors[asso_idx]
-                self._left_null_hypo = False
+                self.expected_coeffs = gated_coeffs_list[asso_idx]
+                error = errors[asso_idx]
+                self._null_hypo = False
             else:
-                self._left_null_hypo = True
+                self._null_hypo = True
 
-        if self._left_null_hypo:
+        if self._null_hypo:
             # Null hypothesis
-            # Fake detection for null hypothesis
-            right_coeffs = np.array([0, 0]).reshape(2, -1)
             pose_diff = self._get_pose_diff(location, orientation)
             null_c0c1 = self._compute_expected_c0c1(
                 self._null_hypo_normal_form, pose_diff)
-            self.expected_left_coeffs = null_c0c1
-            e_left = (np.asarray(null_c0c1).reshape(2, -1) - right_coeffs) * 1e-10
+            self.expected_coeffs = null_c0c1
+            error = (np.asarray(null_c0c1).reshape(
+                2, -1) - measured_coeffs) * 1e-10
 
-
-        if self.in_junction or self.into_junction:
-            self._right_null_hypo = True
-        elif right_marking_detection is None:
-            self._right_null_hypo = True
-        elif abs(right_marking_detection.coeffs[-1]) > 3.5:
-            self._right_null_hypo = True
-        elif not expected_coeffs_list:
-            self._right_null_hypo = True
-        else:
-            right_coeffs = np.asarray(
-                right_marking_detection.get_c0c1_list()).reshape(2, -1)
-
-            # Nearest neighbor association
-            squared_mahala_dists = []
-            errors = []
-            gated_coeffs_list = []
-            for expected_coeffs, innov in zip(expected_coeffs_list, innov_matrices):
-                e = np.asarray(expected_coeffs).reshape(2, -1) - right_coeffs
-                squared_mahala_dist = e.T @ np.linalg.inv(innov) @ e
-                # Gating
-                if squared_mahala_dist <= self.gate:
-                    squared_mahala_dists.append(e.T @ np.linalg.inv(innov) @ e)
-                    errors.append(e)
-                    gated_coeffs_list.append(expected_coeffs)
-
-            # Check if any valid mahalanobis distance exists after gating
-            if squared_mahala_dists:
-                # Find smallest mahalanobis distance
-                squared_mahala_dists = np.asarray(squared_mahala_dists)
-                asso_idx = np.argmin(squared_mahala_dists)
-
-                self.expected_left_coeffs = gated_coeffs_list[asso_idx]
-                e_right = errors[asso_idx]
-                self._right_null_hypo = False
-            else:
-                self._right_null_hypo = True
-
-        if self._right_null_hypo:
-            # Null hypothesis
-            # Fake detection for null hypothesis
-            right_coeffs = np.array([0, 0]).reshape(2, -1)
-            pose_diff = self._get_pose_diff(location, orientation)
-            null_c0c1 = self._compute_expected_c0c1(
-                self._null_hypo_normal_form, pose_diff)
-            self.expected_right_coeffs = null_c0c1
-            e_right = (np.asarray(null_c0c1).reshape(2, -1) - right_coeffs) * 1e-10
-
-        return np.concatenate((e_left, e_right), axis=None)
+        return error
 
     def jacobians(self, variables):
         # Left marking
-        expected_c0, expected_c1 = self.expected_left_coeffs
-        jacob_left = compute_H(self.px, expected_c0, expected_c1)
+        expected_c0, expected_c1 = self.expected_coeffs
+        jacob = compute_H(self.px, expected_c0, expected_c1)
 
-        if self._left_null_hypo:
-            jacob_left *= 1e-10
+        if self._null_hypo:
+            jacob *= 1e-10
 
-        # Right marking
-        if self.expected_right_coeffs is None:
-            jacob_right = np.array([[1, 1, 1], [0, 0, 1]]) * 1e-10
-        else:
-            expected_c0, expected_c1 = self.expected_right_coeffs
-            jacob_right = compute_H(self.px, expected_c0, expected_c1)
-
-            if self._right_null_hypo:
-                jacob_right *= 1e-10
-
-        return [np.concatenate((jacob_left, jacob_right), axis=0)]
+        return [jacob]
 
     def _get_pose_diff(self, location, orientation):
         """Get pose difference from the initial guess."""

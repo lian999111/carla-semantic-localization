@@ -167,8 +167,8 @@ def main():
 
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(-.0, 0.0)
-        noised_gnss_y = gnss_y + np.random.normal(-.0, 2.0)
+        noised_gnss_x = gnss_x + np.random.normal(-0.0, 0.0)
+        noised_gnss_y = gnss_y + np.random.normal(-0.0, 0.0)
 
         yaw_gt = raxle_orientations[idx][2]
 
@@ -183,11 +183,16 @@ def main():
             # Add GNSS factor
             sw_graph.add_gnss_factor(
                 np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
-            # Add geometric lane factor factor
-            sw_graph.add_geo_lane_factor(
-                lane_detection)
-            # sw_graph.add_geo_lane_factor(lane_detection.left_marking_detection)
-            # sw_graph.add_geo_lane_factor(lane_detection.right_marking_detection)
+            # Add lane factor
+            if idx - init_idx > 5:
+                if lane_detection.left_marking_detection is not None:
+                    c0 = lane_detection.left_marking_detection.get_c0c1_list()[0]
+                    if abs(c0) <= 3.5:
+                        sw_graph.add_lane_factor(lane_detection.left_marking_detection)
+                if lane_detection.right_marking_detection is not None:
+                    c0 = lane_detection.right_marking_detection.get_c0c1_list()[0]
+                    if abs(c0) <= 3.5:
+                        sw_graph.add_lane_factor(lane_detection.right_marking_detection)
             # if idx - init_idx > 2:
             #     # Add geometric lane factor factor
             #     sw_graph.add_geo_lane_factor(lane_detection)
@@ -208,8 +213,8 @@ def main():
         plt.axis('equal')
 
         last_pos = sw_graph.last_optimized_se2.translation()
-        ax.set_xlim((last_pos[0]-10, last_pos[0]+20))
-        ax.set_ylim((last_pos[1]-10, last_pos[1]+20))
+        ax.set_xlim((last_pos[0]-10, last_pos[0]+10))
+        ax.set_ylim((last_pos[1]-10, last_pos[1]+10))
 
         # plt.axis('equal')
         plt.pause(0.001)
