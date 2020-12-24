@@ -1,7 +1,7 @@
 """ Implementation of lane-related factors """
 
 import numpy as np
-from scipy.stats.distributions import chi2
+from scipy.stats import chi2, multivariate_normal
 from minisam import Factor, key, DiagonalLoss, CauchyLoss
 
 from carlasim.carla_tform import Transform
@@ -62,8 +62,12 @@ def compute_H(px, expected_c0, expected_c1):
 
 class GeoLaneBoundaryFactor(Factor):
     """ Basic lane boundary factor. """
-    gate = chi2.ppf(0.99, df=2)
+    geo_gate = chi2.ppf(0.99, df=2)
+    sem_gate = 0.9
     expected_lane_extractor = None
+    # tuple: Normal form for null hypothesis
+    # It is a vertical line passing through the origin of the local frame
+    _null_hypo_normal_form = (0, 1, 0, 0)
 
     def __init__(self, key, detected_marking, pose_uncert, dist_raxle_to_fbumper, geo_lane_factor_config):
         if self.expected_lane_extractor is None:
@@ -85,10 +89,6 @@ class GeoLaneBoundaryFactor(Factor):
         # List of MELaneDetection: Describing expected markings in mobileye-like formats
         self.me_format_expected_markings = None
 
-        # tuple: Normal form for null hypothesis
-        # It is a vertical line passing through the origin of the local frame
-        self._null_hypo_normal_form = (0, 1, 0, 0)
-
         # Transform: Transform of initially guessed pose
         self._init_tform = None
         # ndarray: RPY of initially guessed pose
@@ -101,6 +101,7 @@ class GeoLaneBoundaryFactor(Factor):
         self._init_normal_forms = None
 
         self.expected_coeffs = None
+        self._scale = 1.0
         self._null_hypo = False
 
         loss = DiagonalLoss.Sigmas(np.array(
@@ -163,6 +164,10 @@ class GeoLaneBoundaryFactor(Factor):
             expected_coeffs_list = [expected.get_c0c1_list()
                                     for expected in self.me_format_expected_markings]
 
+            # List of expected markings' type
+            expected_type_list = [expected.type
+                                  for expected in self.me_format_expected_markings]
+
         # List of each expected marking's innovation matrix
         innov_matrices = []
         for expected_coeffs in expected_coeffs_list:
@@ -175,46 +180,71 @@ class GeoLaneBoundaryFactor(Factor):
         ########## Measurement ##########
         measured_coeffs = np.asarray(
             self.detected_marking.get_c0c1_list()).reshape(2, -1)
+        measured_type = self.detected_marking.type
+
+        # Null hypothesis
+        pose_diff = self._get_pose_diff(location, orientation)
+        null_c0c1 = self._compute_expected_c0c1(
+            self._null_hypo_normal_form, pose_diff)
+        self.expected_coeffs = null_c0c1
+        null_e = (np.asarray(null_c0c1).reshape(
+            2, -1) - measured_coeffs) * 1e-2
+        null_M = 0.1 * multivariate_normal.pdf(null_e.reshape(-1), cov=np.diag((3e3, 3e3)))
+
+        self.in_junction = False
+        self.into_junction = False
 
         if self.in_junction or self.into_junction:
             self._null_hypo = True
         elif not expected_coeffs_list:
             self._null_hypo = True
         else:
-            # Nearest neighbor association
-            squared_mahala_dists = []
-            errors = []
-            gated_coeffs_list = []
-            for expected_coeffs, innov in zip(expected_coeffs_list, innov_matrices):
-                e = np.asarray(expected_coeffs).reshape(
+            # Data association
+            errors = [null_e]
+            gated_coeffs_list = [null_c0c1]
+            H = []
+            pps = []
+            for exp_coeffs, exp_type, innov in zip(expected_coeffs_list, expected_type_list, innov_matrices):
+                e = np.asarray(exp_coeffs).reshape(
                     2, -1) - measured_coeffs
-                squared_mahala_dist = e.T @ np.linalg.inv(innov) @ e
-                # Gating
-                if squared_mahala_dist <= self.gate:
-                    squared_mahala_dists.append(e.T @ np.linalg.inv(innov) @ e)
+                # squared_mahala_dist = e.T @ np.linalg.inv(innov) @ e
+                pp = multivariate_normal.pdf(e.reshape(-1), cov=innov)
+                pc = self._conditional_prob_type(exp_type, measured_type)
+                pz = pp * pc
+                # Gating (geometric and semantic)
+                # Reject both geometrically and semantically unlikely associations
+                # if squared_mahala_dist <= self.geo_gate and pc > self.sem_gate:
+                if pc > self.sem_gate:
                     errors.append(e)
-                    gated_coeffs_list.append(expected_coeffs)
+                    gated_coeffs_list.append(exp_coeffs)
+                    pps.append(pp)
+                    H.append(pz)
+
+            H = np.asarray(H)
+            pps = np.asarray(pps)
 
             # Check if any valid mahalanobis distance exists after gating
-            if squared_mahala_dists:
-                # Find smallest mahalanobis distance
-                squared_mahala_dists = np.asarray(squared_mahala_dists)
-                asso_idx = np.argmin(squared_mahala_dists)
+            if len(H):
+                W = 0.9*(H/np.sum(H))
+                M = W*pps
+                W = np.insert(W, 0, 0.1)
+                M = np.insert(M, 0, null_M)
+                asso_idx = np.argmax(M)
+                self._scale = W[asso_idx]**1
 
                 self.expected_coeffs = gated_coeffs_list[asso_idx]
-                error = errors[asso_idx]
-                self._null_hypo = False
+                error = errors[asso_idx] * self._scale
+                if asso_idx == 0:
+                    self._null_hypo = True
+                else:
+                    self._null_hypo = False
             else:
                 self._null_hypo = True
 
         if self._null_hypo:
             # Null hypothesis
-            pose_diff = self._get_pose_diff(location, orientation)
-            null_c0c1 = self._compute_expected_c0c1(
-                self._null_hypo_normal_form, pose_diff)
             self.expected_coeffs = null_c0c1
-            error = (np.asarray(null_c0c1).reshape(
-                2, -1) - measured_coeffs) * 1e-10
+            error = null_e
 
         return error
 
@@ -224,7 +254,9 @@ class GeoLaneBoundaryFactor(Factor):
         jacob = compute_H(self.px, expected_c0, expected_c1)
 
         if self._null_hypo:
-            jacob *= 1e-10
+            jacob *= 1e-2
+        else:
+            jacob *= self._scale
 
         return [jacob]
 
@@ -247,6 +279,13 @@ class GeoLaneBoundaryFactor(Factor):
             / (-a*np.sin(dtheta) + b*np.cos(dtheta))
         c1 = np.tan(alpha - dtheta)
         return (c0, c1)
+
+    @staticmethod
+    def _conditional_prob_type(expected_type, measured_type):
+        if expected_type == measured_type:
+            return 0.95
+        else:
+            return 0.0045
 
     @classmethod
     def set_expected_lane_extractor(cls, expected_lane_extractor):
