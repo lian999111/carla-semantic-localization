@@ -48,14 +48,14 @@ class SlidingWindowGraphManager(object):
         # Optimizer parameter
         self.opt_params = ms.LevenbergMarquardtOptimizerParams()
         self.opt_params.verbosity_level = ms.NonlinearOptimizerVerbosityLevel.ITERATION
-        # self.opt_params.max_iterations = 1
+        self.opt_params.max_iterations = 5
         # Optimizer
         self.opt = ms.LevenbergMarquardtOptimizer(self.opt_params)
 
         # # Optimizer parameter
         # self.opt_params = ms.GaussNewtonOptimizerParams()
         # self.opt_params.verbosity_level = ms.NonlinearOptimizerVerbosityLevel.ITERATION
-        # self.opt_params.max_iterations = 1
+        # self.opt_params.max_iterations = 5
         # # Optimizer
         # self.opt = ms.GaussNewtonOptimizer(self.opt_params)
 
