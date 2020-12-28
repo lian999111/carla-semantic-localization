@@ -85,6 +85,8 @@ class GeoLaneBoundaryFactor(Factor):
 
         # bool: True to activate static mode
         self.static = self.config['static']
+        # bool: True to ignore lane boundary detection in junction areas
+        self.ignore_junction = self.config['ignore_junction']
 
         self.in_junction = False
         self.into_junction = False
@@ -193,10 +195,7 @@ class GeoLaneBoundaryFactor(Factor):
             2, -1) - measured_coeffs) * 1e-2
         null_M = self.prob_null * multivariate_normal.pdf(null_e.reshape(-1), cov=np.diag((3e3, 3e3)))
 
-        self.in_junction = False
-        self.into_junction = False
-
-        if self.in_junction or self.into_junction:
+        if self.ignore_junction and (self.in_junction or self.into_junction):
             self._null_hypo = True
         elif not expected_coeffs_list:
             self._null_hypo = True

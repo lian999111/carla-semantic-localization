@@ -24,7 +24,9 @@ ctrv:
 lane:
   # True to store the first query for expected lane detection and use it for all the rest of optimization steps.
   # False to query for expected lane detection at every optimization step.
-  static: False 
+  static: False
+  # True to ignore lane boundary detection when in junction area.
+  ignore_junction: True 
   stddev_c0: 0.5 # Standard deviation in the measurement noise model for c0.
   stddev_c1: 0.3 # Standard deviation in the measurement noise model for c1.
   prob_null: 0.1 # Probability of null hypothesis (false positive).
