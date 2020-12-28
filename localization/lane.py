@@ -87,6 +87,7 @@ class GeoLaneBoundaryFactor(Factor):
         self.static = self.config['static']
         # bool: True to ignore lane boundary detection in junction areas
         self.ignore_junction = self.config['ignore_junction']
+        self.null_scale = self.config['null_scale']
 
         self.in_junction = False
         self.into_junction = False
@@ -199,7 +200,7 @@ class GeoLaneBoundaryFactor(Factor):
             self._null_hypo_normal_form, pose_diff)
         self.expected_coeffs = null_c0c1
         null_e = (np.asarray(null_c0c1).reshape(
-            2, -1) - measured_coeffs) * 1e-2
+            2, -1) - measured_coeffs) * self.null_scale
         null_M = self.prob_null * \
             multivariate_normal.pdf(
                 null_e.reshape(-1), cov=np.diag((3e3, 3e3)))
@@ -240,7 +241,7 @@ class GeoLaneBoundaryFactor(Factor):
                 W = np.insert(W, 0, self.prob_null)
                 M = np.insert(M, 0, null_M)
                 asso_idx = np.argmax(M)
-                self._scale = W[asso_idx]**2
+                self._scale = W[asso_idx]**1
 
                 if asso_idx == 0:
                     self._null_hypo = True
@@ -264,7 +265,7 @@ class GeoLaneBoundaryFactor(Factor):
         jacob = compute_H(self.px, expected_c0, expected_c1)
 
         if self._null_hypo:
-            jacob *= 1e-2
+            jacob *= self.null_scale
         else:
             jacob *= self._scale
 
