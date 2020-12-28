@@ -500,7 +500,10 @@ class World(object):
         self.see_ego_veh()
 
         # Ground truth extractor
-        self.ground_truth = GroundTruthExtractor(self.ego_veh, config['gt'])
+        debug = False
+        if __debug__:
+            debug = True
+        self.ground_truth = GroundTruthExtractor(self.ego_veh, config['gt'], debug)
 
     def add_carla_sensor(self, carla_sensor: CarlaSensor):
         """

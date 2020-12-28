@@ -42,14 +42,17 @@ class GroundTruthExtractor(object):
         - seq: Stores sequential ground truth data that changes over time, such as the pose of the ego vehicle.
     """
 
-    def __init__(self, ego_veh: carla.Actor, gt_config: dict):
+    def __init__(self, ego_veh: carla.Actor, gt_config: dict, debug=False):
         """
         Constructor method. 
 
         Input:
             ego_veh: Carla.Actor obj of the ego vehicle. Carla.Actor provides a get_world() method to get the 
                      Carla.World it belongs to; thus, ego vehicle actor is sufficient to retrieve other info.
+            gt_config (dict): Configurations.
+            debug (bool): True to turn on debug features.
         """
+        self.debug = debug
         # Retrieve carla.World object from ego vehicle carla.Actor object
         carla_world = ego_veh.get_world()
 
@@ -60,7 +63,7 @@ class GroundTruthExtractor(object):
 
         # Traffic signs
         self.all_gt['static']['traffic_sign'] = self.get_traffic_signs(
-            carla_world)
+            carla_world, self.debug)
 
         # Front bumper's transform in Carla's coordinate system
         # It's for the convenience of querying waypoints for lane using carla's APIs
@@ -70,7 +73,7 @@ class GroundTruthExtractor(object):
         # Pose ground truth extractor
         self.pose_gt = PoseGTExtractor(ego_veh, gt_config['pose'])
         # Lane ground truth extractor
-        self.lane_gt = LaneGTExtractor(carla_world, gt_config['lane'])
+        self.lane_gt = LaneGTExtractor(carla_world, gt_config['lane'], self.debug)
 
         # Set up buffer for sequential data
         # Refer to pose ground truth extractor's gt buffer
@@ -87,7 +90,7 @@ class GroundTruthExtractor(object):
         self.lane_gt.update_using_carla_transform(self._fbumper_carla_tform)
 
     @staticmethod
-    def get_traffic_signs(carla_world):
+    def get_traffic_signs(carla_world, debug=False):
         """
         Get a list of of TrafficSign objects from the given Carla.World object.
         """
@@ -104,7 +107,7 @@ class GroundTruthExtractor(object):
             if location.distance(closest_waypt.transform.location) < 1:
                 traffic_signs.append(TrafficSign(
                     actor, TrafficSignType.RSStop))
-                if __debug__:
+                if debug:
                     carla_world.debug.draw_arrow(
                         location, location + carla.Location(z=50))
 
@@ -116,7 +119,7 @@ class GroundTruthExtractor(object):
                         location, arrow_tip)
             else:
                 traffic_signs.append(TrafficSign(actor, TrafficSignType.Stop))
-                if __debug__:
+                if debug:
                     carla_world.debug.draw_arrow(
                         location, location + carla.Location(z=50), color=carla.Color(0, 255, 0))
 
@@ -132,7 +135,7 @@ class GroundTruthExtractor(object):
                 continue
 
             traffic_signs.append(TrafficSign(actor, TrafficSignType.Yield))
-            if __debug__:
+            if debug:
                 carla_world.debug.draw_arrow(
                     location, location + carla.Location(z=50), color=carla.Color(0, 0, 255))
 
@@ -149,7 +152,7 @@ class GroundTruthExtractor(object):
 
             traffic_signs.append(TrafficSign(
                 actor, TrafficSignType.SpeedLimit))
-            if __debug__:
+            if debug:
                 carla_world.debug.draw_arrow(
                     location, location + carla.Location(z=50), color=carla.Color(255, 0, 255))
 
@@ -159,7 +162,7 @@ class GroundTruthExtractor(object):
                 actor, TrafficSignType.TrafficLight))
 
             location = actor.get_location()
-            if __debug__:
+            if debug:
                 carla_world.debug.draw_arrow(
                     location, location + carla.Location(z=50), color=carla.Color(255, 255, 0))
 
@@ -232,7 +235,7 @@ class LaneGTExtractor(object):
     It can be updated with an specified pose in the right-handed z-up convention and extract the lane ground truth.
     """
 
-    def __init__(self, carla_world: carla.World, lane_gt_config):
+    def __init__(self, carla_world: carla.World, lane_gt_config, debug=False):
         self.carla_world = carla_world
         self.map = carla_world.get_map()
 
@@ -241,6 +244,9 @@ class LaneGTExtractor(object):
 
         # Search radius
         self._radius = lane_gt_config['radius']
+
+        # Debug flag
+        self.debug = debug
 
         self.gt = {}
         # Current waypoint
@@ -359,7 +365,7 @@ class LaneGTExtractor(object):
                 c1 = (pt2[1] - pt1[1]) / (pt2[0] - pt1[0])
                 c0 = pt1[1] - c1*pt1[0]
 
-                if __debug__:
+                if self.debug:
                     # Mark the ground truth lane markings
                     pt2_in_world = self._carla_tform.transform(
                         carla.Location(pt2[0], -pt2[1], 0))
