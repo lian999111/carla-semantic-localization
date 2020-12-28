@@ -240,7 +240,7 @@ class SlidingWindowGraphManager(object):
                               sophus.SE2(sophus.SO2(theta_guess), point))
             self.new_node_guessed = True
 
-    def add_lane_factor(self, detected_marking):
+    def add_lane_factor(self, detected_marking, z):
         """
         TODO: Add docstring
         """
@@ -253,6 +253,7 @@ class SlidingWindowGraphManager(object):
         # TODO: 3.8
         self.graph.add(GeoLaneBoundaryFactor(node_key,
                                              detected_marking,
+                                             z,
                                              self.pred_cov,
                                              3.8,
                                              self.config['geometric_lane']))

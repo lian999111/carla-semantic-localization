@@ -96,6 +96,7 @@ def main():
     timestamp_seq = sensor_data['gnss']['timestamp']
     gnss_x_seq = sensor_data['gnss']['x']
     gnss_y_seq = sensor_data['gnss']['y']
+    gnss_z_seq = sensor_data['gnss']['z']
 
     vx_seq = sensor_data['imu']['vx']
     gyro_z_seq = sensor_data['imu']['gyro_z']
@@ -119,15 +120,15 @@ def main():
     settings = carla_world.get_settings()
     settings.synchronous_mode = False
     settings.fixed_delta_seconds = 0.0
-    settings.no_rendering_mode = True
+    settings.no_rendering_mode = False
     carla_world.apply_settings(settings)
 
-    lane_gt_extractor = LaneGTExtractor(carla_world, {'radius': 10})
+    lane_gt_extractor = LaneGTExtractor(carla_world, {'radius': 10}, True)
     expected_lane_extractor = ExpectedLaneExtractor(lane_gt_extractor)
 
     np.random.seed(2)
 
-    init_idx = 30
+    init_idx = 80
     end_idx = 1000
 
     # Prepare figure
@@ -167,8 +168,9 @@ def main():
 
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(-0.0, 0.0)
-        noised_gnss_y = gnss_y + np.random.normal(-0.0, 0.0)
+        gnss_z = gnss_z_seq[idx]
+        noised_gnss_x = gnss_x + np.random.normal(-0.0, 1.0)
+        noised_gnss_y = gnss_y + np.random.normal(-0.0, 1.0)
 
         yaw_gt = raxle_orientations[idx][2]
 
@@ -184,15 +186,15 @@ def main():
             sw_graph.add_gnss_factor(
                 np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
             # Add lane factor
-            if idx - init_idx > 5:
+            if idx - init_idx > 0:
                 if lane_detection.left_marking_detection is not None:
                     c0 = lane_detection.left_marking_detection.get_c0c1_list()[0]
                     if abs(c0) <= 3.5:
-                        sw_graph.add_lane_factor(lane_detection.left_marking_detection)
+                        sw_graph.add_lane_factor(lane_detection.left_marking_detection, gnss_z)
                 if lane_detection.right_marking_detection is not None:
                     c0 = lane_detection.right_marking_detection.get_c0c1_list()[0]
                     if abs(c0) <= 3.5:
-                        sw_graph.add_lane_factor(lane_detection.right_marking_detection)
+                        sw_graph.add_lane_factor(lane_detection.right_marking_detection, gnss_z)
             # if idx - init_idx > 2:
             #     # Add geometric lane factor factor
             #     sw_graph.add_geo_lane_factor(lane_detection)

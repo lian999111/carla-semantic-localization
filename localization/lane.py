@@ -69,12 +69,13 @@ class GeoLaneBoundaryFactor(Factor):
     # It is a vertical line passing through the origin of the local frame
     _null_hypo_normal_form = (0, 1, 0, 0)
 
-    def __init__(self, key, detected_marking, pose_uncert, dist_raxle_to_fbumper, geo_lane_factor_config):
+    def __init__(self, key, detected_marking, z, pose_uncert, dist_raxle_to_fbumper, geo_lane_factor_config):
         if self.expected_lane_extractor is None:
             raise RuntimeError(
                 'Extractor for expected lane should be initialized first.')
 
         self.detected_marking = detected_marking
+        self.z = z
         self.pose_uncert = pose_uncert
         self.px = dist_raxle_to_fbumper
         self.config = geo_lane_factor_config
@@ -111,12 +112,12 @@ class GeoLaneBoundaryFactor(Factor):
         Factor.__init__(self, 1, [key], loss)
 
     def copy(self):
-        return GeoLaneBoundaryFactor(self.keys()[0], self.detected_marking, self.pose_uncert, self.px, self.config)
+        return GeoLaneBoundaryFactor(self.keys()[0], self.detected_marking, self.z, self.pose_uncert, self.px, self.config)
 
     def error(self, variables):
         ########## Expectation ##########
         pose = variables.at(self.keys()[0])
-        location = np.append(pose.translation(), 0)  # append z = 0
+        location = np.append(pose.translation(), self.z)  # append z = 0
         orientation = np.array([0, 0, pose.so2().theta()])
 
         if self._first_time:
