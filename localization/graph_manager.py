@@ -256,7 +256,7 @@ class SlidingWindowGraphManager(object):
                                              z,
                                              self.pred_cov,
                                              3.8,
-                                             self.config['geometric_lane']))
+                                             self.config['lane']))
 
     def solve_one_step(self):
         """Solve the graph and corresponding covariance matrices for the current step.

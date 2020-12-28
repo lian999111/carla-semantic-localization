@@ -12,18 +12,19 @@ prior:
 
 # Parameters for GPS factor
 gnss:
-  stddev_x: 3.0 # Standard deviation in the noise model for x.
-  stddev_y: 3.0 # Standard deviation in the noise model for y.
+  stddev_x: 5.0 # Standard deviation in the noise model for x.
+  stddev_y: 5.0 # Standard deviation in the noise model for y.
 
 # Parameter for ctrv odometry factor
 ctrv:
   stddev_vx: 0.2 # Standard deviation in the noise model for vx.
-  stddev_yaw_rate: 0.2 # Standard deviation in the noise model for yaw rate.
+  stddev_yaw_rate: 0.1 # Standard deviation in the noise model for yaw rate.
 
 # Parameters for lane boundary factors
-geometric_lane:
+lane:
   # True to store the first query for expected lane detection and use it for all the rest of optimization steps.
   # False to query for expected lane detection at every optimization step.
   static: False 
-  stddev_c0: 0.3 # Standard deviation in the measurement noise model for c0.
+  stddev_c0: 0.5 # Standard deviation in the measurement noise model for c0.
   stddev_c1: 0.3 # Standard deviation in the measurement noise model for c1.
+  prob_null: 0.1 # Probability of null hypothesis (false positive).

@@ -69,7 +69,7 @@ class GeoLaneBoundaryFactor(Factor):
     # It is a vertical line passing through the origin of the local frame
     _null_hypo_normal_form = (0, 1, 0, 0)
 
-    def __init__(self, key, detected_marking, z, pose_uncert, dist_raxle_to_fbumper, geo_lane_factor_config):
+    def __init__(self, key, detected_marking, z, pose_uncert, dist_raxle_to_fbumper, lane_factor_config):
         if self.expected_lane_extractor is None:
             raise RuntimeError(
                 'Extractor for expected lane should be initialized first.')
@@ -78,9 +78,10 @@ class GeoLaneBoundaryFactor(Factor):
         self.z = z
         self.pose_uncert = pose_uncert
         self.px = dist_raxle_to_fbumper
-        self.config = geo_lane_factor_config
-        self.noise_cov = np.diag([geo_lane_factor_config['stddev_c0'],
-                                  geo_lane_factor_config['stddev_c1']])
+        self.config = lane_factor_config
+        self.noise_cov = np.diag([lane_factor_config['stddev_c0'],
+                                  lane_factor_config['stddev_c1']])
+        self.prob_null = lane_factor_config['prob_null']
 
         # bool: True to activate static mode
         self.static = self.config['static']
@@ -190,7 +191,7 @@ class GeoLaneBoundaryFactor(Factor):
         self.expected_coeffs = null_c0c1
         null_e = (np.asarray(null_c0c1).reshape(
             2, -1) - measured_coeffs) * 1e-2
-        null_M = 0.1 * multivariate_normal.pdf(null_e.reshape(-1), cov=np.diag((3e3, 3e3)))
+        null_M = self.prob_null * multivariate_normal.pdf(null_e.reshape(-1), cov=np.diag((3e3, 3e3)))
 
         self.in_junction = False
         self.into_junction = False
@@ -226,12 +227,12 @@ class GeoLaneBoundaryFactor(Factor):
 
             # Check if any valid mahalanobis distance exists after gating
             if len(H):
-                W = 0.9*(H/np.sum(H))
+                W = (1-self.prob_null)*(H/np.sum(H))
                 M = W*pps
-                W = np.insert(W, 0, 0.1)
+                W = np.insert(W, 0, self.prob_null)
                 M = np.insert(M, 0, null_M)
                 asso_idx = np.argmax(M)
-                self._scale = W[asso_idx]**1
+                self._scale = W[asso_idx]**2
 
                 self.expected_coeffs = gated_coeffs_list[asso_idx]
                 error = errors[asso_idx] * self._scale
