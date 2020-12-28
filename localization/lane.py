@@ -103,6 +103,7 @@ class GeoLaneBoundaryFactor(Factor):
         self._first_time = True
         # tuple: a, b, c, and alpha describing the lines extracted using initially guessed pose
         self._init_normal_forms = None
+        self._init_types = None
 
         self.expected_coeffs = None
         self._scale = 1.0
@@ -140,10 +141,14 @@ class GeoLaneBoundaryFactor(Factor):
 
                 expected_coeffs_list = [expected.get_c0c1_list()
                                         for expected in self.me_format_expected_markings]
+                expected_type_list = [expected.type
+                                      for expected in self.me_format_expected_markings]
 
                 # The snapshot is stored in their normal forms; i.e. a, b, c, and alpha describing the lines
                 self._init_normal_forms = [compute_normal_form_line_coeffs(self.px, c[0], c[1])
                                            for c in expected_coeffs_list]
+                # Snapshot of lane boundary types
+                self._init_types = expected_type_list
 
                 self._first_time = False
             else:
@@ -156,6 +161,8 @@ class GeoLaneBoundaryFactor(Factor):
                 for normal_form in self._init_normal_forms:
                     c0c1 = self._compute_expected_c0c1(normal_form, pose_diff)
                     expected_coeffs_list.append(c0c1)
+                # Retrieve lane boundary types from snapshot
+                expected_type_list = self._init_types
         else:
             # Not static mode
             # Extract ground truth from the Carla server
@@ -193,7 +200,9 @@ class GeoLaneBoundaryFactor(Factor):
         self.expected_coeffs = null_c0c1
         null_e = (np.asarray(null_c0c1).reshape(
             2, -1) - measured_coeffs) * 1e-2
-        null_M = self.prob_null * multivariate_normal.pdf(null_e.reshape(-1), cov=np.diag((3e3, 3e3)))
+        null_M = self.prob_null * \
+            multivariate_normal.pdf(
+                null_e.reshape(-1), cov=np.diag((3e3, 3e3)))
 
         if self.ignore_junction and (self.in_junction or self.into_junction):
             self._null_hypo = True
