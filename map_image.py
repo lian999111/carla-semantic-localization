@@ -1,4 +1,7 @@
-"""Modified from example code no_rendering_mode.py to render map images"""
+"""
+Modified from example code no_rendering_mode.py to render map images. 
+There could be a lot of unnecessary codes that don't serve any our purposes.
+"""
 
 import math
 import pygame
