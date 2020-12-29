@@ -40,7 +40,7 @@ def world_to_pixel(location, map_info, offset=(0, 0)):
     return [int(x - offset[0]), int(y - offset[1])]
 
 
-def plotSE2WithCov(pose, cov, vehicle_size=0.5, line_color='k', vehicle_color='r'):
+def plotSE2WithCov(ax, pose, cov, vehicle_size=0.5, line_color='k', vehicle_color='r'):
     # plot vehicle
     p1 = pose.translation() + pose.so2() * np.array([1, 0]) * vehicle_size
     p2 = pose.translation() + pose.so2() * \
@@ -53,7 +53,7 @@ def plotSE2WithCov(pose, cov, vehicle_size=0.5, line_color='k', vehicle_color='r
 
     line = plt.Polygon([p1, p2, p3], closed=True, fill=True,
                        edgecolor=line_color, facecolor=vehicle_color)
-    plt.gca().add_line(line)
+    triangle = ax.add_line(line)
     # plot cov
     ps = []
     circle_count = 50
@@ -64,7 +64,8 @@ def plotSE2WithCov(pose, cov, vehicle_size=0.5, line_color='k', vehicle_color='r
                              np.array([math.cos(t), math.sin(t)]))
         ps.append(cp)
     line = plt.Polygon(ps, closed=True, fill=False, edgecolor=line_color)
-    plt.gca().add_line(line)
+    ellipse = ax.add_line(line)
+    return triangle, ellipse
 
 
 def dir_path(path):
@@ -143,10 +144,10 @@ def main():
 
     np.random.seed(2)
 
-    init_idx = 30
-    end_idx = 1000
+    init_idx = 1
+    end_idx = 1100
 
-    # Load map image
+    ############### Load map image ###############
     dirname = os.path.join("cache", "map_images")
     filename = carla_config['world']['map'] + '.jpg'
     full_path = str(os.path.join(dirname, filename))
@@ -186,7 +187,7 @@ def main():
     with open(info_full_path, 'r') as f:
         map_info = yaml.safe_load(f)
 
-    # Prepare figure
+    ############### Prepare figure ###############
     fig, ax = plt.subplots()
 
     loc_gt_seq = raxle_locations[init_idx:end_idx+1]
@@ -195,9 +196,18 @@ def main():
     loc_x_gt = location_gt[:, 0]
     loc_y_gt = location_gt[:, 1]
 
-    ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2)
+    # Path ground truth
+    gt_path = ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2)
+
+    # Create a dummy map background
+    map_im = ax.imshow(np.zeros((1, 1, 3), dtype=int),
+                       extent=[0, 0, 0, 0],
+                       alpha=0.5)
+
+    ax.axis('equal')
     plt.show(block=False)
 
+    ############### Sliding window graph ###############
     sw_graph = SlidingWindowGraphManager(
         localization_config, expected_lane_extractor, first_node_idx=init_idx)
 
@@ -268,35 +278,43 @@ def main():
         last_loc = last_pose.translation()
         optimized_poses.append(last_pose)
 
-        # Visualizeplasma
-        plt.cla()
-        last_carla_loc = carla.Location(x=last_loc[0], y=-last_loc[1])
-        location_screen = world_to_pixel(last_carla_loc, map_info)
-        ax.imshow(map_image[location_screen[1]-600:location_screen[1]+600,
-                            location_screen[0]-600:location_screen[0]+600],
-                  extent=[last_loc[0]-600/map_info['pixels_per_meter'],
-                          last_loc[0]+600/map_info['pixels_per_meter'],
-                          last_loc[1]-600/map_info['pixels_per_meter'],
-                          last_loc[1]+600/map_info['pixels_per_meter']])
+        ######## Visualize ########
+        half_width = 15  # half width of background map
+        half_width_px = half_width * map_info['pixels_per_meter']
 
-        ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2)
-        plt.show(block=False)
+        # Get image coordinate of
+        image_coord = world_to_pixel(carla.Location(
+            last_loc[0], -last_loc[1]), map_info)
+        local_map_image = map_image[image_coord[1]-half_width_px:image_coord[1]+half_width_px,
+                                    image_coord[0]-half_width_px:image_coord[0]+half_width_px]
+        left = (last_loc[0]-half_width)
+        right = (last_loc[0]+half_width)
+        bottom = (last_loc[1]-half_width)
+        top = (last_loc[1]+half_width)
+
+        map_im.set_data(local_map_image)
+        map_im.set_extent([left, right, bottom, top])
+
+        pose_plots = []
         for idx in sw_graph.get_idc_in_graph():
             cov = sw_graph.get_marignal_cov_matrix(idx)
-            # print(cov)
-            plotSE2WithCov(sw_graph.get_result(idx), cov)
+            pose_plots.append(plotSE2WithCov(
+                ax, sw_graph.get_result(idx), cov))
 
-        ax.set_xlim((last_loc[0]-10, last_loc[0]+10))
-        ax.set_ylim((last_loc[1]-10, last_loc[1]+10))
-        # plt.axis('equal')
+        ax.set_xlim((last_loc[0]-half_width, last_loc[0]+half_width))
+        ax.set_ylim((last_loc[1]-half_width, last_loc[1]+half_width))
 
         plt.pause(0.001)
+
+        for triangle, ellipse in pose_plots:
+            triangle.remove()
+            ellipse.remove()
 
         if idx >= end_idx:
             break
 
-    # Evaluate
-    y_error = []
+    ############### Evaluate ###############
+    lateral_error = []
     for loc_gt, ori_gt, opti_pose in zip(loc_gt_seq, ori_gt_seq, optimized_poses):
         x_gt = loc_gt[0]
         y_gt = loc_gt[1]
@@ -310,23 +328,45 @@ def main():
         trvec_w = np.append(opti_pose.translation(), 1)
         trvec_e = tform_w2e @ trvec_w
         print(trvec_e)
-        y_error.append(abs(trvec_e[1]))
+        lateral_error.append(abs(trvec_e[1]))
 
-    y_error = np.asarray(y_error)
-    _, ax = plt.subplots()
-    # ax.plot(loc_x_gt, loc_y_gt)
+    lateral_error = np.asarray(lateral_error)
+    fig, ax = plt.subplots()
     norm = plt.Normalize(0, 1)
     points = np.array([loc_x_gt, loc_y_gt]).T.reshape(-1, 1, 2)
     segments = np.concatenate((points[:-1], points[1:]), axis=1)
     lc = LineCollection(segments, cmap='viridis', norm=norm)
     # Set the values used for colormapping
-    lc.set_array(y_error)
-    lc.set_linewidth(5)
+    lc.set_array(lateral_error)
+    lc.set_linewidth(3)
     line = ax.add_collection(lc)
     fig.colorbar(line, ax=ax)
 
-    ax.set_xlim(loc_x_gt.min(), loc_x_gt.max())
-    ax.set_ylim(loc_y_gt.min(), loc_y_gt.max())
+    # Add background
+    loc_gts = np.asarray(loc_gt_seq)
+    margin = 7
+    x_min = loc_gts[:, 0].min() - margin
+    x_max = loc_gts[:, 0].max() + margin
+    y_min = loc_gts[:, 1].min() - margin
+    y_max = loc_gts[:, 1].max() + margin
+    x_center = (x_max + x_min)/2
+    y_center = (y_max + y_min)/2
+    x_half_width = (x_max - x_min)/2
+    y_half_width = (y_max - y_min)/2
+
+    map_center = world_to_pixel(
+        carla.Location(x_center, -y_center, 0), map_info)
+    left_idx = map_center[0] - int(x_half_width*map_info['pixels_per_meter'])
+    right_idx = map_center[0] + int(x_half_width*map_info['pixels_per_meter'])
+    bottom_idx = map_center[1] + int(y_half_width*map_info['pixels_per_meter'])
+    top_idx = map_center[1] - int(y_half_width*map_info['pixels_per_meter'])
+    local_map_image = map_image[top_idx:bottom_idx,
+                                left_idx:right_idx]
+
+    ax.imshow(local_map_image,
+              extent=[x_min, x_max, y_min, y_max],
+              alpha=0.5)
+    
     ax.axis('equal')
 
     plt.show()
