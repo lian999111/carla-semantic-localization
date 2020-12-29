@@ -19,6 +19,8 @@ import carla
 import minisam as ms
 
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
+from matplotlib.colors import ListedColormap, BoundaryNorm
 import pygame
 
 from carlasim.groundtruth import LaneGTExtractor
@@ -141,7 +143,7 @@ def main():
 
     np.random.seed(2)
 
-    init_idx = 80
+    init_idx = 30
     end_idx = 1000
 
     # Load map image
@@ -187,15 +189,19 @@ def main():
     # Prepare figure
     fig, ax = plt.subplots()
 
-    location_gt = np.asarray(raxle_locations)
-    loc_x_gt = location_gt[init_idx:end_idx+1, 0]
-    loc_y_gt = location_gt[init_idx:end_idx+1, 1]
+    loc_gt_seq = raxle_locations[init_idx:end_idx+1]
+    ori_gt_seq = raxle_orientations[init_idx:end_idx+1]
+    location_gt = np.asarray(loc_gt_seq)
+    loc_x_gt = location_gt[:, 0]
+    loc_y_gt = location_gt[:, 1]
 
     ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2)
     plt.show(block=False)
 
     sw_graph = SlidingWindowGraphManager(
         localization_config, expected_lane_extractor, first_node_idx=init_idx)
+
+    optimized_poses = []
 
     for idx, timestamp in enumerate(timestamp_seq):
 
@@ -222,8 +228,8 @@ def main():
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(-0.0, 3.0)
-        noised_gnss_y = gnss_y + np.random.normal(-0.0, 3.0)
+        noised_gnss_x = gnss_x + np.random.normal(-0.0, 1.0)
+        noised_gnss_y = gnss_y + np.random.normal(-0.0, 1.0)
 
         yaw_gt = raxle_orientations[idx][2]
 
@@ -258,17 +264,20 @@ def main():
         # Optimize graph
         sw_graph.solve_one_step()
 
-        plt.cla()
+        last_pose = sw_graph.last_optimized_se2
+        last_loc = last_pose.translation()
+        optimized_poses.append(last_pose)
 
-        last_pos = sw_graph.last_optimized_se2.translation()
-        last_loc = carla.Location(x=last_pos[0], y=-last_pos[1])
-        location_screen = world_to_pixel(last_loc, map_info)
+        # Visualizeplasma
+        plt.cla()
+        last_carla_loc = carla.Location(x=last_loc[0], y=-last_loc[1])
+        location_screen = world_to_pixel(last_carla_loc, map_info)
         ax.imshow(map_image[location_screen[1]-600:location_screen[1]+600,
                             location_screen[0]-600:location_screen[0]+600],
-                  extent=[last_pos[0]-600/map_info['pixels_per_meter'],
-                          last_pos[0]+600/map_info['pixels_per_meter'],
-                          last_pos[1]-600/map_info['pixels_per_meter'],
-                          last_pos[1]+600/map_info['pixels_per_meter']])
+                  extent=[last_loc[0]-600/map_info['pixels_per_meter'],
+                          last_loc[0]+600/map_info['pixels_per_meter'],
+                          last_loc[1]-600/map_info['pixels_per_meter'],
+                          last_loc[1]+600/map_info['pixels_per_meter']])
 
         ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2)
         plt.show(block=False)
@@ -277,15 +286,48 @@ def main():
             # print(cov)
             plotSE2WithCov(sw_graph.get_result(idx), cov)
 
-        ax.set_xlim((last_pos[0]-10, last_pos[0]+10))
-        ax.set_ylim((last_pos[1]-10, last_pos[1]+10))
+        ax.set_xlim((last_loc[0]-10, last_loc[0]+10))
+        ax.set_ylim((last_loc[1]-10, last_loc[1]+10))
         # plt.axis('equal')
 
-        # plt.axis('equal')
         plt.pause(0.001)
 
         if idx >= end_idx:
             break
+
+    # Evaluate
+    y_error = []
+    for loc_gt, ori_gt, opti_pose in zip(loc_gt_seq, ori_gt_seq, optimized_poses):
+        x_gt = loc_gt[0]
+        y_gt = loc_gt[1]
+        yaw_gt = ori_gt[2]
+
+        tform_e2w = np.array([[math.cos(yaw_gt), -math.sin(yaw_gt), x_gt],
+                              [math.sin(yaw_gt), math.cos(yaw_gt), y_gt],
+                              [0, 0, 1]])
+        tform_w2e = np.linalg.inv(tform_e2w)
+
+        trvec_w = np.append(opti_pose.translation(), 1)
+        trvec_e = tform_w2e @ trvec_w
+        print(trvec_e)
+        y_error.append(abs(trvec_e[1]))
+
+    y_error = np.asarray(y_error)
+    _, ax = plt.subplots()
+    # ax.plot(loc_x_gt, loc_y_gt)
+    norm = plt.Normalize(0, 1)
+    points = np.array([loc_x_gt, loc_y_gt]).T.reshape(-1, 1, 2)
+    segments = np.concatenate((points[:-1], points[1:]), axis=1)
+    lc = LineCollection(segments, cmap='viridis', norm=norm)
+    # Set the values used for colormapping
+    lc.set_array(y_error)
+    lc.set_linewidth(5)
+    line = ax.add_collection(lc)
+    fig.colorbar(line, ax=ax)
+
+    ax.set_xlim(loc_x_gt.min(), loc_x_gt.max())
+    ax.set_ylim(loc_y_gt.min(), loc_y_gt.max())
+    ax.axis('equal')
 
     plt.show()
 
