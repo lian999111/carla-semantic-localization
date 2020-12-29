@@ -52,7 +52,7 @@ def plotSE2WithCov(ax, pose, cov, vehicle_size=0.5, line_color='k', vehicle_colo
                      [math.sin(yaw), math.cos(yaw)]])
 
     line = plt.Polygon([p1, p2, p3], closed=True, fill=True,
-                       edgecolor=line_color, facecolor=vehicle_color)
+                       edgecolor=line_color, facecolor=vehicle_color, zorder=2)
     triangle = ax.add_line(line)
     # plot cov
     ps = []
@@ -63,7 +63,7 @@ def plotSE2WithCov(ax, pose, cov, vehicle_size=0.5, line_color='k', vehicle_colo
             rotm @ np.matmul(cov[0:2, 0:2],
                              np.array([math.cos(t), math.sin(t)]))
         ps.append(cp)
-    line = plt.Polygon(ps, closed=True, fill=False, edgecolor=line_color)
+    line = plt.Polygon(ps, closed=True, fill=False, edgecolor=line_color, zorder=2)
     ellipse = ax.add_line(line)
     return triangle, ellipse
 
