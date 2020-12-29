@@ -9,6 +9,7 @@ import os
 import sys
 import glob
 import hashlib
+import yaml
 
 try:
     sys.path.append(glob.glob('./carla-*%d.%d-%s.egg' % (
@@ -196,6 +197,15 @@ class MapImage(object):
             jpg_filename = carla_map.name + ".jpg"
             jpg_full_path = str(os.path.join(dirname, jpg_filename))
             pygame.image.save(self.big_map_surface, jpg_full_path)
+
+            map_info_filename = carla_map.name + "_info.yaml"
+            map_info_path = str(os.path.join(dirname, map_info_filename))
+            map_info = {"scale": self.scale,
+                        "pixels_per_meter": self._pixels_per_meter,
+                        "world_offset_x": self._world_offset[0],
+                        "world_offset_y": self._world_offset[1]}
+            with open(map_info_path, 'w') as f:
+                yaml.dump(map_info, f)
 
         self.surface = self.big_map_surface
 
