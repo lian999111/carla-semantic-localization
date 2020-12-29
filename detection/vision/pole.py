@@ -298,5 +298,5 @@ def loop(folder_name):
 
 
 if __name__ == "__main__":
-    single('town03_highway', 51)
-    # loop('town03_highway')
+    # single('town03_rb', 51)
+    loop('town03_rb')

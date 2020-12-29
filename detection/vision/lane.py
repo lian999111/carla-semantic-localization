@@ -837,4 +837,4 @@ def single(folder_name, image_idx):
 
 if __name__ == "__main__":
     # single('town03_highway', 215)
-    loop('town03_highway')
+    loop('town03_rb')
