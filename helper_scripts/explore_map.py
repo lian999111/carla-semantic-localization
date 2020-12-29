@@ -60,6 +60,7 @@ import weakref
 import math
 import random
 import hashlib
+from PIL import Image
 
 try:
     import pygame
@@ -496,7 +497,7 @@ class MapImage(object):
 
         # Build path for saving or loading the cached rendered map
         filename = carla_map.name + "_" + opendrive_hash + ".tga"
-        dirname = os.path.join("cache", "no_rendering_mode")
+        dirname = os.path.join("cache", "map_images")
         full_path = str(os.path.join(dirname, filename))
 
         if os.path.isfile(full_path):
@@ -523,6 +524,11 @@ class MapImage(object):
 
             # Save rendered map for next executions of same map
             pygame.image.save(self.big_map_surface, full_path)
+
+            # Save a jpg version for localization evaluation
+            jpg_filename = carla_map.name + ".jpg"
+            jpg_full_path = str(os.path.join(dirname, jpg_filename))
+            pygame.image.save(self.big_map_surface, jpg_full_path)
 
         self.surface = self.big_map_surface
 
