@@ -238,8 +238,8 @@ def main():
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(-0.0, 1.0)
-        noised_gnss_y = gnss_y + np.random.normal(-0.0, 1.0)
+        noised_gnss_x = gnss_x + np.random.normal(-0.0, 3.0)
+        noised_gnss_y = gnss_y + np.random.normal(-0.0, 3.0)
 
         yaw_gt = raxle_orientations[idx][2]
 
