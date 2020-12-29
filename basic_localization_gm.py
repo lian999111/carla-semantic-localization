@@ -19,10 +19,23 @@ import carla
 import minisam as ms
 
 import matplotlib.pyplot as plt
+import pygame
 
 from carlasim.groundtruth import LaneGTExtractor
 from localization.graph_manager import SlidingWindowGraphManager
 from localization.utils import ExpectedLaneExtractor
+
+from map_image import MapImage
+from PIL import Image
+
+
+def world_to_pixel(location, map_info, offset=(0, 0)):
+    """Converts the world coordinates to pixel coordinates"""
+    x = map_info['scale'] * map_info['pixels_per_meter'] * \
+        (location.x - map_info['world_offset_x'])
+    y = map_info['scale'] * map_info['pixels_per_meter'] * \
+        (location.y - map_info['world_offset_y'])
+    return [int(x - offset[0]), int(y - offset[1])]
 
 
 def plotSE2WithCov(pose, cov, vehicle_size=0.5, line_color='k', vehicle_color='r'):
@@ -131,6 +144,46 @@ def main():
     init_idx = 80
     end_idx = 1000
 
+    # Load map image
+    dirname = os.path.join("cache", "map_images")
+    filename = carla_config['world']['map'] + '.jpg'
+    full_path = str(os.path.join(dirname, filename))
+
+    # If map image does not exist, create it
+    if not os.path.isfile(full_path):
+        # pygame is needed for map rendering
+        pygame.init()
+        display = pygame.display.set_mode(
+            (600, 200),
+            pygame.HWSURFACE | pygame.DOUBLEBUF)
+
+        # Show loading screen
+        display.fill(pygame.Color(0, 0, 0))
+        font = pygame.font.Font(pygame.font.get_default_font(), 20)
+        text_surface = font.render('Rendering map using pygame...',
+                                   True,
+                                   pygame.Color(255, 255, 255))
+        display.blit(text_surface,
+                     text_surface.get_rect(center=(300, 100)))
+        pygame.display.flip()
+
+        # MapImage class was part of example code "no_rendering_mode.py"
+        # It is just borrowed (with a little modifications) here to create and store map image.
+        MapImage(carla_world,
+                 carla_world.get_map(),
+                 pixels_per_meter=20,
+                 show_triggers=False,
+                 show_connections=False,
+                 show_spawn_points=False)
+        pygame.quit()
+
+    map_image = plt.imread(full_path)
+
+    info_filename = carla_config['world']['map'] + '_info.yaml'
+    info_full_path = str(os.path.join(dirname, info_filename))
+    with open(info_full_path, 'r') as f:
+        map_info = yaml.safe_load(f)
+
     # Prepare figure
     fig, ax = plt.subplots()
 
@@ -169,8 +222,8 @@ def main():
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(-0.0, 1.0)
-        noised_gnss_y = gnss_y + np.random.normal(-0.0, 1.0)
+        noised_gnss_x = gnss_x + np.random.normal(-0.0, 3.0)
+        noised_gnss_y = gnss_y + np.random.normal(-0.0, 3.0)
 
         yaw_gt = raxle_orientations[idx][2]
 
@@ -186,18 +239,19 @@ def main():
             sw_graph.add_gnss_factor(
                 np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
             # Add lane factor
-            if idx - init_idx > 0:
+            if idx - init_idx > 10:
                 if lane_detection.left_marking_detection is not None:
-                    c0 = lane_detection.left_marking_detection.get_c0c1_list()[0]
+                    c0 = lane_detection.left_marking_detection.get_c0c1_list()[
+                        0]
                     if abs(c0) <= 3.5:
-                        sw_graph.add_lane_factor(lane_detection.left_marking_detection, gnss_z)
+                        sw_graph.add_lane_factor(
+                            lane_detection.left_marking_detection, gnss_z)
                 if lane_detection.right_marking_detection is not None:
-                    c0 = lane_detection.right_marking_detection.get_c0c1_list()[0]
+                    c0 = lane_detection.right_marking_detection.get_c0c1_list()[
+                        0]
                     if abs(c0) <= 3.5:
-                        sw_graph.add_lane_factor(lane_detection.right_marking_detection, gnss_z)
-            # if idx - init_idx > 2:
-            #     # Add geometric lane factor factor
-            #     sw_graph.add_geo_lane_factor(lane_detection)
+                        sw_graph.add_lane_factor(
+                            lane_detection.right_marking_detection, gnss_z)
 
         sw_graph.try_move_sliding_window_forward()
 
@@ -205,6 +259,17 @@ def main():
         sw_graph.solve_one_step()
 
         plt.cla()
+
+        last_pos = sw_graph.last_optimized_se2.translation()
+        last_loc = carla.Location(x=last_pos[0], y=-last_pos[1])
+        location_screen = world_to_pixel(last_loc, map_info)
+        ax.imshow(map_image[location_screen[1]-600:location_screen[1]+600,
+                            location_screen[0]-600:location_screen[0]+600],
+                  extent=[last_pos[0]-600/map_info['pixels_per_meter'],
+                          last_pos[0]+600/map_info['pixels_per_meter'],
+                          last_pos[1]-600/map_info['pixels_per_meter'],
+                          last_pos[1]+600/map_info['pixels_per_meter']])
+
         ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2)
         plt.show(block=False)
         for idx in sw_graph.get_idc_in_graph():
@@ -212,11 +277,9 @@ def main():
             # print(cov)
             plotSE2WithCov(sw_graph.get_result(idx), cov)
 
-        plt.axis('equal')
-
-        last_pos = sw_graph.last_optimized_se2.translation()
         ax.set_xlim((last_pos[0]-10, last_pos[0]+10))
         ax.set_ylim((last_pos[1]-10, last_pos[1]+10))
+        # plt.axis('equal')
 
         # plt.axis('equal')
         plt.pause(0.001)
