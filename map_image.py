@@ -1,3 +1,5 @@
+"""Modified from example code no_rendering_mode.py to render map images"""
+
 import math
 import pygame
 import os
