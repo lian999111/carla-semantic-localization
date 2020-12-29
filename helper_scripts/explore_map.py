@@ -525,11 +525,6 @@ class MapImage(object):
             # Save rendered map for next executions of same map
             pygame.image.save(self.big_map_surface, full_path)
 
-            # Save a jpg version for localization evaluation
-            jpg_filename = carla_map.name + ".jpg"
-            jpg_full_path = str(os.path.join(dirname, jpg_filename))
-            pygame.image.save(self.big_map_surface, jpg_full_path)
-
         self.surface = self.big_map_surface
 
     def draw_road_map(self, map_surface, carla_world, carla_map, world_to_pixel, world_to_pixel_width):
