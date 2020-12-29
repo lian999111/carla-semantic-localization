@@ -3,6 +3,7 @@
 /playground
 /opendrive
 /recordings
+/cache
 
 *.pyc
 *.pyo
