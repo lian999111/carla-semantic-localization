@@ -203,7 +203,8 @@ class GeoLaneBoundaryFactor(Factor):
             2, -1) - measured_coeffs) * self.null_scale
         null_M = self.prob_null * \
             multivariate_normal.pdf(
-                null_e.reshape(-1), cov=np.diag((3e3, 3e3)))
+                null_e.reshape(-1), cov=np.diag((1/self.config['stddev_c0']/self.null_scale,
+                                                 1/self.config['stddev_c1']/self.null_scale)))
 
         if self.ignore_junction and (self.in_junction or self.into_junction):
             self._null_hypo = True
