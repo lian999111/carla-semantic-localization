@@ -89,7 +89,7 @@ def adjust_figure(fig, ax, aspect, size=7):
     r = fig.subplotpars.right
     t = fig.subplotpars.top
     b = fig.subplotpars.bottom
-    fig.set_size_inches(width/(r-l)+0.5, height/(t-b))
+    fig.set_size_inches(width/(r-l)+1, height/(t-b))
 
 
 def dir_path(path):
@@ -262,7 +262,7 @@ def main():
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(-3.0, 1.0)
+        noised_gnss_x = gnss_x + np.random.normal(-0.0, 1.0)
         noised_gnss_y = gnss_y + np.random.normal(-0.0, 1.0)
 
         yaw_gt = raxle_orientations[idx][2]
@@ -431,9 +431,10 @@ def main():
 
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
+    fig_width = fig.get_size_inches()[0]
     cax = fig.add_axes([ax.get_position().x1+0.02,
                         ax.get_position().y0,
-                        0.02,
+                        0.1/fig_width,
                         ax.get_position().height])
     fig.colorbar(line, cax=cax)
 
@@ -458,9 +459,10 @@ def main():
 
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
+    fig_width = fig.get_size_inches()[0]
     cax = fig.add_axes([ax.get_position().x1+0.02,
                         ax.get_position().y0,
-                        0.02,
+                        0.1/fig_width,
                         ax.get_position().height])
     fig.colorbar(line, cax=cax)
 
@@ -486,9 +488,10 @@ def main():
 
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
+    fig_width = fig.get_size_inches()[0]
     cax = fig.add_axes([ax.get_position().x1+0.02,
                         ax.get_position().y0,
-                        0.02,
+                        0.1/fig_width,
                         ax.get_position().height])
     fig.colorbar(line, cax=cax)
 
