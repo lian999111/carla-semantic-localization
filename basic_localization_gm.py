@@ -314,30 +314,43 @@ def main():
             break
 
     ############### Evaluate ###############
-    lateral_error = []
+    longitudinal_errors = []
+    lateral_errors = []
+    yaw_errors = []
     for loc_gt, ori_gt, opti_pose in zip(loc_gt_seq, ori_gt_seq, optimized_poses):
         x_gt = loc_gt[0]
         y_gt = loc_gt[1]
         yaw_gt = ori_gt[2]
 
+        # Translational error
         tform_e2w = np.array([[math.cos(yaw_gt), -math.sin(yaw_gt), x_gt],
                               [math.sin(yaw_gt), math.cos(yaw_gt), y_gt],
                               [0, 0, 1]])
         tform_w2e = np.linalg.inv(tform_e2w)
 
-        trvec_w = np.append(opti_pose.translation(), 1)
-        trvec_e = tform_w2e @ trvec_w
-        print(trvec_e)
-        lateral_error.append(abs(trvec_e[1]))
+        trvec_world = np.append(opti_pose.translation(), 1)
+        trvec_ego = tform_w2e @ trvec_world
 
-    lateral_error = np.asarray(lateral_error)
+        longitudinal_errors.append(trvec_ego[0])
+        lateral_errors.append(trvec_ego[1])
+
+        # Rotational error
+        yaw = opti_pose.so2().theta()
+        yaw_errors.append(yaw - yaw_gt)
+
+    # Absolute errors
+    abs_longitudinal_errors = np.abs(np.asarray(longitudinal_errors))
+    abs_lateral_errors = np.abs(np.asarray(lateral_errors))
+    abs_yaw_errors = np.abs(np.asarray(yaw_errors))
+
+    # Visualize evaluation results
     fig, ax = plt.subplots()
     norm = plt.Normalize(0, 1)
     points = np.array([loc_x_gt, loc_y_gt]).T.reshape(-1, 1, 2)
     segments = np.concatenate((points[:-1], points[1:]), axis=1)
     lc = LineCollection(segments, cmap='viridis', norm=norm)
     # Set the values used for colormapping
-    lc.set_array(lateral_error)
+    lc.set_array(abs_lateral_errors)
     lc.set_linewidth(3)
     line = ax.add_collection(lc)
     fig.colorbar(line, ax=ax)
