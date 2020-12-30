@@ -314,6 +314,9 @@ def main():
             break
 
     ############### Evaluate ###############
+    opti_loc_x = []
+    opti_loc_y = []
+    opti_yaw = []
     longitudinal_errors = []
     lateral_errors = []
     yaw_errors = []
@@ -322,7 +325,8 @@ def main():
         y_gt = loc_gt[1]
         yaw_gt = ori_gt[2]
 
-        # Translational error
+        ## Translational error
+        # Matrix that transforms a point in ego frame to world frame
         tform_e2w = np.array([[math.cos(yaw_gt), -math.sin(yaw_gt), x_gt],
                               [math.sin(yaw_gt), math.cos(yaw_gt), y_gt],
                               [0, 0, 1]])
@@ -334,28 +338,33 @@ def main():
         longitudinal_errors.append(trvec_ego[0])
         lateral_errors.append(trvec_ego[1])
 
-        # Rotational error
+        ## Rotational error
         yaw = opti_pose.so2().theta()
-        yaw_errors.append(yaw - yaw_gt)
+        yaw_error = yaw - yaw_gt
+        # Since yaw angle is in a cyclic space, when the amount of error is larger than 180 degrees,
+        # we need to correct it.
+        if yaw_error > math.pi:
+            yaw_error = 2*math.pi - yaw_error
+        elif yaw_error < -math.pi:
+            yaw_error = 2*math.pi + yaw_error
+        yaw_errors.append(yaw_error)
+
+        ## Localization results
+        opti_loc_x.append(opti_pose.translation()[0])
+        opti_loc_y.append(opti_pose.translation()[1])
+        opti_yaw.append(yaw)
 
     # Absolute errors
     abs_longitudinal_errors = np.abs(np.asarray(longitudinal_errors))
     abs_lateral_errors = np.abs(np.asarray(lateral_errors))
     abs_yaw_errors = np.abs(np.asarray(yaw_errors))
 
-    # Visualize evaluation results
-    fig, ax = plt.subplots()
+    ## Visualize errors
     norm = plt.Normalize(0, 1)
-    points = np.array([loc_x_gt, loc_y_gt]).T.reshape(-1, 1, 2)
+    points = np.array([opti_loc_x, opti_loc_y]).T.reshape(-1, 1, 2)
     segments = np.concatenate((points[:-1], points[1:]), axis=1)
-    lc = LineCollection(segments, cmap='viridis', norm=norm)
-    # Set the values used for colormapping
-    lc.set_array(abs_lateral_errors)
-    lc.set_linewidth(3)
-    line = ax.add_collection(lc)
-    fig.colorbar(line, ax=ax)
 
-    # Add background
+    # Prepare background
     loc_gts = np.asarray(loc_gt_seq)
     margin = 7
     x_min = loc_gts[:, 0].min() - margin
@@ -376,10 +385,49 @@ def main():
     local_map_image = map_image[top_idx:bottom_idx,
                                 left_idx:right_idx]
 
+    # Longitudinal
+    fig, ax = plt.subplots()
+    ax.set_title('Longitudinal')
+    ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2, zorder=0)
+    lc = LineCollection(segments, cmap='viridis', norm=norm)
+    # Set the values used for colormapping
+    lc.set_array(abs_longitudinal_errors)
+    lc.set_linewidth(3)
+    line = ax.add_collection(lc)
+    fig.colorbar(line, ax=ax)
+    ax.imshow(local_map_image,
+                    extent=[x_min, x_max, y_min, y_max],
+                    alpha=0.5)
+    ax.axis('equal')
+
+    # Lateral
+    fig, ax = plt.subplots()
+    ax.set_title('Lateral')
+    ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2, zorder=0)
+    lc = LineCollection(segments, cmap='viridis', norm=norm)
+    # Set the values used for colormapping
+    lc.set_array(abs_lateral_errors)
+    lc.set_linewidth(3)
+    line = ax.add_collection(lc)
+    fig.colorbar(line, ax=ax)
     ax.imshow(local_map_image,
               extent=[x_min, x_max, y_min, y_max],
               alpha=0.5)
+    ax.axis('equal')
     
+    # Yaw
+    fig, ax = plt.subplots()
+    ax.set_title('Yaw')
+    ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2, zorder=0)
+    lc = LineCollection(segments, cmap='viridis', norm=norm)
+    # Set the values used for colormapping
+    lc.set_array(abs_yaw_errors)
+    lc.set_linewidth(3)
+    line = ax.add_collection(lc)
+    fig.colorbar(line, ax=ax)
+    ax.imshow(local_map_image,
+                    extent=[x_min, x_max, y_min, y_max],
+                    alpha=0.5)
     ax.axis('equal')
 
     plt.show()
