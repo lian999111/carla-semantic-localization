@@ -169,7 +169,7 @@ def main():
     np.random.seed(2)
 
     init_idx = 0
-    end_idx = 100
+    end_idx = 1000
 
     ############### Load map image ###############
     dirname = os.path.join("cache", "map_images")
@@ -410,7 +410,7 @@ def main():
     points = np.array([opti_loc_x, opti_loc_y]).T.reshape(-1, 1, 2)
     segments = np.concatenate((points[:-1], points[1:]), axis=1)
 
-    # Longitudinal
+    # Longitudinal error
     fig, ax = plt.subplots()
     ax.set_title('Longitudinal Error (m)')
     ax.set_xlabel('x (m)')
@@ -437,7 +437,7 @@ def main():
                         ax.get_position().height])
     fig.colorbar(line, cax=cax)
 
-    # Lateral
+    # Lateral error
     fig, ax = plt.subplots()
     ax.set_title('Lateral Error (m)')
     ax.set_xlabel('x (m)')
@@ -464,7 +464,7 @@ def main():
                         ax.get_position().height])
     fig.colorbar(line, cax=cax)
 
-    # Yaw
+    # Yaw error
     fig, ax = plt.subplots()
     ax.set_title('Yaw Error (rad)')
     ax.set_xlabel('x (m)')
