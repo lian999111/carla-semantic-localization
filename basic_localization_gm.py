@@ -383,11 +383,7 @@ def main():
     abs_lateral_errors = np.abs(np.asarray(lateral_errors))
     abs_yaw_errors = np.abs(np.asarray(yaw_errors))
 
-    # Visualize errors
-    norm = plt.Normalize(0, 1)
-    points = np.array([opti_loc_x, opti_loc_y]).T.reshape(-1, 1, 2)
-    segments = np.concatenate((points[:-1], points[1:]), axis=1)
-
+    ############### Visualize errors ###############
     # Prepare background
     loc_gts = np.asarray(loc_gt_seq)
     margin = 7  # (m)
@@ -399,6 +395,7 @@ def main():
     y_center = (y_max + y_min)/2
     x_half_width = (x_max - x_min)/2
     y_half_width = (y_max - y_min)/2
+    aspect = y_half_width/x_half_width  # height-to-width aspect ratio
 
     map_center = world_to_pixel(
         carla.Location(x_center, -y_center, 0), map_info)
@@ -409,10 +406,19 @@ def main():
     local_map_image = map_image[top_idx:bottom_idx,
                                 left_idx:right_idx]
 
+    # Prepare path segments
+    points = np.array([opti_loc_x, opti_loc_y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate((points[:-1], points[1:]), axis=1)
+
     # Longitudinal
     fig, ax = plt.subplots()
-    ax.set_title('Longitudinal')
-    ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2, zorder=0)
+    ax.set_title('Longitudinal Error (m)')
+    ax.set_xlabel('x (m)')
+    ax.set_xlabel('y (m)')
+    # Ground truth path
+    ax.plot(loc_x_gt, loc_y_gt, '-o', ms=1, zorder=0)
+    # Resultant path with color
+    norm = plt.Normalize(0, 1)
     lc = LineCollection(segments, cmap='viridis', norm=norm)
     # Set the values used for colormapping
     lc.set_array(abs_longitudinal_errors)
@@ -421,7 +427,7 @@ def main():
     ax.imshow(local_map_image,
               extent=[x_min, x_max, y_min, y_max],
               alpha=0.5)
-    adjust_figure(fig, ax, y_half_width/x_half_width)
+    adjust_figure(fig, ax, aspect)
 
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
@@ -433,8 +439,13 @@ def main():
 
     # Lateral
     fig, ax = plt.subplots()
-    ax.set_title('Lateral')
-    ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2, zorder=0)
+    ax.set_title('Lateral Error (m)')
+    ax.set_xlabel('x (m)')
+    ax.set_xlabel('y (m)')
+    # Ground truth path
+    ax.plot(loc_x_gt, loc_y_gt, '-o', ms=1, zorder=0)
+    # Resultant path with color
+    norm = plt.Normalize(0, 1)
     lc = LineCollection(segments, cmap='viridis', norm=norm)
     # Set the values used for colormapping
     lc.set_array(abs_lateral_errors)
@@ -443,7 +454,7 @@ def main():
     ax.imshow(local_map_image,
               extent=[x_min, x_max, y_min, y_max],
               alpha=0.5)
-    adjust_figure(fig, ax, y_half_width/x_half_width)
+    adjust_figure(fig, ax, aspect)
 
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
@@ -455,8 +466,13 @@ def main():
 
     # Yaw
     fig, ax = plt.subplots()
-    ax.set_title('Yaw')
+    ax.set_title('Yaw Error (rad)')
+    ax.set_xlabel('x (m)')
+    ax.set_xlabel('y (m)')
+    # Ground truth path
     ax.plot(loc_x_gt, loc_y_gt, '-o', ms=1, zorder=0)
+    # Resultant path with color
+    norm = plt.Normalize(0, 0.5)
     lc = LineCollection(segments, cmap='viridis', norm=norm)
     # Set the values used for colormapping
     lc.set_array(abs_yaw_errors)
@@ -466,7 +482,7 @@ def main():
               extent=[x_min, x_max, y_min, y_max],
               alpha=0.5)
 
-    adjust_figure(fig, ax, y_half_width/x_half_width)
+    adjust_figure(fig, ax, aspect)
 
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
