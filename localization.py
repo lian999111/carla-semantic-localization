@@ -168,7 +168,7 @@ def main():
 
     np.random.seed(2)
 
-    init_idx = 0
+    init_idx = 10
     end_idx = 1000
 
     ############### Load map image ###############
