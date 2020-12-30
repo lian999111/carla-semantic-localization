@@ -63,9 +63,33 @@ def plotSE2WithCov(ax, pose, cov, vehicle_size=0.5, line_color='k', vehicle_colo
             rotm @ np.matmul(cov[0:2, 0:2],
                              np.array([math.cos(t), math.sin(t)]))
         ps.append(cp)
-    line = plt.Polygon(ps, closed=True, fill=False, edgecolor=line_color, zorder=2)
+    line = plt.Polygon(ps, closed=True, fill=False,
+                       edgecolor=line_color, zorder=2)
     ellipse = ax.add_line(line)
     return triangle, ellipse
+
+
+def adjust_figure(fig, ax, aspect, size=7):
+    """Add color bar and adjust figure size to fit.
+    
+    Args:
+        fig: Figure object.
+        ax: Axes of graph.
+        aspect: Height-to-width ratio of graph. 
+        size: Maximum size (inch).
+    """
+    if aspect < 1:
+        height = size * aspect
+        width = size
+    else:
+        height = size
+        width = size / aspect
+
+    l = fig.subplotpars.left
+    r = fig.subplotpars.right
+    t = fig.subplotpars.top
+    b = fig.subplotpars.bottom
+    fig.set_size_inches(width/(r-l)+0.5, height/(t-b))
 
 
 def dir_path(path):
@@ -144,8 +168,8 @@ def main():
 
     np.random.seed(2)
 
-    init_idx = 1
-    end_idx = 1100
+    init_idx = 0
+    end_idx = 100
 
     ############### Load map image ###############
     dirname = os.path.join("cache", "map_images")
@@ -238,8 +262,8 @@ def main():
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(-0.0, 3.0)
-        noised_gnss_y = gnss_y + np.random.normal(-0.0, 3.0)
+        noised_gnss_x = gnss_x + np.random.normal(-3.0, 1.0)
+        noised_gnss_y = gnss_y + np.random.normal(-0.0, 1.0)
 
         yaw_gt = raxle_orientations[idx][2]
 
@@ -255,7 +279,7 @@ def main():
             sw_graph.add_gnss_factor(
                 np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
             # Add lane factor
-            if idx - init_idx > 10:
+            if idx - init_idx > 20:
                 if lane_detection.left_marking_detection is not None:
                     c0 = lane_detection.left_marking_detection.get_c0c1_list()[
                         0]
@@ -325,7 +349,7 @@ def main():
         y_gt = loc_gt[1]
         yaw_gt = ori_gt[2]
 
-        ## Translational error
+        # Translational error
         # Matrix that transforms a point in ego frame to world frame
         tform_e2w = np.array([[math.cos(yaw_gt), -math.sin(yaw_gt), x_gt],
                               [math.sin(yaw_gt), math.cos(yaw_gt), y_gt],
@@ -338,7 +362,7 @@ def main():
         longitudinal_errors.append(trvec_ego[0])
         lateral_errors.append(trvec_ego[1])
 
-        ## Rotational error
+        # Rotational error
         yaw = opti_pose.so2().theta()
         yaw_error = yaw - yaw_gt
         # Since yaw angle is in a cyclic space, when the amount of error is larger than 180 degrees,
@@ -349,7 +373,7 @@ def main():
             yaw_error = 2*math.pi + yaw_error
         yaw_errors.append(yaw_error)
 
-        ## Localization results
+        # Localization results
         opti_loc_x.append(opti_pose.translation()[0])
         opti_loc_y.append(opti_pose.translation()[1])
         opti_yaw.append(yaw)
@@ -359,14 +383,14 @@ def main():
     abs_lateral_errors = np.abs(np.asarray(lateral_errors))
     abs_yaw_errors = np.abs(np.asarray(yaw_errors))
 
-    ## Visualize errors
+    # Visualize errors
     norm = plt.Normalize(0, 1)
     points = np.array([opti_loc_x, opti_loc_y]).T.reshape(-1, 1, 2)
     segments = np.concatenate((points[:-1], points[1:]), axis=1)
 
     # Prepare background
     loc_gts = np.asarray(loc_gt_seq)
-    margin = 7
+    margin = 7  # (m)
     x_min = loc_gts[:, 0].min() - margin
     x_max = loc_gts[:, 0].max() + margin
     y_min = loc_gts[:, 1].min() - margin
@@ -394,11 +418,18 @@ def main():
     lc.set_array(abs_longitudinal_errors)
     lc.set_linewidth(3)
     line = ax.add_collection(lc)
-    fig.colorbar(line, ax=ax)
     ax.imshow(local_map_image,
-                    extent=[x_min, x_max, y_min, y_max],
-                    alpha=0.5)
-    ax.axis('equal')
+              extent=[x_min, x_max, y_min, y_max],
+              alpha=0.5)
+    adjust_figure(fig, ax, y_half_width/x_half_width)
+
+    # Add color bar
+    # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
+    cax = fig.add_axes([ax.get_position().x1+0.02,
+                        ax.get_position().y0,
+                        0.02,
+                        ax.get_position().height])
+    fig.colorbar(line, cax=cax)
 
     # Lateral
     fig, ax = plt.subplots()
@@ -409,26 +440,41 @@ def main():
     lc.set_array(abs_lateral_errors)
     lc.set_linewidth(3)
     line = ax.add_collection(lc)
-    fig.colorbar(line, ax=ax)
     ax.imshow(local_map_image,
               extent=[x_min, x_max, y_min, y_max],
               alpha=0.5)
-    ax.axis('equal')
-    
+    adjust_figure(fig, ax, y_half_width/x_half_width)
+
+    # Add color bar
+    # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
+    cax = fig.add_axes([ax.get_position().x1+0.02,
+                        ax.get_position().y0,
+                        0.02,
+                        ax.get_position().height])
+    fig.colorbar(line, cax=cax)
+
     # Yaw
     fig, ax = plt.subplots()
     ax.set_title('Yaw')
-    ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2, zorder=0)
+    ax.plot(loc_x_gt, loc_y_gt, '-o', ms=1, zorder=0)
     lc = LineCollection(segments, cmap='viridis', norm=norm)
     # Set the values used for colormapping
     lc.set_array(abs_yaw_errors)
     lc.set_linewidth(3)
     line = ax.add_collection(lc)
-    fig.colorbar(line, ax=ax)
     ax.imshow(local_map_image,
-                    extent=[x_min, x_max, y_min, y_max],
-                    alpha=0.5)
-    ax.axis('equal')
+              extent=[x_min, x_max, y_min, y_max],
+              alpha=0.5)
+
+    adjust_figure(fig, ax, y_half_width/x_half_width)
+
+    # Add color bar
+    # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
+    cax = fig.add_axes([ax.get_position().x1+0.02,
+                        ax.get_position().y0,
+                        0.02,
+                        ax.get_position().height])
+    fig.colorbar(line, cax=cax)
 
     plt.show()
 
