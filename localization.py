@@ -414,11 +414,11 @@ def main():
     fig, ax = plt.subplots()
     ax.set_title('Longitudinal Error (m)')
     ax.set_xlabel('x (m)')
-    ax.set_xlabel('y (m)')
+    ax.set_ylabel('y (m)')
     # Ground truth path
     ax.plot(loc_x_gt, loc_y_gt, '-o', ms=1, zorder=0)
     # Resultant path with color
-    norm = plt.Normalize(0, 1)
+    norm = plt.Normalize(0, 3)
     lc = LineCollection(segments, cmap='viridis', norm=norm)
     # Set the values used for colormapping
     lc.set_array(abs_longitudinal_errors)
@@ -441,7 +441,7 @@ def main():
     fig, ax = plt.subplots()
     ax.set_title('Lateral Error (m)')
     ax.set_xlabel('x (m)')
-    ax.set_xlabel('y (m)')
+    ax.set_ylabel('y (m)')
     # Ground truth path
     ax.plot(loc_x_gt, loc_y_gt, '-o', ms=1, zorder=0)
     # Resultant path with color
@@ -468,7 +468,7 @@ def main():
     fig, ax = plt.subplots()
     ax.set_title('Yaw Error (rad)')
     ax.set_xlabel('x (m)')
-    ax.set_xlabel('y (m)')
+    ax.set_ylabel('y (m)')
     # Ground truth path
     ax.plot(loc_x_gt, loc_y_gt, '-o', ms=1, zorder=0)
     # Resultant path with color
