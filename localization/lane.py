@@ -117,7 +117,12 @@ class GeoLaneBoundaryFactor(Factor):
         Factor.__init__(self, 1, [key], loss)
 
     def copy(self):
-        return GeoLaneBoundaryFactor(self.keys()[0], self.detected_marking, self.z, self.pose_uncert, self.px, self.config)
+        return GeoLaneBoundaryFactor(self.keys()[0],
+                                     self.detected_marking,
+                                     self.z,
+                                     self.pose_uncert,
+                                     self.px,
+                                     self.config)
 
     def error(self, variables):
         ########## Expectation ##########
