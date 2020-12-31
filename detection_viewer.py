@@ -1,4 +1,4 @@
-# This script implements the visualization of offline detection results
+"""Implements the visualization of offline detection results"""
 
 import os
 import argparse
