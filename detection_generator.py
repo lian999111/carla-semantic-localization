@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 from detection.vision.lane import LaneMarkingDetector
 from detection.vision.pole import PoleDetector
+from detection.vision.utils import decode_depth
 from detection.rs_stop import RSStopDetectionSimulator
 from detection.utils import Pole, MELaneMarking, MELaneMarkingType, MELaneDetection
 from detection.pole_map import gen_pole_map
