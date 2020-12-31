@@ -131,7 +131,7 @@ class LocalPlanner(object):
 
         self._target_speed = self._vehicle.get_speed_limit()
 
-        self._min_distance = 3
+        self._min_distance = 4.5
 
     def set_speed(self, speed):
         """
