@@ -54,7 +54,7 @@ world:
 
 ## Autopilot (uncomment this section to use autopilot)
 # autopilot:
-#   auto_lane_change: True
+#   auto_lane_change: True  # This lets the car to make lane changes if necessary, not really useful in our case
 #   ignore_lights_percentage: 100
 #   vehicle_percentage_speed_difference: 0    # When set to negative, vehicles move beyond the speed limit
 
