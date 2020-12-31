@@ -184,18 +184,12 @@ def main():
         vx = vx_seq[idx] + np.random.normal(0, 0.0)
         yaw_rate = gyro_z_seq[idx] + np.random.normal(0, 0.0)
 
-        lane_id = lane_id_seq[idx]
-        left_marking_coeffs = np.asarray(left_marking_coeffs_seq[idx])
-        right_marking_coeffs = np.asarray(right_marking_coeffs_seq[idx])
+        lane_id_gt = lane_id_seq[idx]
+        left_marking_coeffs_gt = np.asarray(left_marking_coeffs_seq[idx])
+        right_marking_coeffs_gt = np.asarray(right_marking_coeffs_seq[idx])
 
         # Detection
         lane_detection = lane_detection_seq[idx]
-        left_marking_detection = lane_detection.left_marking_detection
-        if left_marking_detection is not None:
-            left_detection_coeffs = np.flip(
-                left_marking_detection.coeffs[1:3]).tolist()
-        else:
-            left_detection_coeffs = None
 
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
