@@ -1,6 +1,7 @@
 """Utility functions for localization evaluation"""
-import numpy as np
+
 import math
+import numpy as np
 import matplotlib.pyplot as plt
 
 
