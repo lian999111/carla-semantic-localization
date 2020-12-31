@@ -1,4 +1,4 @@
-# Implementations of projections between image and world
+"""Implementations of projections between image and world"""
 import numpy as np
 
 

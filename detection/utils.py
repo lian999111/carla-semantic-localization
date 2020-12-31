@@ -1,9 +1,8 @@
-# Implementations of utilities for detection
+"""Implementations of utilities for detection"""
 from enum import Enum
 import random
 
-from carlasim.utils import TrafficSignType, LaneMarkingType, LaneMarkingColor, LaneMarking
-from carlasim.carla_tform import Transform
+from carlasim.utils import TrafficSignType, LaneMarkingType, LaneMarkingColor
 
 
 class Pole(object):
@@ -39,7 +38,6 @@ class Pole(object):
                 if wrong_type != self.type and wrong_type != TrafficSignType.RSStop:
                     self.type = wrong_type
                     break
-
 
 
 class MELaneMarkingType(Enum):
@@ -144,10 +142,11 @@ class MELaneMarking(object):
                 if wrong_type != self.type and wrong_type != MELaneMarkingType.Unknown:
                     self.type = wrong_type
                     break
-    
+
     def get_c0c1_list(self):
         """Extract c0 and c1 coefficients as a list in ascending order."""
         return self.coeffs[-1:-3:-1]
+
 
 class MELaneDetection(object):
     """

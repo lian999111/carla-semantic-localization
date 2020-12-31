@@ -1,14 +1,15 @@
-# Implementation of lane extraction from semantic segmentation images
+"""Implementation of lane extraction from semantic segmentation images."""
 
 import os
 import argparse
+
 import yaml
 import numpy as np
 import cv2
 from scipy.signal import find_peaks
 from math import sin, cos
-
 import pickle
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
@@ -32,13 +33,13 @@ def image_side_by_side(leftImg, leftTitle, rightImg, rightTitle, figsize=(20, 10
 
 
 class LaneMarkingDetector(object):
-    """ 
-    Class for lane marking detection from semantic segmentation images. 
+    """
+    Class for lane marking detection from semantic segmentation images.
 
-    It performs inverse perspective mapping (IPM) to obtain the bird's eye view, 
+    It performs inverse perspective mapping (IPM) to obtain the bird's eye view,
     then uses 2 approaches to detect lane marking pixels:
         - Sliding window: Used when there was no lane marking detected in previous images.
-        - TODO: CTRV motion model: Used to predict the current positions of lane markings. 
+        - TODO: CTRV motion model: Used to predict the current positions of lane markings.
                                    It requires lane markings to be detected in previous images.
     """
 
@@ -115,11 +116,11 @@ class LaneMarkingDetector(object):
         self._visualize = visualize
 
     def update_lane_coeffs(self, lane_image, yaw_rate=0.):
-        """ 
+        """
         Update lane marking coefficients of both sides.
 
         If lane markings were not detected before, it uses sliding window to detect lane markings.
-        TODO: If lane markings were already detected, use Kalman filter to update or Kinematic detection. 
+        TODO: If lane markings were already detected, use Kalman filter to update or Kinematic detection.
 
         Input:
             lane_image: OpenCV image with supported data type (e.g. np.uint8). The image should have non-zero values only

@@ -1,4 +1,4 @@
-# Implementations of vision-related utility functions
+"""Implementations of vision-related utility functions."""
 import numpy as np
 import cv2
 

@@ -1,11 +1,19 @@
-# Implementation of road surface stop sign detection
+"""Implementation of road surface stop sign detection."""
 
 # The following boilerplate is required if .egg is not installed
 # See: https://carla.readthedocs.io/en/latest/build_system/
 import glob
 import os
-import datetime
 import sys
+import pickle
+import argparse
+
+import numpy as np
+import yaml
+import matplotlib.pyplot as plt
+
+from carlasim.groundtruth import RSStopGTExtractor
+from carlasim.utils import get_fbumper_location
 
 try:
     sys.path.append(glob.glob('./carla-*%d.%d-%s.egg' % (
@@ -15,17 +23,6 @@ try:
 except IndexError:
     pass
 import carla
-
-import numpy as np
-from scipy.spatial import KDTree
-import pickle
-import argparse
-import yaml
-import matplotlib.pyplot as plt
-
-from carlasim.groundtruth import RSStopGTExtractor
-from carlasim.carla_tform import Transform
-from carlasim.utils import TrafficSignType, get_fbumper_location
 
 
 class RSStopDetectionSimulator(object):

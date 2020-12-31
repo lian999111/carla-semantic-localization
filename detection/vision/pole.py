@@ -1,11 +1,12 @@
+"""Implementation of pole detection from semantic segmentation images."""
+
 import os
 import argparse
+import pickle
+
 import yaml
 import numpy as np
 import cv2
-from scipy.spatial.transform import Rotation
-
-import pickle
 import matplotlib.pyplot as plt
 
 from detection.vision.camproj import im2world_known_z, im2world_known_x

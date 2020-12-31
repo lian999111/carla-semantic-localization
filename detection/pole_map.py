@@ -1,4 +1,4 @@
-# Implementation of pole map generation
+"""Implementation of pole map generation"""
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.cluster import DBSCAN
