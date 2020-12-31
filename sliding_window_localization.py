@@ -418,7 +418,7 @@ def main():
               extent=[x_min, x_max, y_min, y_max],
               alpha=0.5)
 
-    adjust_figure(fig, ax, aspect)1
+    adjust_figure(fig, ax, aspect)
 
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
