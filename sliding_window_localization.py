@@ -270,6 +270,7 @@ def main():
         if idx >= end_idx:
             break
 
+    # TODO: Make following functions in eval package
     ############### Evaluate ###############
     opti_loc_x = []
     opti_loc_y = []
@@ -417,7 +418,7 @@ def main():
               extent=[x_min, x_max, y_min, y_max],
               alpha=0.5)
 
-    adjust_figure(fig, ax, aspect)
+    adjust_figure(fig, ax, aspect)1
 
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
