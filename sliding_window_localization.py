@@ -165,8 +165,7 @@ def main():
     map_im = ax.imshow(np.zeros((1, 1, 3), dtype=int),
                        extent=[0, 0, 0, 0],
                        alpha=0.5)
-    gnss_dot = ax.plot(0, 0, 'X', color='darkgreen', ms=5, zorder=3)[0]
-    ax.set_xlabel('x (m}')
+    ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
     plt.show(block=False)
 
