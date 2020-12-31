@@ -170,8 +170,10 @@ def main():
     plt.show(block=False)
 
     ############### Sliding window graph ###############
-    sw_graph = SlidingWindowGraphManager(
-        localization_config, expected_lane_extractor, first_node_idx=init_idx)
+    sw_graph = SlidingWindowGraphManager(dist_raxle_to_fbumper,
+                                         localization_config,
+                                         expected_lane_extractor,
+                                         first_node_idx=init_idx)
 
     optimized_poses = []
 

@@ -16,10 +16,11 @@ from .utils import copy_se2
 class SlidingWindowGraphManager(object):
     """Class for management and optimization of sliding window factor graph."""
 
-    def __init__(self, config, expected_lane_extractor, first_node_idx=0):
+    def __init__(self, px, config, expected_lane_extractor, first_node_idx=0):
         """Constructor method.
 
         Args:
+            px (float): Distance from rear axle to front bumper.
             config (dict): Container for all configurations related to factor graph based localization.
                 This should be read from the configuration .yaml file.
             expected_lane_extractor: Expected lane extractor for lane boundary factor.
@@ -29,6 +30,7 @@ class SlidingWindowGraphManager(object):
                 Especially when performing localization using only part of data that don't start from 
                 the beginning of the recording.
         """
+        self.px = px
         # Config
         self.config = config
 
@@ -250,12 +252,11 @@ class SlidingWindowGraphManager(object):
 
         node_key = ms.key('x', self._idc_in_graph[-1])
 
-        # TODO: 3.8
         self.graph.add(GeoLaneBoundaryFactor(node_key,
                                              detected_marking,
                                              z,
                                              self.pred_cov,
-                                             3.8,
+                                             self.px,
                                              self.config['lane']))
 
     def solve_one_step(self):
