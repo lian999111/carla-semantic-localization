@@ -160,13 +160,12 @@ def main():
 
     # Path ground truth
     gt_path = ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2)
-
     # Create a dummy map background
     map_im = ax.imshow(np.zeros((1, 1, 3), dtype=int),
                        extent=[0, 0, 0, 0],
                        alpha=0.5)
-
-    ax.axis('equal')
+    ax.set_xlabel('x (m}')
+    ax.set_ylabel('y (m)')
     plt.show(block=False)
 
     ############### Sliding window graph ###############
@@ -259,8 +258,7 @@ def main():
             pose_plots.append(plot_se2_with_cov(
                 ax, sw_graph.get_result(idx), cov))
 
-        ax.set_xlim((last_loc[0]-half_width, last_loc[0]+half_width))
-        ax.set_ylim((last_loc[1]-half_width, last_loc[1]+half_width))
+        ax.set_title(idx)
 
         plt.pause(0.001)
 
