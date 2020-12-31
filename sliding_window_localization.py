@@ -39,7 +39,8 @@ def dir_path(path):
 
 
 def main():
-    # Parse arguments
+    """Main function"""
+    ############### Parse arguments ###############
     argparser = argparse.ArgumentParser(
         description='Visualization of Offline Detections')
     argparser.add_argument('recording_dir',
@@ -70,7 +71,7 @@ def main():
     with args.localization_config as f:
         localization_config = yaml.safe_load(f)
 
-    # Retrieve required data
+    ############### Retrieve required data ###############
     timestamp_seq = sensor_data['gnss']['timestamp']
     gnss_x_seq = sensor_data['gnss']['x']
     gnss_y_seq = sensor_data['gnss']['y']
@@ -90,7 +91,7 @@ def main():
 
     lane_detection_seq = detections['lane']
 
-    # Connect to Carla server
+    ############### Connect to Carla server ###############
     client = carla.Client('localhost', 2000)
     client.set_timeout(5.0)
     carla_world = client.load_world(carla_config['world']['map'])
@@ -174,8 +175,8 @@ def main():
                                          expected_lane_extractor,
                                          first_node_idx=init_idx)
 
+    # List for storing pose of each time step after optimization
     optimized_poses = []
-
     for idx, timestamp in enumerate(timestamp_seq):
 
         if idx < init_idx:
@@ -235,7 +236,7 @@ def main():
         last_loc = last_pose.translation()
         optimized_poses.append(last_pose)
 
-        ######## Visualize ########
+        ## Visualize current step ##
         half_width = 15  # half width of background map
         half_width_px = half_width * map_info['pixels_per_meter']
 
@@ -342,7 +343,7 @@ def main():
     points = np.array([opti_loc_x, opti_loc_y]).T.reshape(-1, 1, 2)
     segments = np.concatenate((points[:-1], points[1:]), axis=1)
 
-    # Longitudinal error
+    ## Longitudinal error ##
     fig, ax = plt.subplots()
     ax.set_title('Longitudinal Error (m)')
     ax.set_xlabel('x (m)')
@@ -370,7 +371,7 @@ def main():
                         ax.get_position().height])
     fig.colorbar(line, cax=cax)
 
-    # Lateral error
+    ## Lateral error ##
     fig, ax = plt.subplots()
     ax.set_title('Lateral Error (m)')
     ax.set_xlabel('x (m)')
@@ -398,7 +399,7 @@ def main():
                         ax.get_position().height])
     fig.colorbar(line, cax=cax)
 
-    # Yaw error
+    ## Yaw error ##
     fig, ax = plt.subplots()
     ax.set_title('Yaw Error (rad)')
     ax.set_xlabel('x (m)')
