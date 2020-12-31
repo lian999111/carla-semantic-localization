@@ -1,4 +1,4 @@
-# Implementation of data recorder
+"""Implements data recorder"""
 
 import pickle
 import os

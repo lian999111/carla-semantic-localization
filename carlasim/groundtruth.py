@@ -1,10 +1,15 @@
-"""
-Implements ground truth of neighboring objects extraction from Carla simulation environment.
-"""
+"""Implements ground truth of neighboring objects extraction from Carla simulation environment."""
 
 import glob
 import os
 import sys
+from enum import Enum
+
+import numpy as np
+from scipy.spatial import KDTree
+
+from carlasim.carla_tform import Transform
+from carlasim.utils import LaneMarking, TrafficSignType, TrafficSign
 
 try:
     sys.path.append(glob.glob('./carla-*%d.%d-%s.egg' % (
@@ -14,14 +19,6 @@ try:
 except IndexError:
     pass
 import carla
-
-from enum import Enum
-import numpy as np
-import queue
-from scipy.spatial import KDTree
-
-from carlasim.carla_tform import Transform
-from carlasim.utils import LaneMarking, TrafficSignType, TrafficSign
 
 
 class Direction(Enum):

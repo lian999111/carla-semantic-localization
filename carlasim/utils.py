@@ -2,6 +2,11 @@
 import glob
 import os
 import sys
+from enum import Enum
+
+import numpy as np
+
+from carlasim.carla_tform import Transform
 
 try:
     sys.path.append(glob.glob('./carla-*%d.%d-%s.egg' % (
@@ -11,11 +16,6 @@ try:
 except IndexError:
     pass
 import carla
-
-from enum import Enum
-import numpy as np
-
-from carlasim.carla_tform import Transform
 
 
 class LaneMarkingType(Enum):

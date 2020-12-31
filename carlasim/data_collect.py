@@ -1,14 +1,21 @@
-"""
-Implements classes for data collection in Carla.
-"""
+"""Implements classes for data collection in Carla."""
 
 # %%
 # The following boilerplate is required if .egg is not installed
 # See: https://carla.readthedocs.io/en/latest/build_system/
 import glob
 import os
-import datetime
 import sys
+import re
+import random
+import queue
+from collections import deque
+
+import numpy as np
+
+from carlasim.groundtruth import GroundTruthExtractor
+from carlasim.carla_tform import Transform
+from agents.navigation.behavior_agent import BehaviorAgent
 
 try:
     sys.path.append(glob.glob('./carla-*%d.%d-%s.egg' % (
@@ -18,18 +25,6 @@ try:
 except IndexError:
     pass
 import carla
-
-import argparse
-import yaml
-import re
-import random
-import numpy as np
-import queue
-from collections import deque
-
-from carlasim.groundtruth import GroundTruthExtractor
-from carlasim.carla_tform import Transform
-from agents.navigation.behavior_agent import BehaviorAgent
 
 # %% ================= Global function =================
 
@@ -503,7 +498,8 @@ class World(object):
         debug = False
         if __debug__:
             debug = True
-        self.ground_truth = GroundTruthExtractor(self.ego_veh, config['gt'], debug)
+        self.ground_truth = GroundTruthExtractor(
+            self.ego_veh, config['gt'], debug)
 
     def add_carla_sensor(self, carla_sensor: CarlaSensor):
         """

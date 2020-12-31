@@ -1,4 +1,4 @@
-""" Implements world-to-ego transformations. """
+"""Implements world-to-ego transformations."""
 
 # %%
 # The following boilerplate is required if .egg is not installed
@@ -7,6 +7,9 @@ import glob
 import os
 import sys
 
+import numpy as np
+from scipy.spatial.transform import Rotation
+
 try:
     sys.path.append(glob.glob('./carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -14,10 +17,7 @@ try:
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
 except IndexError:
     pass
-
 import carla
-import numpy as np
-from scipy.spatial.transform import Rotation
 
 
 class Transform:
