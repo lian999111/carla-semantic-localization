@@ -1,19 +1,17 @@
-# This script implements offline detection generation and pole map creation
+"""Implements offline detection generation and pole map creation"""
 
 import os
-import sys
 import argparse
+import pickle
+from shutil import copyfile
+
 import yaml
 import numpy as np
 from scipy.spatial import KDTree
-import pickle
 import matplotlib.pyplot as plt
-from shutil import copyfile
 
 from detection.vision.lane import LaneMarkingDetector
 from detection.vision.pole import PoleDetector
-from detection.vision.camproj import im2world_known_z, im2world_known_x
-from detection.vision.utils import find_pole_bases, decode_depth
 from detection.rs_stop import RSStopDetectionSimulator
 from detection.utils import Pole, MELaneMarking, MELaneMarkingType, MELaneDetection
 from detection.pole_map import gen_pole_map
