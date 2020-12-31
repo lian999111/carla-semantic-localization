@@ -16,19 +16,17 @@ except IndexError:
     pass
 import carla
 
-import minisam as ms
-
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.colors import ListedColormap, BoundaryNorm
 import pygame
+from PIL import Image
+import minisam as ms
 
 from carlasim.groundtruth import LaneGTExtractor
 from localization.graph_manager import SlidingWindowGraphManager
 from localization.utils import ExpectedLaneExtractor
-
-from map_image import MapImage
-from PIL import Image
+from localization.eval.map_image import MapImage
 
 
 def world_to_pixel(location, map_info, offset=(0, 0)):
