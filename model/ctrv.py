@@ -1,4 +1,4 @@
-# Implementation of CTRV model
+"""Implementation of CTRV model"""
 
 from math import sin, cos
 import numpy as np
@@ -11,7 +11,7 @@ def predict_motion_from_ego_frame(vx, yaw_rate, delta_t, Q=None):
     That is, get the expected CTRV motion while viewed from the current pose.    
     When yaw rate is very small, CV model is used instead to avoid division-by-zero.
 
-    Note: The resultant covarinace matrix of delta_x, delta_y, delta_theta is obtained by transforming 
+    Note: The resultant covarinace matrix of delta_x, delta_y, delta_theta is obtained by transforming
     the covariance matrix of vx and yaw rate based on the Jacobian of the CTRV model. This method results
     in a rank-deficient matrix and causes problems during optimization. Thus, a small diagonal matrix is
     added in order to make it full-rank and stabilize the optimization.
