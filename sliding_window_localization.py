@@ -108,7 +108,7 @@ def main():
     np.random.seed(2)
 
     init_idx = 10
-    end_idx = 1000
+    end_idx = 2000
 
     ############### Load map image ###############
     dirname = os.path.join("cache", "map_images")
@@ -167,6 +167,10 @@ def main():
                        alpha=0.5)
     # Dot of gnss measurement
     gnss_dot = ax.plot([], [], 'o', color='gold', ms=4, zorder=3)[0]
+    # Lane boundary detection
+    left_lb = ax.plot([], [])[0]
+    right_lb = ax.plot([], [])[0]
+
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
     plt.show(block=False)
@@ -198,8 +202,8 @@ def main():
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(-0.0, 1.0)
-        noised_gnss_y = gnss_y + np.random.normal(-0.0, 1.0)
+        noised_gnss_x = gnss_x + np.random.normal(0.0, 3.0)
+        noised_gnss_y = gnss_y + np.random.normal(-0.0, 3.0)
 
         yaw_gt = raxle_orientations[idx][2]
 
@@ -238,10 +242,11 @@ def main():
         last_loc = last_pose.translation()
         optimized_poses.append(last_pose)
 
-        ## Visualize current step ##
+        ##### Visualize current step #####
         half_width = 15  # half width of background map
         half_width_px = half_width * map_info['pixels_per_meter']
 
+        ### background map ###
         # Get image coordinate of
         image_coord = world_to_pixel(carla.Location(
             last_loc[0], -last_loc[1]), map_info)
@@ -252,16 +257,56 @@ def main():
         bottom = (last_loc[1]-half_width)
         top = (last_loc[1]+half_width)
 
+        # Update background map
         map_im.set_data(local_map_image)
         map_im.set_extent([left, right, bottom, top])
 
+        ### Poses ###
         pose_plots = []
         for idx in sw_graph.get_idc_in_graph():
             cov = sw_graph.get_marignal_cov_matrix(idx)
             pose_plots.append(plot_se2_with_cov(
                 ax, sw_graph.get_result(idx), cov))
 
+        ### GNSS ###
         gnss_dot.set_data(noised_gnss_x, noised_gnss_y)
+
+        ### Lane boundary detection ###
+        last_se2 = sw_graph.last_optimized_se2
+        last_x = last_se2.translation()[0]
+        last_y = last_se2.translation()[1]
+        last_yaw = last_se2.so2().theta()
+        # Matrix to transform points in ego frame to world frame
+        tform_e2w = np.array([[math.cos(last_yaw), -math.sin(last_yaw), last_x],
+                              [math.sin(last_yaw), math.cos(last_yaw), last_y],
+                              [0, 0, 1]])
+        # Matrix to transform points in front bumper to ego frame
+        tfrom_fbumper2raxel = np.array([[1, 0, dist_raxle_to_fbumper],
+                                        [0, 1, 0],
+                                        [0, 0, 1]])
+        # Matrix to transform points in front bumper to world frame
+        tform_fbumper2w = tform_e2w @ tfrom_fbumper2raxel
+        x = np.linspace(0, 10, 10)
+        if lane_detection.left_marking_detection:
+            y = lane_detection.left_marking_detection.compute_y(x)
+            lb_pts_wrt_fbumper = np.array([x, y, 1])
+            lb_pts_world = tform_fbumper2w @ lb_pts_wrt_fbumper
+            # Update plot
+            left_lb.set_data(lb_pts_world[0], lb_pts_world[1])
+        else:
+            # Update plot
+            left_lb.set_data([], [])
+
+        if lane_detection.right_marking_detection:
+            y = lane_detection.right_marking_detection.compute_y(x)
+            lb_pts_wrt_fbumper = np.array([x, y, 1])
+            lb_pts_world = tform_fbumper2w @ lb_pts_wrt_fbumper
+            # Update plot
+            right_lb.set_data(lb_pts_world[0], lb_pts_world[1])
+        else:
+            # Update plot
+            right_lb.set_data([], [])
+
         ax.set_title(idx)
 
         plt.pause(0.001)
