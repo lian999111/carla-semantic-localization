@@ -162,7 +162,6 @@ def main():
     gt_path = ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2)
     # Create a dummy map background
     map_im = ax.imshow(np.zeros((1, 1, 3), dtype=int),
-                       extent=[0, 0, 0, 0],
                        alpha=0.5)
     # Dot of gnss measurement
     gnss_dot = ax.plot([], [], 'o', color='gold', ms=4, zorder=3)[0]
