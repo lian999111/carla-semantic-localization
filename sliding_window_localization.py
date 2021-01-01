@@ -1,11 +1,23 @@
+"""Localization using graph-based sliding window."""
+
 import os
 import argparse
-import yaml
 import pickle
-import numpy as np
 import math
 import sys
 import glob
+
+import yaml
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
+import pygame
+
+from carlasim.groundtruth import LaneGTExtractor
+from localization.graph_manager import SlidingWindowGraphManager
+from localization.utils import ExpectedLaneExtractor
+from localization.eval.map_image import MapImage
+from localization.eval.utils import world_to_pixel, plot_se2_with_cov, adjust_figure
 
 try:
     sys.path.append(glob.glob('./carla-*%d.%d-%s.egg' % (
@@ -15,19 +27,6 @@ try:
 except IndexError:
     pass
 import carla
-
-import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
-from matplotlib.colors import ListedColormap, BoundaryNorm
-import pygame
-from PIL import Image
-import minisam as ms
-
-from carlasim.groundtruth import LaneGTExtractor
-from localization.graph_manager import SlidingWindowGraphManager
-from localization.utils import ExpectedLaneExtractor
-from localization.eval.map_image import MapImage
-from localization.eval.utils import world_to_pixel, plot_se2_with_cov, adjust_figure
 
 
 def dir_path(path):
