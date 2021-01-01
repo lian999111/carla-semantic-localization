@@ -262,10 +262,10 @@ def main():
 
         ### Poses ###
         pose_plots = []
-        for idx in sw_graph.get_idc_in_graph():
-            cov = sw_graph.get_marignal_cov_matrix(idx)
+        for node_idx in sw_graph.get_idc_in_graph():
+            cov = sw_graph.get_marignal_cov_matrix(node_idx)
             pose_plots.append(plot_se2_with_cov(
-                ax, sw_graph.get_result(idx), cov))
+                ax, sw_graph.get_result(node_idx), cov))
 
         ### GNSS ###
         gnss_dot.set_data(noised_gnss_x, noised_gnss_y)
