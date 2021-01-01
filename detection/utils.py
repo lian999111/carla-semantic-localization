@@ -2,6 +2,8 @@
 from enum import Enum
 import random
 
+import numpy as np
+
 from carlasim.utils import TrafficSignType, LaneMarkingType, LaneMarkingColor
 
 
@@ -146,6 +148,21 @@ class MELaneMarking(object):
     def get_c0c1_list(self):
         """Extract c0 and c1 coefficients as a list in ascending order."""
         return self.coeffs[-1:-3:-1]
+
+    def compute_y(self, x):
+        """Given a list of x coordinates, compute the corresponding y coordinates.
+
+        Args:
+            x: The x coordinate(s).
+        Returns:
+            y: The corresponding y coordinate(s) along the lane marking detection.
+        """
+        x = np.asarray(x)
+        coeffs = np.asarray(self.coeffs)
+        y = np.zeros(x.shape)
+        for idx, coeff in enumerate(reversed(coeffs)):
+            y += coeff * x**idx
+        return y
 
 
 class MELaneDetection(object):
