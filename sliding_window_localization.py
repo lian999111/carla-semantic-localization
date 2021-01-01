@@ -288,7 +288,7 @@ def main():
         x = np.linspace(0, 10, 10)
         if lane_detection.left_marking_detection:
             y = lane_detection.left_marking_detection.compute_y(x)
-            lb_pts_wrt_fbumper = np.array([x, y, 1])
+            lb_pts_wrt_fbumper = np.array([x, y, np.ones((x.shape[0],))])
             lb_pts_world = tform_fbumper2w @ lb_pts_wrt_fbumper
             # Update plot
             left_lb.set_data(lb_pts_world[0], lb_pts_world[1])
@@ -298,7 +298,7 @@ def main():
 
         if lane_detection.right_marking_detection:
             y = lane_detection.right_marking_detection.compute_y(x)
-            lb_pts_wrt_fbumper = np.array([x, y, 1])
+            lb_pts_wrt_fbumper = np.array([x, y, np.ones((x.shape[0],))])
             lb_pts_world = tform_fbumper2w @ lb_pts_wrt_fbumper
             # Update plot
             right_lb.set_data(lb_pts_world[0], lb_pts_world[1])
