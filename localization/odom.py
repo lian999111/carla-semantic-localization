@@ -1,7 +1,7 @@
 """ Implementation of CTRV odometry factor """
 
 import numpy as np
-from minisam import BetweenFactor, key, GaussianLoss, SE2, SO2
+from minisam import BetweenFactor, GaussianLoss, SE2, SO2
 
 from model.ctrv import predict_motion_from_ego_frame
 

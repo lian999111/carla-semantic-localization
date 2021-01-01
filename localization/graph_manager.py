@@ -1,8 +1,9 @@
 """Implementation of sliding window graph manager."""
 
-import numpy as np
 from math import atan2, sin, cos
 from collections import deque
+
+import numpy as np
 import minisam as ms
 import minisam.sophus as sophus
 

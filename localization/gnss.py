@@ -1,7 +1,8 @@
 """ Implementation of GNSS minisam factor """
 
-import numpy as np
 from math import sin, cos
+
+import numpy as np
 
 from minisam import Factor, keyString, DiagonalLoss
 
