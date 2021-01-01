@@ -165,6 +165,7 @@ def main():
     map_im = ax.imshow(np.zeros((1, 1, 3), dtype=int),
                        extent=[0, 0, 0, 0],
                        alpha=0.5)
+    # Dot of gnss measurement
     gnss_dot = ax.plot([], [], 'o', color='gold', ms=4, zorder=3)[0]
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
