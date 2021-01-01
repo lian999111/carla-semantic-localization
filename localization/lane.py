@@ -62,7 +62,7 @@ def compute_H(px, expected_c0, expected_c1):
 
 class GeoLaneBoundaryFactor(Factor):
     """ Basic lane boundary factor. """
-    geo_gate = chi2.ppf(0.99, df=2)
+    geo_gate = chi2.ppf(0.999999, df=2)
     sem_gate = 0.9
     expected_lane_extractor = None
     # tuple: Normal form for null hypothesis
@@ -224,14 +224,14 @@ class GeoLaneBoundaryFactor(Factor):
             for exp_coeffs, exp_type, innov in zip(expected_coeffs_list, expected_type_list, innov_matrices):
                 e = np.asarray(exp_coeffs).reshape(
                     2, -1) - measured_coeffs
-                # squared_mahala_dist = e.T @ np.linalg.inv(innov) @ e
+                squared_mahala_dist = e.T @ np.linalg.inv(innov) @ e
                 pp = multivariate_normal.pdf(e.reshape(-1), cov=innov)
                 pc = self._conditional_prob_type(exp_type, measured_type)
                 pz = pp * pc
                 # Gating (geometric and semantic)
                 # Reject both geometrically and semantically unlikely associations
-                # if squared_mahala_dist <= self.geo_gate and pc > self.sem_gate:
-                if pc > self.sem_gate:
+                if squared_mahala_dist <= self.geo_gate and pc > self.sem_gate:
+                # if pc > self.sem_gate:
                     errors.append(e)
                     gated_coeffs_list.append(exp_coeffs)
                     pps.append(pp)
