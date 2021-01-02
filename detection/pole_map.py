@@ -61,7 +61,7 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
 
             if __debug__:
                 plt.plot(pole_map[nearest_idc[0]].x,
-                         pole_map[nearest_idc[0]].y, 'r+', ms=3)
+                         pole_map[nearest_idc[0]].y, color='gold', marker='x', ms=5)
         else:
             continue
 
