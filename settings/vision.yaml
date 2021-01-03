@@ -65,7 +65,7 @@ lane:
     recenter_minpix: 50
     # The following 2 parameters are for detecting if the lane marking is spliting or merging in a window
     # First the max and min x are found. If the difference between max_x and min_x are large and the corresponding y values are close,
-    # it is likely to be an Y shape. A horizontal line also fulfill this criterion, but it is rarely to see that during driving.
+    # it is likely to be an Y shape. A horizontal line also fulfill this criterion, but it is rarely seen during driving.
     # Minimum required horizontal gap betwee the coordiantes of the left and right most points in the window
     # If the gap is beyond this threshold, it is likely the marking is spliting or merging
     # y-coordinates should then be checked using recenter_y_gap
