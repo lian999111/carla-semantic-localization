@@ -955,6 +955,10 @@ class World(object):
         self.spawned_hero = None
         self.hero_transform = None
 
+        # Spectator to follow the hero actor
+        self.spectator = None
+
+        # Lane ground truth extractor
         self.lane_gt_extractor = None
 
         self.scale_offset = [0, 0]
@@ -998,6 +1002,7 @@ class World(object):
         settings.no_rendering_mode = self.args.no_rendering
         self.world.apply_settings(settings)
 
+        self.spectator = self.world.get_spectator()
         self.lane_gt_extractor = LaneGTExtractor(self.world, {"radius": 10})
 
         # Create Surfaces
@@ -1100,10 +1105,23 @@ class World(object):
         if self.hero_actor is not None:
             self.hero_transform = self.hero_actor.get_transform()
 
+        # Update lane ground truth extractor
         fbumper_transform = carla.Transform(self.hero_transform.transform(
             carla.Location(x=3.8)), self.hero_transform.rotation)
         self.lane_gt_extractor.update_using_carla_transform(fbumper_transform)
+
+        # See hero vehicle
+        self.see_hero_veh()
+
         self.update_hud_info(clock)
+
+    def see_hero_veh(self, following_dist=5, height=5, tilt_ang=-30):
+        """ Aim the spectator down to the ego vehicle. """
+        spect_location = carla.Location(x=-following_dist)
+        self.hero_transform.transform(spect_location)  # it modifies passed-in location
+        ego_rotation = self.hero_transform.rotation
+        self.spectator.set_transform(carla.Transform(spect_location + carla.Location(z=height),
+                                                     carla.Rotation(pitch=tilt_ang, yaw=ego_rotation.yaw)))
 
     def update_hud_info(self, clock):
         """Updates the HUD info regarding simulation, hero mode and whether there is a traffic light affecting the hero actor"""
@@ -1115,6 +1133,7 @@ class World(object):
                 math.sqrt(hero_speed.x ** 2 + hero_speed.y **
                           2 + hero_speed.z ** 2)
 
+            # Show lane ground truth info on HUD
             lane_gt = self.lane_gt_extractor.gt
             lane_info_text = [
                 'In Junction: %r' % lane_gt['in_junction'],
