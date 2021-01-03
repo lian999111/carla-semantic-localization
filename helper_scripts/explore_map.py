@@ -1136,6 +1136,8 @@ class World(object):
             # Show lane ground truth info on HUD
             lane_gt = self.lane_gt_extractor.gt
             lane_info_text = [
+                'Road ID: %d' % lane_gt['road_id'],
+                'Lane ID: %d' % lane_gt['lane_id'],
                 'In Junction: %r' % lane_gt['in_junction'],
                 'Into Junction: %r' % lane_gt['into_junction'],
                 'Lane Boundaries: '

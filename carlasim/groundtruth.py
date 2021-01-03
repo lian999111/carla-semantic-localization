@@ -250,6 +250,8 @@ class LaneGTExtractor(object):
         self.waypoint = None
         # Flag indicating ego vehicle is in junction
         self.gt['in_junction'] = False
+        # Current road id
+        self.gt['road_id'] = None
         # Current lane id (to know the order of double marking types)
         self.gt['lane_id'] = None
         # Flag indicating ego vehicle is going into junction
@@ -310,6 +312,7 @@ class LaneGTExtractor(object):
             carla_location, lane_type=carla.LaneType.Any)
 
         self.gt['in_junction'] = self.waypoint.is_junction
+        self.gt['road_id'] = self.waypoint.road_id
         self.gt['lane_id'] = self.waypoint.lane_id
 
         # Check if is going into junction
