@@ -1,15 +1,14 @@
-## Defines parameters for simulated detecion
-# This configuration file defines only parameters for detection simulation
+## Defines parameters for detecion simulation
 
 # Pole detection
 pole:
   max_dist: 0.5   # (m) Max distance between a pole detection and its nearest pole landmark for labelling
-  fc_prob: 0.05    # [0.0 - 1.0] Probability of false classification
+  fc_prob: 0.05   # [0.0 - 1.0] Probability of false classification
 
 # Lane detection
 lane:
   c0_thres: 0.5       # (m) Threshold of c0 within which a detected lane marking is associated to a ground truth lane marking 
-  c1_thres: 0.4       #  Threshold of c1 within which a detected lane marking is associated to a ground truth lane marking
+  c1_thres: 0.4       # Threshold of c1 within which a detected lane marking is associated to a ground truth lane marking
   fc_prob: 0.05   # [0.0 - 1.0] Probability of false classification
 
 # Road surface stop sign detection
