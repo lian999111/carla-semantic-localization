@@ -79,8 +79,8 @@ class GeoLaneBoundaryFactor(Factor):
         self.pose_uncert = pose_uncert
         self.px = dist_raxle_to_fbumper
         self.config = lane_factor_config
-        self.noise_cov = np.diag([lane_factor_config['stddev_c0'],
-                                  lane_factor_config['stddev_c1']])
+        self.noise_cov = np.diag([lane_factor_config['stddev_c0']**2,
+                                  lane_factor_config['stddev_c1']**2])
         self.prob_null = lane_factor_config['prob_null']
 
         # bool: True to activate static mode
