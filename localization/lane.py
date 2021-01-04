@@ -228,16 +228,18 @@ class GeoLaneBoundaryFactor(Factor):
             self._null_hypo = True
         else:
             # Data association
-            errors = [null_e]
-            gated_coeffs_list = [null_c0c1]
+            errors = [null_error]
+            gated_coeffs_list = [null_expected_c0c1]
             meas_likelihoods = []
             geo_likelihoods = []
             for exp_coeffs, exp_type, innov in zip(expected_coeffs_list, expected_type_list, innovs):
                 error = np.asarray(exp_coeffs).reshape(
                     2, -1) - measured_coeffs
                 squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
-                geo_likelihood = multivariate_normal.pdf(error.reshape(-1), cov=innov)
-                sem_likelihood = self._conditional_prob_type(exp_type, measured_type)
+                geo_likelihood = multivariate_normal.pdf(
+                    error.reshape(-1), cov=innov)
+                sem_likelihood = self._conditional_prob_type(
+                    exp_type, measured_type)
                 meas_likelihood = geo_likelihood * sem_likelihood
                 # Gating (geometric and semantic)
                 # Reject both geometrically and semantically unlikely associations
@@ -253,11 +255,13 @@ class GeoLaneBoundaryFactor(Factor):
 
             # Check if any valid mahalanobis distance exists after gating
             if len(meas_likelihoods):
-                W = (1-self.prob_null)*(meas_likelihoods/np.sum(meas_likelihoods))
-                M = W*geo_likelihoods
-                W = np.insert(W, 0, self.prob_null)
-                M = np.insert(M, 0, null_M)
-                asso_idx = np.argmax(M)
+                weights = (1-self.prob_null) * \
+                    (meas_likelihoods/np.sum(meas_likelihoods))
+                weighted_geo_likelihood = weights*geo_likelihoods
+                weights = np.insert(weights, 0, self.prob_null)
+                weighted_geo_likelihood = np.insert(
+                    weighted_geo_likelihood, 0, null_weighted_geo_likelihood)
+                asso_idx = np.argmax(weighted_geo_likelihood)
 
                 if asso_idx == 0:
                     self._null_hypo = True
@@ -271,8 +275,8 @@ class GeoLaneBoundaryFactor(Factor):
 
         if self._null_hypo:
             # Null hypothesis
-            self.expected_coeffs = null_c0c1
-            chosen_error = null_e
+            self.expected_coeffs = null_expected_c0c1
+            chosen_error = null_error
 
         return chosen_error
 
