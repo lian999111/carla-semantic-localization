@@ -65,9 +65,6 @@ class GeoLaneBoundaryFactor(Factor):
     geo_gate = chi2.ppf(0.99999999, df=2)
     sem_gate = 0.9
     expected_lane_extractor = None
-    # tuple: Normal form for null hypothesis
-    # It is a vertical line passing through the origin of the local frame
-    _null_hypo_normal_form = (0, 1, 0, 0)
 
     def __init__(self, key, detected_marking, z, pose_uncert, dist_raxle_to_fbumper, lane_factor_config):
         if self.expected_lane_extractor is None:
@@ -88,6 +85,12 @@ class GeoLaneBoundaryFactor(Factor):
         # bool: True to ignore lane boundary detection in junction areas
         self.ignore_junction = self.config['ignore_junction']
         self.null_scale = self.config['null_scale']
+
+        # Use the coefficients of detection to generate a fake null hypothesis
+        c0c1 = self.detected_marking.get_c0c1_list()
+        # tuple: Normal form for null hypothesis
+        self._null_hypo_normal_form = compute_normal_form_line_coeffs(
+            self.px, c0c1[0], c0c1[1])
 
         self.in_junction = False
         self.into_junction = False
