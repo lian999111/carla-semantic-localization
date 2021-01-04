@@ -243,8 +243,17 @@ class GeoLaneBoundaryFactor(Factor):
                 meas_likelihood = geo_likelihood * sem_likelihood
                 # Gating (geometric and semantic)
                 # Reject both geometrically and semantically unlikely associations
+                # Note:
+                # Since location distribution across lanes is essentially multimodal,
+                # geometric gating often used when assuming location is unimodal is not
+                # very reasonable and will inevitablly reject possible associations.
+                # Here the geometric gate is set very large so we can preserve associations that
+                # are a bit far from the current mode (the only mode that exists in the optimization)
+                # but still possible when the multimodal nature is concerned.
+                # Or, we can simply give up geometric gating and use semantic gating only.
+                # The large geometric gate is an inelegant compromise after all.
                 if squared_mahala_dist <= self.geo_gate and sem_likelihood > self.sem_gate:
-                # if sem_likelihood > self.sem_gate:
+                    # if sem_likelihood > self.sem_gate:
                     errors.append(error)
                     gated_coeffs_list.append(exp_coeffs)
                     geo_likelihoods.append(geo_likelihood)
