@@ -268,7 +268,11 @@ class GeoLaneBoundaryFactor(Factor):
                 else:
                     self._null_hypo = False
                     self.expected_coeffs = gated_coeffs_list[asso_idx]
-                    self._scale = W[asso_idx]**1
+                    # To scale down the hypothesis to account for target uncertainty
+                    # This form is empirically chosen
+                    self._scale = weights[asso_idx]**1
+                    # Scale down the error to achieve the same effect as having a small
+                    # information matrix
                     chosen_error = errors[asso_idx] * self._scale
             else:
                 self._null_hypo = True
@@ -285,8 +289,13 @@ class GeoLaneBoundaryFactor(Factor):
         jacob = compute_H(self.px, expected_c0, expected_c1)
 
         if self._null_hypo:
+            # Scale down jacobian matrix for null hypo
+            # This is to achieve the effect of having a very small information matrix 
+            # during optimzation
             jacob *= self.null_scale
         else:
+            # Scale down jacobian matrix to achieve the same effect as having a small
+            # information matrix
             jacob *= self._scale
 
         return [jacob]
