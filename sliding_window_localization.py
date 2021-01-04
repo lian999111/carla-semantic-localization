@@ -101,7 +101,7 @@ def main():
     settings.no_rendering_mode = False
     carla_world.apply_settings(settings)
 
-    lane_gt_extractor = LaneGTExtractor(carla_world, {'radius': 10}, True)
+    lane_gt_extractor = LaneGTExtractor(carla_world, {'radius': 10}, False)
     expected_lane_extractor = ExpectedLaneExtractor(lane_gt_extractor)
 
     np.random.seed(2)
