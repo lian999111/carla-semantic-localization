@@ -203,15 +203,24 @@ class GeoLaneBoundaryFactor(Factor):
         measured_type = self.detected_marking.type
 
         # Null hypothesis
+        # Compute expected c0 c1 of null hypo and the error accordingly
         pose_diff = self._get_pose_diff(location, orientation)
-        null_c0c1 = self._compute_expected_c0c1(
+        null_expected_c0c1 = self._compute_expected_c0c1(
             self._null_hypo_normal_form, pose_diff)
-        null_e = (np.asarray(null_c0c1).reshape(
-            2, -1) - measured_coeffs) * self.null_scale
-        null_M = self.prob_null * \
-            multivariate_normal.pdf(
-                null_e.squeeze(), cov=np.diag((1/self.config['stddev_c0']/self.null_scale,
-                                                 1/self.config['stddev_c1']/self.null_scale)))
+        null_error = (np.asarray(null_expected_c0c1).reshape(
+            2, -1) - measured_coeffs)
+
+        # Compute innovation matrix for the null hypo
+        H = compute_H(self.px, null_expected_c0c1[0], null_expected_c0c1[1])
+        null_innov = H @ self.pose_uncert @ H.T + self.noise_cov/self.null_scale**2
+
+        # Compute geometric likelihood weighted by null probability
+        null_weighted_geo_likelihood = self.prob_null * \
+            multivariate_normal.pdf(null_error.squeeze(), cov=null_innov)
+        
+        # Scale down error for null hypo
+        # This is to achieve the effect of having a very small information matrix during optimzation
+        null_error *= self.null_scale
 
         if self.ignore_junction and (self.in_junction or self.into_junction):
             self._null_hypo = True
