@@ -265,7 +265,7 @@ def main():
         # Crop the map image for display
         local_map_image = map_image[image_coord[1]-half_width_px:image_coord[1]+half_width_px,
                                     image_coord[0]-half_width_px:image_coord[0]+half_width_px]
-        
+
         # Past the cropped map image to the correct place
         left = last_loc[0] - half_width
         right = last_loc[0] + half_width
@@ -299,10 +299,11 @@ def main():
                                         [0, 0, 1]])
         # Matrix to transform points in front bumper to world frame
         tform_fbumper2w = tform_e2w @ tfrom_fbumper2raxel
-        x = np.linspace(0, 10, 10)
+        lb_x = np.linspace(0, 10, 10)
         if lane_detection.left_marking_detection:
-            y = lane_detection.left_marking_detection.compute_y(x)
-            lb_pts_wrt_fbumper = np.array([x, y, np.ones((x.shape[0],))])
+            lb_y = lane_detection.left_marking_detection.compute_y(lb_x)
+            lb_pts_wrt_fbumper = np.array(
+                [lb_x, lb_y, np.ones((lb_x.shape[0],))])
             lb_pts_world = tform_fbumper2w @ lb_pts_wrt_fbumper
             # Update plot
             left_lb.set_data(lb_pts_world[0], lb_pts_world[1])
@@ -311,8 +312,9 @@ def main():
             left_lb.set_data([], [])
 
         if lane_detection.right_marking_detection:
-            y = lane_detection.right_marking_detection.compute_y(x)
-            lb_pts_wrt_fbumper = np.array([x, y, np.ones((x.shape[0],))])
+            lb_y = lane_detection.right_marking_detection.compute_y(lb_x)
+            lb_pts_wrt_fbumper = np.array(
+                [lb_x, lb_y, np.ones((lb_x.shape[0],))])
             lb_pts_world = tform_fbumper2w @ lb_pts_wrt_fbumper
             # Update plot
             right_lb.set_data(lb_pts_world[0], lb_pts_world[1])
@@ -322,11 +324,10 @@ def main():
 
         ax.set_title(idx)
         plt.pause(0.001)
-        
+
         image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
         image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
         gif_image_seq.append(image)
-
 
         # Remove artists for poses
         for triangle, ellipse in pose_plots:
