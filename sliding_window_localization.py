@@ -216,18 +216,12 @@ def main():
             # Add GNSS factor
             sw_graph.add_gnss_factor(
                 np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
-            # Add lane factor
-            if idx - init_idx > 20:
+            # Add lane factor after 10 steps for init estimation to converge
+            if idx - init_idx > 10:
                 if lane_detection.left_marking_detection is not None:
-                    c0 = lane_detection.left_marking_detection.get_c0c1_list()[
-                        0]
-                    if abs(c0) <= 3.5:
                         sw_graph.add_lane_factor(
                             lane_detection.left_marking_detection, gnss_z)
                 if lane_detection.right_marking_detection is not None:
-                    c0 = lane_detection.right_marking_detection.get_c0c1_list()[
-                        0]
-                    if abs(c0) <= 3.5:
                         sw_graph.add_lane_factor(
                             lane_detection.right_marking_detection, gnss_z)
 
