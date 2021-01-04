@@ -71,6 +71,17 @@ def main():
         localization_config = yaml.safe_load(f)
 
     ############### Retrieve required data ###############
+    # Ground truth
+    # Lane marking ground truth
+    raxle_locations = gt_data['seq']['pose']['raxle_location']
+    raxle_orientations = gt_data['seq']['pose']['raxle_orientation']
+
+    left_marking_coeffs_seq = gt_data['seq']['lane']['left_marking_coeffs']
+    left_marking_seq = gt_data['seq']['lane']['left_marking']
+    right_marking_coeffs_seq = gt_data['seq']['lane']['right_marking_coeffs']
+    right_marking_seq = gt_data['seq']['lane']['right_marking']
+
+    # Sensor data
     timestamp_seq = sensor_data['gnss']['timestamp']
     gnss_x_seq = sensor_data['gnss']['x']
     gnss_y_seq = sensor_data['gnss']['y']
@@ -79,16 +90,13 @@ def main():
     vx_seq = sensor_data['imu']['vx']
     gyro_z_seq = sensor_data['imu']['gyro_z']
 
-    raxle_locations = gt_data['seq']['pose']['raxle_location']
-    raxle_orientations = gt_data['seq']['pose']['raxle_orientation']
-
-    lane_id_seq = gt_data['seq']['lane']['lane_id']
-    left_marking_coeffs_seq = gt_data['seq']['lane']['left_marking_coeffs']
-    left_marking_seq = gt_data['seq']['lane']['left_marking']
-    right_marking_coeffs_seq = gt_data['seq']['lane']['right_marking_coeffs']
-    right_marking_seq = gt_data['seq']['lane']['right_marking']
-
+    # Simulated detections
     lane_detection_seq = detections['lane']
+
+    # Indices to clip the recording
+    # Only data between the indices are used
+    init_idx = 5
+    end_idx = 2000
 
     ############### Connect to Carla server ###############
     client = carla.Client('localhost', 2000)
@@ -100,14 +108,6 @@ def main():
     settings.fixed_delta_seconds = 0.0
     settings.no_rendering_mode = False
     carla_world.apply_settings(settings)
-
-    lane_gt_extractor = LaneGTExtractor(carla_world, {'radius': 10}, False)
-    expected_lane_extractor = ExpectedLaneExtractor(lane_gt_extractor)
-
-    np.random.seed(2)
-
-    init_idx = 10
-    end_idx = 2000
 
     ############### Load map image ###############
     dirname = os.path.join("cache", "map_images")
@@ -174,11 +174,23 @@ def main():
     plt.show(block=False)
 
     ############### Sliding window graph ###############
+    # An expected lane extractor must be given to the sliding window graph manager
+    # so it gets to query the expected lane boundaries given a pose. It acts as an
+    # interface between the graph manager and the under lying map.
+
+    # ExpectedLaneExtractor uses a LaneGTExtractor internally to do the queries.
+    lane_gt_extractor = LaneGTExtractor(carla_world, {'radius': 10}, False)
+    expected_lane_extractor = ExpectedLaneExtractor(lane_gt_extractor)
+
+    # Create a sliding window graph manager
     sw_graph = SlidingWindowGraphManager(dist_raxle_to_fbumper,
                                          localization_config,
                                          expected_lane_extractor,
                                          first_node_idx=init_idx)
 
+    ############### Loop through recorded data ###############
+    # Fix the seed for noise added afterwards
+    np.random.seed(0)
     # List for storing pose of each time step after optimization
     optimized_poses = []
     for idx, timestamp in enumerate(timestamp_seq):
