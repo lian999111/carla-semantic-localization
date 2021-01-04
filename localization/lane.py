@@ -189,13 +189,13 @@ class GeoLaneBoundaryFactor(Factor):
                                   for expected in self.me_format_expected_markings]
 
         # List of each expected marking's innovation matrix
-        innov_matrices = []
+        innovs = []
         for expected_coeffs in expected_coeffs_list:
             # Compute innovation matrix for current expected marking
             expected_c0, expected_c1 = expected_coeffs
             H = compute_H(self.px, expected_c0, expected_c1)
             innov = H @ self.pose_uncert @ H.T + self.noise_cov
-            innov_matrices.append(innov)
+            innovs.append(innov)
 
         ########## Measurement ##########
         measured_coeffs = np.asarray(
@@ -223,7 +223,7 @@ class GeoLaneBoundaryFactor(Factor):
             gated_coeffs_list = [null_c0c1]
             meas_likelihoods = []
             geo_likelihoods = []
-            for exp_coeffs, exp_type, innov in zip(expected_coeffs_list, expected_type_list, innov_matrices):
+            for exp_coeffs, exp_type, innov in zip(expected_coeffs_list, expected_type_list, innovs):
                 error = np.asarray(exp_coeffs).reshape(
                     2, -1) - measured_coeffs
                 squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
