@@ -203,12 +203,11 @@ class GeoLaneBoundaryFactor(Factor):
         pose_diff = self._get_pose_diff(location, orientation)
         null_c0c1 = self._compute_expected_c0c1(
             self._null_hypo_normal_form, pose_diff)
-        self.expected_coeffs = null_c0c1
         null_e = (np.asarray(null_c0c1).reshape(
             2, -1) - measured_coeffs) * self.null_scale
         null_M = self.prob_null * \
             multivariate_normal.pdf(
-                null_e.reshape(-1), cov=np.diag((1/self.config['stddev_c0']/self.null_scale,
+                null_e.squeeze(), cov=np.diag((1/self.config['stddev_c0']/self.null_scale,
                                                  1/self.config['stddev_c1']/self.null_scale)))
 
         if self.ignore_junction and (self.in_junction or self.into_junction):
@@ -219,31 +218,31 @@ class GeoLaneBoundaryFactor(Factor):
             # Data association
             errors = [null_e]
             gated_coeffs_list = [null_c0c1]
-            H = []
-            pps = []
+            meas_likelihoods = []
+            geo_likelihoods = []
             for exp_coeffs, exp_type, innov in zip(expected_coeffs_list, expected_type_list, innov_matrices):
-                e = np.asarray(exp_coeffs).reshape(
+                error = np.asarray(exp_coeffs).reshape(
                     2, -1) - measured_coeffs
-                squared_mahala_dist = e.T @ np.linalg.inv(innov) @ e
-                pp = multivariate_normal.pdf(e.reshape(-1), cov=innov)
-                pc = self._conditional_prob_type(exp_type, measured_type)
-                pz = pp * pc
+                squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
+                geo_likelihood = multivariate_normal.pdf(error.reshape(-1), cov=innov)
+                sem_likelihood = self._conditional_prob_type(exp_type, measured_type)
+                meas_likelihood = geo_likelihood * sem_likelihood
                 # Gating (geometric and semantic)
                 # Reject both geometrically and semantically unlikely associations
-                if squared_mahala_dist <= self.geo_gate and pc > self.sem_gate:
-                # if pc > self.sem_gate:
-                    errors.append(e)
+                if squared_mahala_dist <= self.geo_gate and sem_likelihood > self.sem_gate:
+                # if sem_likelihood > self.sem_gate:
+                    errors.append(error)
                     gated_coeffs_list.append(exp_coeffs)
-                    pps.append(pp)
-                    H.append(pz)
+                    geo_likelihoods.append(geo_likelihood)
+                    meas_likelihoods.append(meas_likelihood)
 
-            H = np.asarray(H)
-            pps = np.asarray(pps)
+            meas_likelihoods = np.asarray(meas_likelihoods)
+            geo_likelihoods = np.asarray(geo_likelihoods)
 
             # Check if any valid mahalanobis distance exists after gating
-            if len(H):
-                W = (1-self.prob_null)*(H/np.sum(H))
-                M = W*pps
+            if len(meas_likelihoods):
+                W = (1-self.prob_null)*(meas_likelihoods/np.sum(meas_likelihoods))
+                M = W*geo_likelihoods
                 W = np.insert(W, 0, self.prob_null)
                 M = np.insert(M, 0, null_M)
                 asso_idx = np.argmax(M)
@@ -254,16 +253,16 @@ class GeoLaneBoundaryFactor(Factor):
                 else:
                     self._null_hypo = False
                     self.expected_coeffs = gated_coeffs_list[asso_idx]
-                    error = errors[asso_idx] * self._scale
+                    chosen_error = errors[asso_idx] * self._scale
             else:
                 self._null_hypo = True
 
         if self._null_hypo:
             # Null hypothesis
             self.expected_coeffs = null_c0c1
-            error = null_e
+            chosen_error = null_e
 
-        return error
+        return chosen_error
 
     def jacobians(self, variables):
         # Left marking
