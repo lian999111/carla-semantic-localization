@@ -246,13 +246,13 @@ class GeoLaneBoundaryFactor(Factor):
                 W = np.insert(W, 0, self.prob_null)
                 M = np.insert(M, 0, null_M)
                 asso_idx = np.argmax(M)
-                self._scale = W[asso_idx]**1
 
                 if asso_idx == 0:
                     self._null_hypo = True
                 else:
                     self._null_hypo = False
                     self.expected_coeffs = gated_coeffs_list[asso_idx]
+                    self._scale = W[asso_idx]**1
                     chosen_error = errors[asso_idx] * self._scale
             else:
                 self._null_hypo = True
