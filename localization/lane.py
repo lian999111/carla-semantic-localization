@@ -217,7 +217,7 @@ class GeoLaneBoundaryFactor(Factor):
         # Compute geometric likelihood weighted by null probability
         null_weighted_geo_likelihood = self.prob_null * \
             multivariate_normal.pdf(null_error.squeeze(), cov=null_innov)
-        
+
         # Scale down error for null hypo
         # This is to achieve the effect of having a very small information matrix during optimzation
         null_error *= self.null_scale
@@ -299,7 +299,7 @@ class GeoLaneBoundaryFactor(Factor):
 
         if self._null_hypo:
             # Scale down jacobian matrix for null hypo
-            # This is to achieve the effect of having a very small information matrix 
+            # This is to achieve the effect of having a very small information matrix
             # during optimzation
             jacob *= self.null_scale
         else:
