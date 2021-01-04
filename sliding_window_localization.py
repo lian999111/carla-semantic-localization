@@ -237,31 +237,35 @@ def main():
                         sw_graph.add_lane_factor(
                             lane_detection.right_marking_detection, gnss_z)
 
+        # Truncate the graph if necessary
         sw_graph.try_move_sliding_window_forward()
 
         # Optimize graph
         sw_graph.solve_one_step()
 
+        # Record the lastest pose after optimization
         last_pose = sw_graph.last_optimized_se2
-        last_loc = last_pose.translation()
         optimized_poses.append(last_pose)
 
         ##### Visualize current step #####
-        half_width = 15  # half width of background map
+        half_width = 15  # (m) half width of background map
         half_width_px = half_width * map_info['pixels_per_meter']
 
         ### background map ###
-        # Get image coordinate of
+        # Get image coordinate of the latest pose on the map image
+        last_loc = last_pose.translation()
         image_coord = world_to_pixel(carla.Location(
             last_loc[0], -last_loc[1]), map_info)
+
+        # Crop the map image for display
         local_map_image = map_image[image_coord[1]-half_width_px:image_coord[1]+half_width_px,
                                     image_coord[0]-half_width_px:image_coord[0]+half_width_px]
-        left = (last_loc[0]-half_width)
-        right = (last_loc[0]+half_width)
-        bottom = (last_loc[1]-half_width)
-        top = (last_loc[1]+half_width)
 
-        # Update background map
+        # Past the cropped map image to the correct place
+        left = last_loc[0] - half_width
+        right = last_loc[0] + half_width
+        bottom = last_loc[1] - half_width
+        top = last_loc[1] + half_width
         map_im.set_data(local_map_image)
         map_im.set_extent([left, right, bottom, top])
 
