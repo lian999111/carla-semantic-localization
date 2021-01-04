@@ -146,10 +146,10 @@ def main():
                 lane_gt['next_right_marking_coeffs'][1] if lane_gt['next_right_marking'] else -10))
             # Marking type
             print('{}   {}   {}   {}'.format(
-                lane_gt['next_left_marking'].type if lane_gt['next_left_marking'] else None,
-                lane_gt['left_marking'].type if lane_gt['left_marking'] else None,
-                lane_gt['right_marking'].type if lane_gt['right_marking'] else None,
-                lane_gt['next_right_marking'].type if lane_gt['next_right_marking'] else None))
+                lane_gt['next_left_marking'].type.name if lane_gt['next_left_marking'] else None,
+                lane_gt['left_marking'].type.name if lane_gt['left_marking'] else None,
+                lane_gt['right_marking'].type.name if lane_gt['right_marking'] else None,
+                lane_gt['next_right_marking'].type.name if lane_gt['next_right_marking'] else None))
 
             if not keep_running:
                 print("Final goal reached, mission accomplished...")
