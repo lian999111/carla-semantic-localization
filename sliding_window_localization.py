@@ -11,6 +11,7 @@ import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+import imageio
 import pygame
 
 from carlasim.groundtruth import LaneGTExtractor
@@ -191,18 +192,19 @@ def main():
     ############### Loop through recorded data ###############
     # Fix the seed for noise added afterwards
     np.random.seed(0)
+
     # List for storing pose of each time step after optimization
     optimized_poses = []
+    gif_image_seq = []
     for idx, timestamp in enumerate(timestamp_seq):
 
         if idx < init_idx:
             continue
 
         delta_t = timestamp - timestamp_seq[idx-1]
-        vx = vx_seq[idx] + np.random.normal(0, 0.0)
-        yaw_rate = gyro_z_seq[idx] + np.random.normal(0, 0.0)
+        vx = vx_seq[idx] + np.random.normal(0, 0.2)
+        yaw_rate = gyro_z_seq[idx] + np.random.normal(0, 0.1)
 
-        lane_id_gt = lane_id_seq[idx]
         left_marking_coeffs_gt = np.asarray(left_marking_coeffs_seq[idx])
         right_marking_coeffs_gt = np.asarray(right_marking_coeffs_seq[idx])
 
@@ -213,8 +215,9 @@ def main():
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
         noised_gnss_x = gnss_x + np.random.normal(0.0, 3.0)
-        noised_gnss_y = gnss_y + np.random.normal(-0.0, 3.0)
+        noised_gnss_y = gnss_y + np.random.normal(0.0, 3.0)
 
+        raxle_loacation_gt = raxle_locations[idx]
         yaw_gt = raxle_orientations[idx][2]
 
         # Add prior factor
@@ -225,17 +228,19 @@ def main():
             # Add CTRV between factor
             sw_graph.add_ctrv_between_factor(
                 vx, yaw_rate, delta_t, add_init_guess=True)
+
             # Add GNSS factor
             sw_graph.add_gnss_factor(
                 np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
+
             # Add lane factor after 10 steps for init estimation to converge
             if idx - init_idx > 10:
                 if lane_detection.left_marking_detection is not None:
-                        sw_graph.add_lane_factor(
-                            lane_detection.left_marking_detection, gnss_z)
+                    sw_graph.add_lane_factor(
+                        lane_detection.left_marking_detection, gnss_z)
                 if lane_detection.right_marking_detection is not None:
-                        sw_graph.add_lane_factor(
-                            lane_detection.right_marking_detection, gnss_z)
+                    sw_graph.add_lane_factor(
+                        lane_detection.right_marking_detection, gnss_z)
 
         # Truncate the graph if necessary
         sw_graph.try_move_sliding_window_forward()
@@ -260,7 +265,7 @@ def main():
         # Crop the map image for display
         local_map_image = map_image[image_coord[1]-half_width_px:image_coord[1]+half_width_px,
                                     image_coord[0]-half_width_px:image_coord[0]+half_width_px]
-
+        
         # Past the cropped map image to the correct place
         left = last_loc[0] - half_width
         right = last_loc[0] + half_width
@@ -269,17 +274,17 @@ def main():
         map_im.set_data(local_map_image)
         map_im.set_extent([left, right, bottom, top])
 
-        ### Poses ###
+        ### Visualize poses ###
         pose_plots = []
         for node_idx in sw_graph.get_idc_in_graph():
+            pose = sw_graph.get_result(node_idx)
             cov = sw_graph.get_marignal_cov_matrix(node_idx)
-            pose_plots.append(plot_se2_with_cov(
-                ax, sw_graph.get_result(node_idx), cov))
+            pose_plots.append(plot_se2_with_cov(ax, pose, cov))
 
-        ### GNSS ###
+        ### Visualize GNSS ###
         gnss_dot.set_data(noised_gnss_x, noised_gnss_y)
 
-        ### Lane boundary detection ###
+        ### Visualize Lane boundary detection ###
         last_se2 = sw_graph.last_optimized_se2
         last_x = last_se2.translation()[0]
         last_y = last_se2.translation()[1]
@@ -316,15 +321,22 @@ def main():
             right_lb.set_data([], [])
 
         ax.set_title(idx)
-
         plt.pause(0.001)
+        
+        image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
+        image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        gif_image_seq.append(image)
 
+
+        # Remove artists for poses
         for triangle, ellipse in pose_plots:
             triangle.remove()
             ellipse.remove()
 
         if idx >= end_idx:
             break
+
+    imageio.mimsave('./localization.gif', gif_image_seq, fps=10)
 
     # TODO: Make following functions in eval package
     ############### Evaluate ###############
