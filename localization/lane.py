@@ -265,7 +265,6 @@ class GeoLaneBoundaryFactor(Factor):
         return chosen_error
 
     def jacobians(self, variables):
-        # Left marking
         expected_c0, expected_c1 = self.expected_coeffs
         jacob = compute_H(self.px, expected_c0, expected_c1)
 
