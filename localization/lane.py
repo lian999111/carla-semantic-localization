@@ -62,7 +62,7 @@ def compute_H(px, expected_c0, expected_c1):
 
 class GeoLaneBoundaryFactor(Factor):
     """ Basic lane boundary factor. """
-    geo_gate = chi2.ppf(0.999999, df=2)
+    geo_gate = chi2.ppf(0.99999999, df=2)
     sem_gate = 0.9
     expected_lane_extractor = None
     # tuple: Normal form for null hypothesis
