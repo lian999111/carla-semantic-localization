@@ -214,7 +214,7 @@ def main():
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(0.0, 3.0)
+        noised_gnss_x = gnss_x + np.random.normal(1.0, 3.0)
         noised_gnss_y = gnss_y + np.random.normal(0.0, 3.0)
 
         raxle_loacation_gt = raxle_locations[idx]
@@ -390,10 +390,10 @@ def main():
     # Prepare background
     loc_gts = np.asarray(loc_gt_seq)
     margin = 7  # (m)
-    x_min = loc_gts[:, 0].min() - margin
-    x_max = loc_gts[:, 0].max() + margin
-    y_min = loc_gts[:, 1].min() - margin
-    y_max = loc_gts[:, 1].max() + margin
+    x_min = min(loc_gts[:, 0].min(), min(opti_loc_x)) - margin
+    x_max = max(loc_gts[:, 0].max(), max(opti_loc_x)) + margin
+    y_min = min(loc_gts[:, 1].min(), min(opti_loc_y)) - margin
+    y_max = max(loc_gts[:, 1].max(), max(opti_loc_y)) + margin
     x_center = (x_max + x_min)/2
     y_center = (y_max + y_min)/2
     x_half_width = (x_max - x_min)/2
