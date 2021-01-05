@@ -240,7 +240,6 @@ class GeoLaneBoundaryFactor(Factor):
                     error.reshape(-1), cov=innov)
                 sem_likelihood = self._conditional_prob_type(
                     exp_type, measured_type)
-                meas_likelihood = geo_likelihood * sem_likelihood
                 # Gating (geometric and semantic)
                 # Reject both geometrically and semantically unlikely associations
                 # Note:
@@ -257,10 +256,11 @@ class GeoLaneBoundaryFactor(Factor):
                     errors.append(error)
                     gated_coeffs_list.append(exp_coeffs)
                     geo_likelihoods.append(geo_likelihood)
+                    meas_likelihood = geo_likelihood * sem_likelihood
                     meas_likelihoods.append(meas_likelihood)
 
-            meas_likelihoods = np.asarray(meas_likelihoods)
             geo_likelihoods = np.asarray(geo_likelihoods)
+            meas_likelihoods = np.asarray(meas_likelihoods)
 
             # Check if any valid mahalanobis distance exists after gating
             if len(meas_likelihoods):
