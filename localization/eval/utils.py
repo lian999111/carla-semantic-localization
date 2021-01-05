@@ -3,6 +3,8 @@
 import math
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.stats import chi2
+from scipy.linalg import sqrtm
 
 
 def world_to_pixel(location, map_info, offset=(0, 0)):
@@ -14,31 +16,37 @@ def world_to_pixel(location, map_info, offset=(0, 0)):
     return [int(x - offset[0]), int(y - offset[1])]
 
 
-def plot_se2_with_cov(ax, pose, cov, vehicle_size=0.5, line_color='k', vehicle_color='r'):
-    # plot vehicle
+def plot_se2_with_cov(ax, pose, cov, vehicle_size=0.5, line_color='k', vehicle_color='r', confidence=0.99):
+    # Plot a triangle representing the ego vehicle
     p1 = pose.translation() + pose.so2() * np.array([1, 0]) * vehicle_size
     p2 = pose.translation() + pose.so2() * \
         np.array([-0.5, -0.5]) * vehicle_size
     p3 = pose.translation() + pose.so2() * np.array([-0.5, 0.5]) * vehicle_size
 
-    yaw = pose.so2().theta()
-    rotm = np.array([[math.cos(yaw), -math.sin(yaw)],
-                     [math.sin(yaw), math.cos(yaw)]])
-
     line = plt.Polygon([p1, p2, p3], closed=True, fill=True,
                        edgecolor=line_color, facecolor=vehicle_color, zorder=2)
     triangle = ax.add_line(line)
-    # plot cov
-    ps = []
+
+    # Plot covariance
+    # Reference: https://gist.github.com/CarstenSchelp/b992645537660bda692f218b562d0712#gistcomment-3465086
+    # This approach of ploting covariance has the benefit
+    # that it allows to draw ellipse of different confidence
+    # regions.
+    cov_2d = cov[0:2, 0:2]
     circle_count = 50
-    for i in range(circle_count):
-        t = float(i) / float(circle_count) * math.pi * 2.0
-        cp = pose.translation() + \
-            rotm @ np.matmul(cov[0:2, 0:2],
-                             np.array([math.cos(t), math.sin(t)]))
-        ps.append(cp)
-    line = plt.Polygon(ps, closed=True, fill=False,
+    r = np.sqrt(chi2.ppf(confidence, df=2))
+    t = np.linspace(0, 2*np.pi, num=circle_count)
+    circle = r * np.vstack((np.cos(t), np.sin(t)))
+
+    # Need to rotate the ellipse because the covariance is wrt the local frame
+    yaw = pose.so2().theta()
+    rotm = np.array([[math.cos(yaw), -math.sin(yaw)],
+                     [math.sin(yaw), math.cos(yaw)]])
+    pts = rotm @ sqrtm(cov_2d) @ circle + pose.translation().reshape(2, 1)
+
+    line = plt.Polygon(pts.T, closed=True, fill=False,
                        edgecolor=line_color, zorder=2)
+
     ellipse = ax.add_line(line)
     return triangle, ellipse
 

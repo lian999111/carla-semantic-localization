@@ -279,7 +279,7 @@ def main():
         for node_idx in sw_graph.get_idc_in_graph():
             pose = sw_graph.get_result(node_idx)
             cov = sw_graph.get_marignal_cov_matrix(node_idx)
-            pose_plots.append(plot_se2_with_cov(ax, pose, cov))
+            pose_plots.append(plot_se2_with_cov(ax, pose, cov, confidence=0.999))
 
         ### Visualize GNSS ###
         gnss_dot.set_data(noised_gnss_x, noised_gnss_y)
