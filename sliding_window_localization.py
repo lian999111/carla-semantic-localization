@@ -430,7 +430,7 @@ def main():
     ax.imshow(local_map_image,
               extent=[x_min, x_max, y_min, y_max],
               alpha=0.5)
-    adjust_figure(fig, ax, aspect)
+    adjust_figure(fig, aspect)
 
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
@@ -458,7 +458,7 @@ def main():
     ax.imshow(local_map_image,
               extent=[x_min, x_max, y_min, y_max],
               alpha=0.5)
-    adjust_figure(fig, ax, aspect)
+    adjust_figure(fig, aspect)
 
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
@@ -487,7 +487,7 @@ def main():
               extent=[x_min, x_max, y_min, y_max],
               alpha=0.5)
 
-    adjust_figure(fig, ax, aspect)
+    adjust_figure(fig, aspect)
 
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.

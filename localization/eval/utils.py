@@ -51,7 +51,7 @@ def plot_se2_with_cov(ax, pose, cov, vehicle_size=0.5, line_color='k', vehicle_c
     return triangle, ellipse
 
 
-def adjust_figure(fig, ax, aspect, size=7):
+def adjust_figure(fig, aspect, size=7):
     """Add color bar and adjust figure size to fit.
 
     Args:
