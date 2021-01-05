@@ -435,7 +435,7 @@ def main():
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
     fig_width = fig.get_size_inches()[0]
-    cax = fig.add_axes([ax.get_position().x1+0.02,
+    cax = fig.add_axes([ax.get_position().x1+0.05/fig_width,
                         ax.get_position().y0,
                         0.1/fig_width,
                         ax.get_position().height])
@@ -463,7 +463,7 @@ def main():
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
     fig_width = fig.get_size_inches()[0]
-    cax = fig.add_axes([ax.get_position().x1+0.02,
+    cax = fig.add_axes([ax.get_position().x1+0.05/fig_width,
                         ax.get_position().y0,
                         0.1/fig_width,
                         ax.get_position().height])
@@ -492,7 +492,7 @@ def main():
     # Add color bar
     # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
     fig_width = fig.get_size_inches()[0]
-    cax = fig.add_axes([ax.get_position().x1+0.02,
+    cax = fig.add_axes([ax.get_position().x1+0.05/fig_width,
                         ax.get_position().y0,
                         0.1/fig_width,
                         ax.get_position().height])
