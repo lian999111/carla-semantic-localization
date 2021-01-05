@@ -101,7 +101,7 @@ def main():
 
     ############### Connect to Carla server ###############
     client = carla.Client('localhost', 2000)
-    client.set_timeout(2.0)
+    client.set_timeout(3.0)
     carla_world = client.load_world(carla_config['world']['map'])
 
     settings = carla_world.get_settings()
