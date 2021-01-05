@@ -22,6 +22,8 @@ ctrv:
 
 # Parameters for lane boundary factors
 lane:
+  # True to turn on semantic association
+  semantic: True
   # True to store the first query for expected lane detection and use it for all the rest of optimization steps.
   # False to query for expected lane detection at every optimization step.
   static: True

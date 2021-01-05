@@ -80,6 +80,8 @@ class GeoLaneBoundaryFactor(Factor):
                                   lane_factor_config['stddev_c1']**2])
         self.prob_null = lane_factor_config['prob_null']
 
+        # bool: True to turn on semantic association
+        self.semantic = self.config['semantic']
         # bool: True to activate static mode
         self.static = self.config['static']
         # bool: True to ignore lane boundary detection in junction areas
@@ -236,10 +238,21 @@ class GeoLaneBoundaryFactor(Factor):
                 error = np.asarray(exp_coeffs).reshape(
                     2, -1) - measured_coeffs
                 squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
+
+                # Geometric likelihood
                 geo_likelihood = multivariate_normal.pdf(
                     error.reshape(-1), cov=innov)
-                sem_likelihood = self._conditional_prob_type(
-                    exp_type, measured_type)
+
+                # Semantic likelihood
+                if self.semantic:
+                    # Conditional probability on type
+                    sem_likelihood = self._conditional_prob_type(
+                        exp_type, measured_type)
+                else:
+                    # Truning off semantic association is equivalent to always
+                    # set semantic likelihood to 1.0
+                    sem_likelihood = 1.0
+                
                 # Gating (geometric and semantic)
                 # Reject both geometrically and semantically unlikely associations
                 # Note:
