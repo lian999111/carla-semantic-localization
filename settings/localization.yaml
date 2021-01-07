@@ -31,4 +31,5 @@ lane:
   ignore_junction: False 
   stddev_c0: 0.5 # Standard deviation in the measurement noise model for c0.
   stddev_c1: 0.5 # Standard deviation in the measurement noise model for c1.
+  prob_null: 0.1 # Probability of null hypothesis (false positive).
   null_scale: 0.000001 # Scale to weight down information matrix for null hypothesis
