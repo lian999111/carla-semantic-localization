@@ -55,7 +55,7 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
             plt.plot(traffic_sign.x, traffic_sign.y, 'bs', ms=2)
 
         nearest_idc = kd_poles.query_ball_point(
-            [traffic_sign.x, traffic_sign.y], classification_config['perimeter'])
+            [traffic_sign.x, traffic_sign.y], classification_config['max_dist'])
         if len(nearest_idc) == 1:
             pole_map[nearest_idc[0]].type = traffic_sign.type
 
