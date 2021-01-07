@@ -46,7 +46,7 @@ class ExpectedLaneExtractor(object):
         Returns:
             in_junction: True if is in junction area.
             into_junction: True if is into junction area.
-            me_format_lane_markings: List of ME format lane markings
+            me_format_lane_markings: List of expected lane markings in ME format.
         """
         # Only extract ground truth if new pose is given
         if (self.location is None) or not np.array_equal(location, self.location) or not np.array_equal(orientation, self.orientation):
