@@ -2,11 +2,10 @@
 
 import numpy as np
 from scipy.stats import chi2, multivariate_normal
-from minisam import Factor, key, DiagonalLoss, CauchyLoss
+from minisam import Factor, DiagonalLoss
 
 from carlasim.carla_tform import Transform
 from carlasim.utils import get_fbumper_location
-from .utils import ExpectedLaneExtractor
 
 
 def compute_normal_form_line_coeffs(px, expected_c0, expected_c1):
@@ -60,7 +59,7 @@ def compute_H(px, expected_c0, expected_c1):
 # TODO: Add docstring
 
 
-class GeoLaneBoundaryFactor(Factor):
+class LaneBoundaryFactor(Factor):
     """ Basic lane boundary factor. """
     geo_gate = chi2.ppf(0.99999999, df=2)
     sem_gate = 0.9
@@ -122,12 +121,12 @@ class GeoLaneBoundaryFactor(Factor):
         Factor.__init__(self, 1, [key], loss)
 
     def copy(self):
-        return GeoLaneBoundaryFactor(self.keys()[0],
-                                     self.detected_marking,
-                                     self.z,
-                                     self.pose_uncert,
-                                     self.px,
-                                     self.config)
+        return LaneBoundaryFactor(self.keys()[0],
+                                  self.detected_marking,
+                                  self.z,
+                                  self.pose_uncert,
+                                  self.px,
+                                  self.config)
 
     def error(self, variables):
         ########## Expectation ##########
@@ -261,7 +260,7 @@ class GeoLaneBoundaryFactor(Factor):
                 # Or, we can simply give up geometric gating and use semantic gating only.
                 # The large geometric gate is an inelegant remedy after all.
                 if squared_mahala_dist <= self.geo_gate and sem_likelihood > self.sem_gate:
-                # if sem_likelihood > self.sem_gate:
+                    # if sem_likelihood > self.sem_gate:
                     # Geometric likelihood
                     geo_likelihood = multivariate_normal.pdf(
                         error.reshape(-1), cov=innov)
