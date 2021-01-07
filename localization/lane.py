@@ -232,16 +232,12 @@ class GeoLaneBoundaryFactor(Factor):
             # Data association
             errors = [null_error]
             gated_coeffs_list = [null_expected_c0c1]
+            asso_probs = []
             meas_likelihoods = []
-            geo_likelihoods = []
             for exp_coeffs, exp_type, innov in zip(expected_coeffs_list, expected_type_list, innovs):
                 error = np.asarray(exp_coeffs).reshape(
                     2, -1) - measured_coeffs
                 squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
-
-                # Geometric likelihood
-                geo_likelihood = multivariate_normal.pdf(
-                    error.reshape(-1), cov=innov)
 
                 # Semantic likelihood
                 if self.semantic:
@@ -252,7 +248,7 @@ class GeoLaneBoundaryFactor(Factor):
                     # Truning off semantic association is equivalent to always
                     # set semantic likelihood to 1.0
                     sem_likelihood = 1.0
-                
+
                 # Gating (geometric and semantic)
                 # Reject both geometrically and semantically unlikely associations
                 # Note:
@@ -263,23 +259,28 @@ class GeoLaneBoundaryFactor(Factor):
                 # are a bit far from the current mode (the only mode that exists in the optimization)
                 # but still possible when the multimodal nature is concerned.
                 # Or, we can simply give up geometric gating and use semantic gating only.
-                # The large geometric gate is an inelegant compromise after all.
+                # The large geometric gate is an inelegant remedy after all.
                 if squared_mahala_dist <= self.geo_gate and sem_likelihood > self.sem_gate:
-                    # if sem_likelihood > self.sem_gate:
+                # if sem_likelihood > self.sem_gate:
+                    # Geometric likelihood
+                    geo_likelihood = multivariate_normal.pdf(
+                        error.reshape(-1), cov=innov)
+                    meas_likelihood = multivariate_normal.pdf(
+                        error.reshape(-1), cov=self.noise_cov)
                     errors.append(error)
                     gated_coeffs_list.append(exp_coeffs)
-                    geo_likelihoods.append(geo_likelihood)
-                    meas_likelihood = geo_likelihood * sem_likelihood
                     meas_likelihoods.append(meas_likelihood)
+                    asso_prob = geo_likelihood * sem_likelihood
+                    asso_probs.append(asso_prob)
 
-            geo_likelihoods = np.asarray(geo_likelihoods)
             meas_likelihoods = np.asarray(meas_likelihoods)
+            asso_probs = np.asarray(asso_probs)
 
             # Check if any valid mahalanobis distance exists after gating
-            if len(meas_likelihoods):
+            if len(asso_probs):
                 weights = (1-self.prob_null) * \
-                    (meas_likelihoods/np.sum(meas_likelihoods))
-                weighted_geo_likelihood = weights*geo_likelihoods
+                    (asso_probs/np.sum(asso_probs))
+                weighted_geo_likelihood = weights*meas_likelihoods
                 weights = np.insert(weights, 0, self.prob_null)
                 weighted_geo_likelihood = np.insert(
                     weighted_geo_likelihood, 0, null_weighted_geo_likelihood)
