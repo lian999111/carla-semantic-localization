@@ -131,7 +131,7 @@ class LaneBoundaryFactor(Factor):
     def error(self, variables):
         ########## Expectation ##########
         pose = variables.at(self.keys()[0])
-        location = np.append(pose.translation(), self.z)  # append z = 0
+        location = np.append(pose.translation(), self.z)  # append z
         orientation = np.array([0, 0, pose.so2().theta()])
 
         if self._first_time:
