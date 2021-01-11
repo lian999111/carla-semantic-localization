@@ -14,24 +14,23 @@ def compute_H(prc, exp_x, exp_y):
 
     Args:
         prc: Logitudinal distance from the local frame to the front bumper.
-        exp_x: Expected x of pole.
-        exp_y: Expected y angle of pole.
+        exp_x: Expected x of pole wrt camera frame.
+        exp_y: Expected y of pole wrt camera frame.
 
     Returns:
         H matrix as np.ndarray.
     """
     exp_r = math.sqrt(exp_x**2 + exp_y**2)
-    exp_raxle = exp_x + prc
 
     H = np.zeros((2, 3))
 
-    H[0, 0] = - (exp_raxle - prc)/exp_r
-    H[0, 1] = - exp_y/exp_r
-    H[0, 2] = - (exp_y * prc)/exp_r
+    H[0, 0] = - exp_x / exp_r
+    H[0, 1] = - exp_y / exp_r
+    H[0, 2] = - exp_y*prc / exp_r
 
-    H[1, 0] = exp_y / ((exp_raxle-prc)**2 + exp_y**2)
-    H[1, 1] = (exp_raxle - prc) / ((exp_raxle-prc)**2 + exp_y**2)
-    H[1, 2] = -prc*(exp_raxle-prc) / ((exp_raxle-prc)**2 + exp_y**2) - 1
+    H[1, 0] = exp_y / (exp_x**2 + exp_y**2)
+    H[1, 1] = exp_x / (exp_x**2 + exp_y**2)
+    H[1, 2] = -prc*exp_x / (exp_x**2 + exp_y**2) - 1
 
     return H
 
