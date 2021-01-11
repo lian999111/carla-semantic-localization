@@ -196,12 +196,11 @@ class LaneBoundaryFactor(Factor):
         null_error = np.zeros((2, 1))
 
         # Compute innovation matrix for the null hypo
-        H = compute_H(self.px, null_expected_c0c1[0], null_expected_c0c1[1])
-        null_innov = H @ self.pose_uncert @ H.T + self.noise_cov*self.null_std_scale**2
+        null_noise_cov = self.noise_cov * self.null_std_scale**2
 
-        # Compute geometric likelihood weighted by null probability
-        null_weighted_geo_likelihood = self.prob_null * \
-            multivariate_normal.pdf(null_error.squeeze(), cov=null_innov)
+        # Compute measurement likelihood weighted by null probability
+        null_weighted_meas_likelihood = self.prob_null * \
+            multivariate_normal.pdf(null_error.squeeze(), cov=null_noise_cov)
 
         # In this implementation, scaling down error and jacobian is done to achieve
         # the same effect of having a very small information matrix during optimzation.
@@ -253,40 +252,48 @@ class LaneBoundaryFactor(Factor):
                 # The large geometric gate is an inelegant remedy after all.
                 # if squared_mahala_dist <= self.geo_gate and sem_likelihood > self.sem_gate:
                 if sem_likelihood > self.sem_gate:
-                    # Geometric likelihood
-                    geo_likelihood = multivariate_normal.pdf(
-                        error.reshape(-1), cov=innov)
+                    gated_coeffs_list.append(exp_coeffs)
+                    errors.append(error)
+
+                    # Measurement likelihood (based on noise cov)
                     meas_likelihood = multivariate_normal.pdf(
                         error.reshape(-1), cov=self.noise_cov)
-                    errors.append(error)
-                    gated_coeffs_list.append(exp_coeffs)
                     meas_likelihoods.append(meas_likelihood)
+
+                    # Geometric likelihood (based on innov)
+                    geo_likelihood = multivariate_normal.pdf(
+                        error.reshape(-1), cov=innov)
                     asso_prob = geo_likelihood * sem_likelihood
                     asso_probs.append(asso_prob)
 
-            meas_likelihoods = np.asarray(meas_likelihoods)
-            asso_probs = np.asarray(asso_probs)
+            # Check if any possible association exists after gating
+            if asso_probs:
+                asso_probs = np.asarray(asso_probs)
+                meas_likelihoods = np.asarray(meas_likelihoods)
 
-            # Check if any valid mahalanobis distance exists after gating
-            if len(asso_probs):
+                # Compute weights based on total probability theorem
                 weights = (1-self.prob_null) * \
                     (asso_probs/np.sum(asso_probs))
-                weighted_geo_likelihood = weights*meas_likelihoods
+                # Weight measurement likelihoods
+                weighted_meas_likelihood = weights*meas_likelihoods
+
+                # Add weight and weighted likelihood of null hypothesis
                 weights = np.insert(weights, 0, self.prob_null)
-                weighted_geo_likelihood = np.insert(
-                    weighted_geo_likelihood, 0, null_weighted_geo_likelihood)
-                asso_idx = np.argmax(weighted_geo_likelihood)
+                weighted_meas_likelihood = np.insert(
+                    weighted_meas_likelihood, 0, null_weighted_meas_likelihood)
+
+                asso_idx = np.argmax(weighted_meas_likelihood)
 
                 if asso_idx == 0:
                     self._null_hypo = True
                 else:
                     self._null_hypo = False
                     self.expected_coeffs = gated_coeffs_list[asso_idx]
-                    # To scale down the hypothesis to account for target uncertainty
+                    # Scale down the hypothesis to account for target uncertainty
                     # This form is empirically chosen
                     self._scale = weights[asso_idx]**1
-                    # Scale down the error to achieve the same effect as having a small
-                    # information matrix
+                    # Scale down the error based on weight
+                    # This is to achieve the same effect of scaling infomation matrix during optimzation
                     chosen_error = errors[asso_idx] * self._scale
             else:
                 self._null_hypo = True
@@ -308,8 +315,8 @@ class LaneBoundaryFactor(Factor):
             # during optimzation
             jacob /= self.null_std_scale
         else:
-            # Scale down jacobian matrix to achieve the same effect as having a small
-            # information matrix
+            # Scale down jacobian matrix based on weight
+            # This is to achieve the same effect of scaling infomation matrix during optimzation
             jacob *= self._scale
 
         return [jacob]
