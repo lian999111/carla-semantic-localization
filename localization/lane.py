@@ -85,6 +85,9 @@ class LaneBoundaryFactor(Factor):
         self.static = self.config['static']
         # bool: True to ignore lane boundary detection in junction areas
         self.ignore_junction = self.config['ignore_junction']
+        # float: Scale for noise cov for null hypothesis
+        # It is just used to make very large covariance matrix when computing
+        # the weight of null hypothesis.
         self.null_std_scale = self.config['null_std_scale']
 
         self.in_junction = False
@@ -203,10 +206,11 @@ class LaneBoundaryFactor(Factor):
             multivariate_normal.pdf(null_error.squeeze(), cov=null_noise_cov)
 
         # In this implementation, scaling down error and jacobian is done to achieve
-        # the same effect of having a very small information matrix during optimzation.
+        # the same effect of tuning the information matrix online.
         # Here, however, scale down error for null hypo; i.e.
         # null_error /= self.null_std_scale
         # is not necessary, since its always zero.
+        # Zero error and jacobian effectively result in zero information matrix as well.
 
         if self.ignore_junction and (self.in_junction or self.into_junction):
             self._null_hypo = True
@@ -306,15 +310,15 @@ class LaneBoundaryFactor(Factor):
         return chosen_error
 
     def jacobians(self, variables):
-        expected_c0, expected_c1 = self.expected_coeffs
-        jacob = compute_H(self.px, expected_c0, expected_c1)
-
         if self._null_hypo:
-            # Scale down jacobian matrix for null hypo
-            # This is to achieve the effect of having a very small information matrix
-            # during optimzation
-            jacob /= self.null_std_scale
+            # In this implementation, scaling down error and jacobian is done to achieve
+            # the same effect of tuning the information matrix online.
+            # Here, however, computing jacobian of null hypothesis is not necessary.
+            # Zero error and jacobian together effectively result in zero information matrix as well.
+            jacob = np.zeros((2, 3))
         else:
+            expected_c0, expected_c1 = self.expected_coeffs
+            jacob = compute_H(self.px, expected_c0, expected_c1)
             # Scale down jacobian matrix based on weight
             # This is to achieve the same effect of scaling infomation matrix during optimzation
             jacob *= self._scale
