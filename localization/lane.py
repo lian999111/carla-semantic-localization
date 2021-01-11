@@ -191,9 +191,9 @@ class LaneBoundaryFactor(Factor):
         # Null hypothesis
         # Use the measurement itself at every optimization iteration as the null hypothesis.
         # This is, of course, just a trick.
-        null_expected_c0c1 = self.detected_marking.get_c0c1_list()
-        null_error = (np.asarray(null_expected_c0c1).reshape(
-            2, -1) - measured_coeffs)
+        # This means the error for null hypothesis is always zeros.
+        null_expected_c0c1 = measured_coeffs.squeeze().tolist()
+        null_error = np.zeros((2, 1))
 
         # Compute innovation matrix for the null hypo
         H = compute_H(self.px, null_expected_c0c1[0], null_expected_c0c1[1])
@@ -203,9 +203,11 @@ class LaneBoundaryFactor(Factor):
         null_weighted_geo_likelihood = self.prob_null * \
             multivariate_normal.pdf(null_error.squeeze(), cov=null_innov)
 
-        # Scale down error for null hypo
-        # This is to achieve the effect of having a very small information matrix during optimzation
-        null_error /= self.null_std_scale
+        # In this implementation, scaling down error and jacobian is done to achieve
+        # the same effect of having a very small information matrix during optimzation.
+        # Here, however, scale down error for null hypo; i.e.
+        # null_error /= self.null_std_scale
+        # is not necessary, since its always zero.
 
         if self.ignore_junction and (self.in_junction or self.into_junction):
             self._null_hypo = True
