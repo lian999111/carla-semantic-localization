@@ -87,12 +87,6 @@ class LaneBoundaryFactor(Factor):
         self.ignore_junction = self.config['ignore_junction']
         self.null_std_scale = self.config['null_std_scale']
 
-        # Use the coefficients of detection to generate a fake null hypothesis
-        c0c1 = self.detected_marking.get_c0c1_list()
-        # tuple: Normal form for null hypothesis
-        self._null_hypo_normal_form = compute_normal_form_line_coeffs(
-            self.px, c0c1[0], c0c1[1])
-
         self.in_junction = False
         self.into_junction = False
         # List of MELaneDetection: Describing expected markings in mobileye-like formats
@@ -195,10 +189,9 @@ class LaneBoundaryFactor(Factor):
         measured_type = self.detected_marking.type
 
         # Null hypothesis
-        # Compute expected c0 c1 of null hypo and the error accordingly
-        pose_diff = self._get_pose_diff(location, orientation)
-        null_expected_c0c1 = self._compute_expected_c0c1(
-            self._null_hypo_normal_form, pose_diff)
+        # Use the measurement itself at every optimization iteration as the null hypothesis.
+        # This is, of course, just a trick.
+        null_expected_c0c1 = self.detected_marking.get_c0c1_list()
         null_error = (np.asarray(null_expected_c0c1).reshape(
             2, -1) - measured_coeffs)
 
