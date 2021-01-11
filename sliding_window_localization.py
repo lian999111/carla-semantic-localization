@@ -15,8 +15,9 @@ import imageio
 import pygame
 
 from carlasim.groundtruth import LaneGTExtractor
+from carlasim.utils import TrafficSignType
 from localization.graph_manager import SlidingWindowGraphManager
-from localization.utils import ExpectedLaneExtractor
+from localization.utils import ExpectedLaneExtractor, ExpectedPoleExtractor
 from localization.eval.map_image import MapImage
 from localization.eval.utils import world_to_pixel, plot_se2_with_cov, adjust_figure
 
@@ -58,14 +59,17 @@ def main():
         gt_data = pickle.load(f)
     with open(os.path.join(args.recording_dir, 'detections.pkl'), 'rb') as f:
         detections = pickle.load(f)
-    # with open(os.path.join(args.recording_dir, 'pole_map.pkl'), 'rb') as f:
-    #     pole_map = pickle.load(f)
+    with open(os.path.join(args.recording_dir, 'pole_map.pkl'), 'rb') as f:
+        pole_map = pickle.load(f)
 
     # Read carla simulation configs of the recording for dist_raxle_to_fbumper
     path_to_config = os.path.join(args.recording_dir, 'settings/config.yaml')
     with open(path_to_config, 'r') as f:
         carla_config = yaml.safe_load(f)
     dist_raxle_to_fbumper = carla_config['ego_veh']['raxle_to_fbumper']
+    dist_cam_to_fbumper = dist_raxle_to_fbumper \
+        - carla_config['sensor']['front_camera']['pos_x'] \
+        - carla_config['ego_veh']['raxle_to_cg']
 
     # Read configurations for localization
     with args.localization_config as f:
@@ -93,6 +97,7 @@ def main():
 
     # Simulated detections
     lane_detection_seq = detections['lane']
+    pole_detection_seq = detections['pole']
 
     # Indices to clip the recording
     # Only data between the indices are used
@@ -183,10 +188,14 @@ def main():
     lane_gt_extractor = LaneGTExtractor(carla_world, {'radius': 10}, False)
     expected_lane_extractor = ExpectedLaneExtractor(lane_gt_extractor)
 
+    expected_pole_extractor = ExpectedPoleExtractor(pole_map)
+
     # Create a sliding window graph manager
     sw_graph = SlidingWindowGraphManager(dist_raxle_to_fbumper,
+                                         dist_cam_to_fbumper,
                                          localization_config,
                                          expected_lane_extractor,
+                                         expected_pole_extractor,
                                          first_node_idx=init_idx)
 
     ############### Loop through recorded data ###############
@@ -210,11 +219,12 @@ def main():
 
         # Detection
         lane_detection = lane_detection_seq[idx]
+        pole_detection = pole_detection_seq[idx]
 
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(1.0, 3.0)
+        noised_gnss_x = gnss_x + np.random.normal(0.0, 3.0)
         noised_gnss_y = gnss_y + np.random.normal(0.0, 3.0)
 
         raxle_loacation_gt = raxle_locations[idx]
@@ -241,6 +251,13 @@ def main():
                 if lane_detection.right_marking_detection is not None:
                     sw_graph.add_lane_factor(
                         lane_detection.right_marking_detection, gnss_z)
+            
+            if idx - init_idx > 20:
+                if pole_detection is not None:
+                    for detected_pole in pole_detection:
+                        # if detected_pole.x < 50 and detected_pole.type != TrafficSignType.Unknown:
+                        if detected_pole.x < 60 and abs(detected_pole.y) < 25:
+                            sw_graph.add_pole_factor(detected_pole)
 
         # Truncate the graph if necessary
         sw_graph.try_move_sliding_window_forward()
@@ -279,7 +296,8 @@ def main():
         for node_idx in sw_graph.get_idc_in_graph():
             pose = sw_graph.get_result(node_idx)
             cov = sw_graph.get_marignal_cov_matrix(node_idx)
-            pose_plots.append(plot_se2_with_cov(ax, pose, cov, confidence=0.999))
+            pose_plots.append(plot_se2_with_cov(
+                ax, pose, cov, confidence=0.999))
 
         ### Visualize GNSS ###
         gnss_dot.set_data(noised_gnss_x, noised_gnss_y)
@@ -337,7 +355,7 @@ def main():
         if idx >= end_idx:
             break
 
-    imageio.mimsave('./localization.gif', gif_image_seq, fps=10)
+    # imageio.mimsave('./localization.gif', gif_image_seq, fps=10)
 
     # TODO: Make following functions in eval package
     ############### Evaluate ###############

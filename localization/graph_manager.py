@@ -11,33 +11,39 @@ from model.ctrv import compute_F
 from .odom import create_ctrv_between_factor
 from .gnss import GNSSFactor
 from .lane import LaneBoundaryFactor
+from .pole import PoleFactor
 from .utils import copy_se2
 
 
 class SlidingWindowGraphManager(object):
     """Class for management and optimization of sliding window factor graph."""
 
-    def __init__(self, px, config, expected_lane_extractor, first_node_idx=0):
+    def __init__(self, px, pcf, config, expected_lane_extractor, expected_pole_extractor, first_node_idx=0):
         """Constructor method.
 
         Args:
             px (float): Distance from rear axle to front bumper.
+            pcf (flaot): Distace from camera to front bumper.
             config (dict): Container for all configurations related to factor graph based localization.
                 This should be read from the configuration .yaml file.
             expected_lane_extractor: Expected lane extractor for lane boundary factor.
                 This is for lane boundary factors to query the map for expected lane boundaries.
+            expected_pole_extractor: Expected pole extractor for pole factor.
             first_node_idx (int): Index of the first node.
                 Sometimes it is more convenient to let indices consistent with recorded data.
                 Especially when performing localization using only part of data that don't start from 
                 the beginning of the recording.
         """
         self.px = px
+        self.pcf = pcf
         # Config
         self.config = config
 
         # Set expected lane extractor for the lane boundary factor
         LaneBoundaryFactor.set_expected_lane_extractor(
             expected_lane_extractor)
+
+        self.expected_pole_extractor = expected_pole_extractor
 
         # Factor graph
         self.graph = ms.FactorGraph()
@@ -259,6 +265,27 @@ class SlidingWindowGraphManager(object):
                                           self.pred_cov,
                                           self.px,
                                           self.config['lane']))
+
+    def add_pole_factor(self, detected_pole):
+        """
+        TODO: Add docstring
+        """
+        if not self.odom_added:
+            raise RuntimeError(
+                'Between (odom) factor should be added first at every time step.')
+
+        loc_2d = self.last_optimized_se2.translation()
+        neighbor_poles = self.expected_pole_extractor.extract(loc_2d, 80)
+
+        node_key = ms.key('x', self._idc_in_graph[-1])
+
+        self.graph.add(PoleFactor(node_key,
+                                  detected_pole,
+                                  neighbor_poles,
+                                  self.pred_cov,
+                                  self.px,
+                                  self.pcf,
+                                  self.config['pole']))
 
     def solve_one_step(self):
         """Solve the graph and corresponding covariance matrices for the current step.
