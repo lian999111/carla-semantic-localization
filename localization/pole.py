@@ -128,7 +128,8 @@ class PoleFactor(Factor):
         for x, y in pole_homo_coords_cam[0:2, :].T:
             r = math.sqrt(x**2 + y**2)
             phi = math.atan2(y, x)
-
+            # Scale noise standard deviation based on range
+            std_scale = max(0.001*r**2, 1)
             H = compute_H(self.px-self.pcf, x, y)
             innov = H @ self.pose_uncert @ H.T + \
                 self.noise_cov * std_scale**2
@@ -137,13 +138,10 @@ class PoleFactor(Factor):
                      np.array([meas_r, meas_phi])).reshape(2, -1)
             squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
 
-            if squared_mahala_dist < self.geo_gate:
-                squared_mahala_dists.append(squared_mahala_dist)
-                errors.append(error)
-
-                # Scale noise standard deviation based on range
-                std_scale = max(0.001*r**2, 1)
-                std_scales.append(std_scale)
+            # if squared_mahala_dist < self.geo_gate:
+            squared_mahala_dists.append(squared_mahala_dist)
+            errors.append(error)
+            std_scales.append(std_scale)
 
         if squared_mahala_dists:
             self._null_hypo = False
