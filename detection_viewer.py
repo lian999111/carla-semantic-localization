@@ -92,8 +92,8 @@ def main():
     left_lane_bev = ax[1].plot([], [], linewidth=0.5)[0]
     right_lane_bev = ax[1].plot([], [], linewidth=0.5)[0]
     rs_stop = ax[1].plot([], [], label='rs_stop')[0]
-    ax[1].set_xlim((20, -20))
-    ax[1].set_ylim((-2, 50))
+    ax[1].set_xlim((25, -25))
+    ax[1].set_ylim((-2, 60))
     ax[1].set_aspect('equal', adjustable='box')
     plt.legend(loc='upper right', fontsize='x-small')
     plt.show(block=False)
