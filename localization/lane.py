@@ -85,7 +85,7 @@ class LaneBoundaryFactor(Factor):
         self.static = self.config['static']
         # bool: True to ignore lane boundary detection in junction areas
         self.ignore_junction = self.config['ignore_junction']
-        self.null_scale = self.config['null_scale']
+        self.null_std_scale = self.config['null_std_scale']
 
         # Use the coefficients of detection to generate a fake null hypothesis
         c0c1 = self.detected_marking.get_c0c1_list()
@@ -204,7 +204,7 @@ class LaneBoundaryFactor(Factor):
 
         # Compute innovation matrix for the null hypo
         H = compute_H(self.px, null_expected_c0c1[0], null_expected_c0c1[1])
-        null_innov = H @ self.pose_uncert @ H.T + self.noise_cov/self.null_scale**2
+        null_innov = H @ self.pose_uncert @ H.T + self.noise_cov*self.null_std_scale**2
 
         # Compute geometric likelihood weighted by null probability
         null_weighted_geo_likelihood = self.prob_null * \
@@ -212,7 +212,7 @@ class LaneBoundaryFactor(Factor):
 
         # Scale down error for null hypo
         # This is to achieve the effect of having a very small information matrix during optimzation
-        null_error *= self.null_scale
+        null_error /= self.null_std_scale
 
         if self.ignore_junction and (self.in_junction or self.into_junction):
             self._null_hypo = True
@@ -311,7 +311,7 @@ class LaneBoundaryFactor(Factor):
             # Scale down jacobian matrix for null hypo
             # This is to achieve the effect of having a very small information matrix
             # during optimzation
-            jacob *= self.null_scale
+            jacob /= self.null_std_scale
         else:
             # Scale down jacobian matrix to achieve the same effect as having a small
             # information matrix
