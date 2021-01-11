@@ -189,15 +189,6 @@ class LaneBoundaryFactor(Factor):
             expected_type_list = [expected.type
                                   for expected in self.me_format_expected_markings]
 
-        # List of each expected marking's innovation matrix
-        innovs = []
-        for expected_coeffs in expected_coeffs_list:
-            # Compute innovation matrix for current expected marking
-            expected_c0, expected_c1 = expected_coeffs
-            H = compute_H(self.px, expected_c0, expected_c1)
-            innov = H @ self.pose_uncert @ H.T + self.noise_cov
-            innovs.append(innov)
-
         ########## Measurement ##########
         measured_coeffs = np.asarray(
             self.detected_marking.get_c0c1_list()).reshape(2, -1)
@@ -233,7 +224,13 @@ class LaneBoundaryFactor(Factor):
             gated_coeffs_list = [null_expected_c0c1]
             asso_probs = []
             meas_likelihoods = []
-            for exp_coeffs, exp_type, innov in zip(expected_coeffs_list, expected_type_list, innovs):
+            for exp_coeffs, exp_type in zip(expected_coeffs_list, expected_type_list):
+                # Compute innovation matrix
+                expected_c0, expected_c1 = exp_coeffs
+                H = compute_H(self.px, expected_c0, expected_c1)
+                innov = H @ self.pose_uncert @ H.T + self.noise_cov
+
+                # Compute squared mahalanobis distance
                 error = np.asarray(exp_coeffs).reshape(
                     2, -1) - measured_coeffs
                 squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
@@ -259,8 +256,8 @@ class LaneBoundaryFactor(Factor):
                 # but still possible when the multimodal nature is concerned.
                 # Or, we can simply give up geometric gating and use semantic gating only.
                 # The large geometric gate is an inelegant remedy after all.
-                if squared_mahala_dist <= self.geo_gate and sem_likelihood > self.sem_gate:
-                    # if sem_likelihood > self.sem_gate:
+                # if squared_mahala_dist <= self.geo_gate and sem_likelihood > self.sem_gate:
+                if sem_likelihood > self.sem_gate:
                     # Geometric likelihood
                     geo_likelihood = multivariate_normal.pdf(
                         error.reshape(-1), cov=innov)
