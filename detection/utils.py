@@ -1,6 +1,7 @@
 """Implementations of utilities for detection"""
 from enum import Enum
 import random
+import math
 
 import numpy as np
 
@@ -40,6 +41,26 @@ class Pole(object):
                 if wrong_type != self.type and wrong_type != TrafficSignType.RSStop:
                     self.type = wrong_type
                     break
+
+    def get_r_phi(self, x_offset=0.0):
+        """Get range (r) and azimuth angle (phi) wrt the offset point.
+
+        Mobileye's reference point for measurements is the front bumper.
+        An x offset can be given to compute the desired r and phi wrt to, for example,
+        the camera. The sign of the offset is defined wrt the front bumper's frame; 
+        i.e. x pointing forwards.
+        e.g. A camera placed on the windshield should have a negative x_offset.
+
+        Args:
+            x_offset (float): Offset in x-axis.
+        Returns:
+            r: Range of the pole.
+            phi: Azimuth angle of the pole.
+        """
+        corrected_x = self.x - x_offset
+        r = math.sqrt(corrected_x**2 + self.y**2)
+        phi = math.atan2(self.y, corrected_x)
+        return r, phi
 
 
 class MELaneMarkingType(Enum):
