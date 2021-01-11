@@ -92,7 +92,7 @@ class PoleFactor(Factor):
         # Matrix to transform points in world frame to ego (rear axle) frame
         tform_w2e = np.zeros((3, 3))
         rotm = np.array([[math.cos(yaw), -math.sin(yaw)],
-                         [math.sin(yaw), math.cos(yaw)]])
+                        [math.sin(yaw), math.cos(yaw)]])
         tform_w2e[0:2, 0:2] = rotm.T
         tform_w2e[0:2, 2] = -(rotm.T @ pose.translation())
         tform_w2e[2, 2] = 1
@@ -124,14 +124,11 @@ class PoleFactor(Factor):
         ########## Data Association ##########
         errors = []
         squared_mahala_dists = []
-        rs = []
-        phis = []
         std_scales = []
         for x, y in pole_homo_coords_cam[0:2, :].T:
             r = math.sqrt(x**2 + y**2)
             phi = math.atan2(y, x)
 
-            std_scale = max(0.001*r**2, 1)
             H = compute_H(self.px-self.pcf, x, y)
             innov = H @ self.pose_uncert @ H.T + \
                 self.noise_cov * std_scale**2
@@ -143,8 +140,9 @@ class PoleFactor(Factor):
             if squared_mahala_dist < self.geo_gate:
                 squared_mahala_dists.append(squared_mahala_dist)
                 errors.append(error)
-                rs.append(r)
-                phis.append(phi)
+
+                # Scale noise standard deviation based on range
+                std_scale = max(0.001*r**2, 1)
                 std_scales.append(std_scale)
 
         if squared_mahala_dists:
