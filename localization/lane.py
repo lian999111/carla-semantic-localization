@@ -61,11 +61,18 @@ def compute_H(px, expected_c0, expected_c1):
 
 class LaneBoundaryFactor(Factor):
     """ Lane boundary factor. """
+    # float: Geometric gate
     geo_gate = chi2.ppf(0.99999999, df=2)
+    # float: Semantic gate
     sem_gate = 0.9
-    expected_lane_extractor = None
 
-    def __init__(self, key, detected_marking, z, pose_uncert, px, lane_factor_config):
+    # Attributes that needs to be initialized.
+    # ExpectedLaneExtractor: Extractor for expected lane boundaries.
+    expected_lane_extractor = None
+    # float: Longitudinal distance from rear axle to front bumper.
+    px = None
+
+    def __init__(self, key, detected_marking, z, pose_uncert, lane_factor_config):
         """Constructor.
 
         Args:
@@ -73,17 +80,15 @@ class LaneBoundaryFactor(Factor):
             detected_marking: Detected rs stop wrt front bumper.
             z: z coordinate for extracting ground truth lane boundaries at the correct height.
             pose_uncert: Covariance matrix of pose.
-            px: Distance from rear axle to front bumper.
             lane_factor_config: Configuraiont for lane boundary factor.
         """
         if self.expected_lane_extractor is None:
             raise RuntimeError(
-                'Extractor for expected lane should be initialized first.')
+                'LaneBoundaryFactor should be initialized first.')
 
         self.detected_marking = detected_marking
         self.z = z
         self.pose_uncert = pose_uncert
-        self.px = px
         self.config = lane_factor_config
         self.noise_cov = np.diag([lane_factor_config['stddev_c0']**2,
                                   lane_factor_config['stddev_c1']**2])
@@ -138,7 +143,6 @@ class LaneBoundaryFactor(Factor):
                                   self.detected_marking,
                                   self.z,
                                   self.pose_uncert,
-                                  self.px,
                                   self.config)
 
     def error(self, variables):
@@ -369,8 +373,14 @@ class LaneBoundaryFactor(Factor):
             return 0.0045
 
     @classmethod
-    def set_expected_lane_extractor(cls, expected_lane_extractor):
-        """Set class attribute expected lane extractor.
+    def initialize(cls, expected_lane_extractor, px):
+        """Initialize lane boundary factor.
 
-        This must be called before instantiating any of this class."""
+        This must be called before instantiating any of this class.
+
+        Args:
+            expected_lane_extractor: Expected lane extractor.
+            px: Logitudinal distance from the local frame to the front bumper.
+        """
         cls.expected_lane_extractor = expected_lane_extractor
+        cls.px = px
