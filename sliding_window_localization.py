@@ -218,7 +218,7 @@ def main():
 
     ############### Loop through recorded data ###############
     # Fix the seed for noise added afterwards
-    np.random.seed(0)
+    np.random.seed(10)
 
     # List for storing pose of each time step after optimization
     optimized_poses = []
