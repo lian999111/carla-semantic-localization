@@ -58,8 +58,6 @@ def compute_H(px, expected_c0, expected_c1):
 
     return H
 
-# TODO: Add docstring
-
 
 class LaneBoundaryFactor(Factor):
     """ Lane boundary factor. """
@@ -67,7 +65,17 @@ class LaneBoundaryFactor(Factor):
     sem_gate = 0.9
     expected_lane_extractor = None
 
-    def __init__(self, key, detected_marking, z, pose_uncert, dist_raxle_to_fbumper, lane_factor_config):
+    def __init__(self, key, detected_marking, z, pose_uncert, px, lane_factor_config):
+        """Constructor.
+
+        Args:
+            key: Key to the pose node.
+            detected_marking: Detected rs stop wrt front bumper.
+            z: z coordinate for extracting ground truth lane boundaries at the correct height.
+            pose_uncert: Covariance matrix of pose.
+            px: Distance from rear axle to front bumper.
+            lane_factor_config: Configuraiont for lane boundary factor.
+        """
         if self.expected_lane_extractor is None:
             raise RuntimeError(
                 'Extractor for expected lane should be initialized first.')
@@ -75,7 +83,7 @@ class LaneBoundaryFactor(Factor):
         self.detected_marking = detected_marking
         self.z = z
         self.pose_uncert = pose_uncert
-        self.px = dist_raxle_to_fbumper
+        self.px = px
         self.config = lane_factor_config
         self.noise_cov = np.diag([lane_factor_config['stddev_c0']**2,
                                   lane_factor_config['stddev_c1']**2])
@@ -92,8 +100,11 @@ class LaneBoundaryFactor(Factor):
         # the weight of null hypothesis.
         self.null_std_scale = self.config['null_std_scale']
 
+        # bool: True if current pose is in junction area.
         self.in_junction = False
+        # bool: True if current pose is driving into junction area.
         self.into_junction = False
+
         # List of MELaneDetection: Describing expected markings in mobileye-like formats
         self.me_format_expected_markings = None
 
@@ -109,8 +120,11 @@ class LaneBoundaryFactor(Factor):
         self._init_normal_forms = None
         self._init_types = None
 
+        # list: Stores chosen c0 and c1 of chosen expected lane boundary
         self.expected_coeffs = None
+        # float: Scale for the chosen Gaussian mode based on its association weight
         self._scale = 1.0
+        # bool: True if null hypothesis is chosen
         self._null_hypo = False
 
         loss = DiagonalLoss.Sigmas(np.array(
