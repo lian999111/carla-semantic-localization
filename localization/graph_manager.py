@@ -274,10 +274,25 @@ class SlidingWindowGraphManager(object):
             raise RuntimeError(
                 'Between (odom) factor should be added first at every time step.')
 
-        loc_2d = self.last_optimized_se2.translation()
-        neighbor_poles = self.expected_pole_extractor.extract(loc_2d, 80)
-
         node_key = ms.key('x', self._idc_in_graph[-1])
+
+        # Retrieve the last initial guessed pose
+        init_guess = self.initials.at(node_key)
+        yaw = init_guess.so2().theta()
+
+        # Matrix to transform points in ego (rear axle) frame to world frame
+        tform_e2w = np.zeros((3, 3))
+        tform_e2w[0:2, 0:2] = np.array([[cos(yaw), -sin(yaw)],
+                                        [sin(yaw), cos(yaw)]])
+        tform_e2w[0:2, 2] = init_guess.translation()
+        tform_e2w[2, 2] = 1
+        
+        # Get detected pole in world frame
+        det_pole_world = tform_e2w @ np.array([detected_pole.x, detected_pole.y, 1])
+
+        # Query map poles in the detected pole's neighborhood
+        neighbor_poles = self.expected_pole_extractor.extract(
+            (det_pole_world[0], det_pole_world[1]), 30)
 
         self.graph.add(PoleFactor(node_key,
                                   detected_pole,
