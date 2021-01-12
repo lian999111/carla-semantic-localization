@@ -19,7 +19,7 @@ def compute_normal_form_line_coeffs(px, expected_c0, expected_c1):
         alpha: Relative heading of the line.
 
     Args:
-        px: Logitudinal distance from the local frame to the front bumper. 
+        px: Logitudinal distance from the local frame to the front bumper.
         expected_c0: Expected c0 coefficient of lane boundary.
         expected_c1: Expected c1 coefficient of lane boundary.
 
@@ -27,11 +27,11 @@ def compute_normal_form_line_coeffs(px, expected_c0, expected_c1):
         Normal form parameters a, b, c, and alpha.
     """
     alpha = np.arctan(expected_c1)
-    a_L = -np.sin(alpha)
-    b_L = np.cos(alpha)
-    c_L = a_L*px + b_L*expected_c0
+    a_l = -np.sin(alpha)
+    b_l = np.cos(alpha)
+    c_l = a_l*px + b_l*expected_c0
 
-    return a_L, b_L, c_L, alpha
+    return a_l, b_l, c_l, alpha
 
 
 def compute_H(px, expected_c0, expected_c1):
