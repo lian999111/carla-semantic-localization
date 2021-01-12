@@ -149,8 +149,8 @@ class PoleFactor(Factor):
         null_noise_cov = self.noise_cov*self.null_std_scale**2
 
         # Compute measurement likelihood weighted by null probability
-        null_weighted_meas_likelihood = self.prob_null * \
-            multivariate_normal_pdf(null_error.squeeze(), cov=null_noise_cov)
+        null_weighted_meas_likelihood = self.prob_null \
+            * multivariate_normal_pdf(null_error.squeeze(), cov=null_noise_cov)
 
         # In this implementation, scaling down error and jacobian is done to achieve
         # the same effect of having a very small information matrix during optimzation.
