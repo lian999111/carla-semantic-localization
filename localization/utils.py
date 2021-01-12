@@ -182,6 +182,6 @@ class ExpectedRSStopExtractor(object):
             self.lon_dists = None
         else:
             # Get all x coordinates (longitudinal distances)
-            self.lon_dists = visible_rs_stop_signs_gt[0, :].squeeze()
+            self.lon_dists = visible_rs_stop_signs_gt[0, :].tolist()
 
         return self.lon_dists

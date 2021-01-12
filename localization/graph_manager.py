@@ -12,6 +12,7 @@ from .odom import create_ctrv_between_factor
 from .gnss import GNSSFactor
 from .lane import LaneBoundaryFactor
 from .pole import PoleFactor
+from .rs_stop import RSStopFactor
 from .utils import copy_se2
 
 
@@ -42,9 +43,9 @@ class SlidingWindowGraphManager(object):
         self.config = config
 
         # Initialize factors
-        LaneBoundaryFactor.initialize(expected_lane_extractor,
-                                      px)
+        LaneBoundaryFactor.initialize(expected_lane_extractor, px)
         PoleFactor.initialize(self.px, self.pcf)
+        RSStopFactor.initialize(expected_rs_stop_extractor, px)
 
         # Instead of performing map pole queries in pole factors, graph manager
         # queries map poles in advance and only feeds map poles in the neighborhood
@@ -307,6 +308,22 @@ class SlidingWindowGraphManager(object):
                                   neighbor_poles,
                                   self.pred_cov,
                                   self.config['pole']))
+
+    def add_rs_stop_factor(self, detected_rs_stop_dist, z):
+        """
+        TODO: Add docstring
+        """
+        if not self.odom_added:
+            raise RuntimeError(
+                'Between (odom) factor should be added first at every time step.')
+
+        node_key = ms.key('x', self._idc_in_graph[-1])
+
+        self.graph.add(RSStopFactor(node_key,
+                                    detected_rs_stop_dist,
+                                    z,
+                                    self.pred_cov,
+                                    self.config['rs_stop']))
 
     def solve_one_step(self):
         """Solve the graph and corresponding covariance matrices for the current step.

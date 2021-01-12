@@ -102,6 +102,7 @@ def main():
     # Simulated detections
     lane_detection_seq = detections['lane']
     pole_detection_seq = detections['pole']
+    rs_stop_detection_seq = detections['rs_stop']
 
     # Indices to clip the recording
     # Only data between the indices are used
@@ -237,12 +238,13 @@ def main():
         # Detection
         lane_detection = lane_detection_seq[idx]
         pole_detection = pole_detection_seq[idx]
+        rs_stop_detection = rs_stop_detection_seq[idx]
 
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(0.0, 3.0)
-        noised_gnss_y = gnss_y + np.random.normal(0.0, 3.0)
+        noised_gnss_x = gnss_x + np.random.normal(3.0, 3.0)
+        noised_gnss_y = gnss_y + np.random.normal(3.0, 3.0)
 
         raxle_loacation_gt = raxle_locations[idx]
         yaw_gt = raxle_orientations[idx][2]
@@ -276,6 +278,9 @@ def main():
                 if lane_detection.right_marking_detection is not None:
                     sw_graph.add_lane_factor(
                         lane_detection.right_marking_detection, gnss_z)
+
+            if rs_stop_detection is not None:
+                sw_graph.add_rs_stop_factor(rs_stop_detection, gnss_z)
 
         # Truncate the graph if necessary
         sw_graph.try_move_sliding_window_forward()
