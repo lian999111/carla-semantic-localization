@@ -18,6 +18,19 @@ def copy_se2(se2):
     return ms.sophus.SE2(so2, trans)
 
 
+def univariate_normal_pdf(x_m, var):
+    """PDF of the univariate normal distribution.
+
+    Args:
+        x_m: Quantile.
+        var: Variance.
+    Returns:
+        Probability density.
+    """
+    return ((1. / np.sqrt(2 * np.pi * var))
+            * np.exp(-(x_m)**2 / (2 * var)))
+
+
 def multivariate_normal_pdf(x_m, cov):
     """PDF of the multivariate normal distribution.
 
@@ -27,7 +40,6 @@ def multivariate_normal_pdf(x_m, cov):
     Args:
         x_m: Quantiles
         cov: Covariance matrix.
-
     Returns:
         Probability density.
     """
