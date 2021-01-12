@@ -60,6 +60,8 @@ class ExpectedLaneExtractor(object):
     def extract(self, location, orientation):
         """Extract lane information given location and orientation.
 
+        The extracted lane boundaries are wrt to the given pose.
+
         Args:
             location: Array-like 3D query point in world (right-handed z-up).
             rotation: Array-like roll pitch yaw rotation representation in rad (right-handed z-up).
