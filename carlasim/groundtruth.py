@@ -242,7 +242,7 @@ class LaneGTExtractor(object):
         # Search radius
         self._radius = lane_gt_config['radius']
 
-        # Debug flag
+        # bool: True to draw lane boundaries points during querying
         self.debug = debug
 
         self.gt = {}
