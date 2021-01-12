@@ -38,5 +38,6 @@ lane:
 
 # Parameters for pole factors
 pole:
-  stddev_r: 10       # Standard deviation in the measurement noise model for radius. 
-  stddev_phi: 0.1   # Standard deviation in the measurement noise model for phi.
+  query_radius: 30    # Map poles within this radius from the detected pole will be queried.
+  stddev_r: 10        # Standard deviation in the measurement noise model for radius. 
+  stddev_phi: 0.1     # Standard deviation in the measurement noise model for phi.

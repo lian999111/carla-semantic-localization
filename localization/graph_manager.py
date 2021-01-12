@@ -286,13 +286,14 @@ class SlidingWindowGraphManager(object):
                                         [sin(yaw), cos(yaw)]])
         tform_e2w[0:2, 2] = init_guess.translation()
         tform_e2w[2, 2] = 1
-        
+
         # Get detected pole in world frame
-        det_pole_world = tform_e2w @ np.array([detected_pole.x, detected_pole.y, 1])
+        det_pole_world = tform_e2w @ np.array(
+            [detected_pole.x, detected_pole.y, 1])
 
         # Query map poles in the detected pole's neighborhood
         neighbor_poles = self.expected_pole_extractor.extract(
-            (det_pole_world[0], det_pole_world[1]), 30)
+            (det_pole_world[0], det_pole_world[1]), self.config['pole']['query_radius'])
 
         self.graph.add(PoleFactor(node_key,
                                   detected_pole,
