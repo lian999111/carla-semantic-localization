@@ -136,3 +136,40 @@ class ExpectedPoleExtractor(object):
             poles.append(self.pole_map[idx])
 
         return poles
+
+
+class ExpectedRSStopExtractor(object):
+    """Class for expected road surface stop sign extraction.
+
+    It is built upon a RSStopGTExtractor."""
+
+    def __init__(self, rs_stop_gt_extractor):
+        """
+        Constructor.
+
+        Input:
+            rs_stop_gt_extractor (RSStopGTExtractor): Road surface stop sign ground truth extractor.
+        """
+        self.rs_stop_gt_extractor = rs_stop_gt_extractor
+
+        # Placeholder for expected longitudinal distances of rs stop signs
+        self.lon_dists = None
+
+    def extract(self, location, orientation):
+        """Extract road surface stop signs given the pose.
+
+        The extracted rs stop signs are wrt to the given pose.
+        """
+
+        # Get updated gt of road surface stop signs that are likely visible
+        # Each column is a 3D coordinate
+        visible_rs_stop_signs_gt = self.rs_stop_gt_extractor.update(
+            location, orientation)['visible_rs_stop']
+
+        if visible_rs_stop_signs_gt is None:
+            self.lon_dists = None
+        else:
+            # Get all x coordinates (longitudinal distances)
+            self.lon_dists = visible_rs_stop_signs_gt[0, :].squeeze()
+
+        return self.lon_dists
