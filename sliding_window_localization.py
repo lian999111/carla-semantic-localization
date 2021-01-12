@@ -14,10 +14,10 @@ from matplotlib.collections import LineCollection
 import imageio
 import pygame
 
-from carlasim.groundtruth import LaneGTExtractor
+from carlasim.groundtruth import LaneGTExtractor, RSStopGTExtractor
 from carlasim.utils import TrafficSignType
 from localization.graph_manager import SlidingWindowGraphManager
-from localization.utils import ExpectedLaneExtractor, ExpectedPoleExtractor
+from localization.utils import ExpectedLaneExtractor, ExpectedPoleExtractor, ExpectedRSStopExtractor
 from localization.eval.map_image import MapImage
 from localization.eval.utils import world_to_pixel, plot_se2_with_cov, adjust_figure
 
@@ -77,10 +77,14 @@ def main():
 
     ############### Retrieve required data ###############
     # Ground truth
-    # Lane marking ground truth
+    # Pose ground truth
     raxle_locations = gt_data['seq']['pose']['raxle_location']
     raxle_orientations = gt_data['seq']['pose']['raxle_orientation']
 
+    # Traffic sign ground truth
+    traffic_signs = gt_data['static']['traffic_sign']
+
+    # Lane marking ground truth
     left_marking_coeffs_seq = gt_data['seq']['lane']['left_marking_coeffs']
     left_marking_seq = gt_data['seq']['lane']['left_marking']
     right_marking_coeffs_seq = gt_data['seq']['lane']['right_marking_coeffs']
@@ -180,9 +184,9 @@ def main():
     plt.show(block=False)
 
     ############### Sliding window graph ###############
-    # An expected lane extractor must be given to the sliding window graph manager
-    # so it gets to query the expected lane boundaries given a pose. It acts as an
-    # interface between the graph manager and the under lying map.
+    # Expected measurement extractors must be created in advance and given to
+    # the sliding window graph manager. They serve as interfaces between the graph
+    # manager wnd the underlying map data.
 
     # ExpectedLaneExtractor uses a LaneGTExtractor internally to do the queries.
     # Note: The extracted lane boundaries are wrt the query point.
@@ -191,7 +195,16 @@ def main():
                                         debug=False)
     expected_lane_extractor = ExpectedLaneExtractor(lane_gt_extractor)
 
+    # ExpectedPoleExtractor extracts map poles given query points.
+    # Note: The extracted poles are wrt the world frame. Transformation
+    # is taken care of by the graph manager before feeding them to pole factors.
     expected_pole_extractor = ExpectedPoleExtractor(pole_map)
+
+    # ExpectedRSStopExtractor uses a RSStopGTExtractor internally to do the queries.
+    # Note: The extracted lane boundaries are wrt the query point.
+    rs_stop_gt_extractor = RSStopGTExtractor(traffic_signs,
+                                             localization_config['rs_stop']['rs_stop_gt_extractor'])
+    expected_rs_stop_extractor = ExpectedRSStopExtractor(rs_stop_gt_extractor)
 
     # Create a sliding window graph manager
     sw_graph = SlidingWindowGraphManager(dist_raxle_to_fbumper,
@@ -199,6 +212,7 @@ def main():
                                          localization_config,
                                          expected_lane_extractor,
                                          expected_pole_extractor,
+                                         expected_rs_stop_extractor,
                                          first_node_idx=init_idx)
 
     ############### Loop through recorded data ###############

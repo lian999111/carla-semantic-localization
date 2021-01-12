@@ -18,7 +18,9 @@ from .utils import copy_se2
 class SlidingWindowGraphManager(object):
     """Class for management and optimization of sliding window factor graph."""
 
-    def __init__(self, px, pcf, config, expected_lane_extractor, expected_pole_extractor, first_node_idx=0):
+    def __init__(self, px, pcf, config,
+                 expected_lane_extractor, expected_pole_extractor, expected_rs_stop_extractor,
+                 first_node_idx=0):
         """Constructor method.
 
         Args:
