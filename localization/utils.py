@@ -116,7 +116,7 @@ class ExpectedPoleExtractor(object):
         self.kd_poles = KDTree(np.asarray([pole_x, pole_y]).T)
 
     def extract(self, location, radius):
-        """Extract poles in the neighborhood given location and pe.
+        """Extract poles in the neighborhood around the given location.
 
         Args:
             location: Array-like 2D query point in world (right-handed z-up).
