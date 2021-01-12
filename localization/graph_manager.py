@@ -41,9 +41,10 @@ class SlidingWindowGraphManager(object):
         # Config
         self.config = config
 
-        # Set expected lane extractor for the lane boundary factor
+        # Initialize factors
         LaneBoundaryFactor.initialize(expected_lane_extractor,
                                       px)
+        PoleFactor.initialize(self.px, self.pcf)
 
         # Instead of performing map pole queries in pole factors, graph manager
         # queries map poles in advance and only feeds map poles in the neighborhood
@@ -305,8 +306,6 @@ class SlidingWindowGraphManager(object):
                                   detected_pole,
                                   neighbor_poles,
                                   self.pred_cov,
-                                  self.px,
-                                  self.pcf,
                                   self.config['pole']))
 
     def solve_one_step(self):

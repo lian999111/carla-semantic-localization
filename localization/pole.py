@@ -42,7 +42,13 @@ class PoleFactor(Factor):
     geo_gate = chi2.ppf(0.9, df=2)
     sem_gate = 0.9
 
-    def __init__(self, key, detected_pole, neighbor_poles, pose_uncert, px, pcf, pole_factor_config):
+    # Attributes that needs to be initialized.
+    # float: Longitudinal distance from rear axle to front bumper.
+    px = None
+    # float: Longitudinal distance from camera to front bumper.
+    pcf = None
+
+    def __init__(self, key, detected_pole, neighbor_poles, pose_uncert, pole_factor_config):
         """Constructor.
 
         Args:
@@ -54,11 +60,13 @@ class PoleFactor(Factor):
             pcf: Distance from front camera to front bumper.
             pole_factor_config: Configuraiont for pole factor.
         """
+        if self.px is None:
+            raise RuntimeError(
+                'PoleFactor should be initialized first.')
+
         self.detected_pole = detected_pole
         self.neighbor_poles = neighbor_poles
         self.pose_uncert = pose_uncert
-        self.px = px
-        self.pcf = pcf
         self.config = pole_factor_config
 
         self.noise_cov = np.diag([pole_factor_config['stddev_r']**2,
@@ -88,8 +96,6 @@ class PoleFactor(Factor):
                           self.detected_pole,
                           self.neighbor_poles,
                           self.pose_uncert,
-                          self.px,
-                          self.pcf,
                           self.config)
 
     def error(self, variables):
@@ -268,3 +274,16 @@ class PoleFactor(Factor):
             return 0.95
         else:
             return 0.0125
+
+    @classmethod
+    def initialize(cls, px, pcf):
+        """Initialize lane boundary factor.
+
+        This must be called before instantiating any of this class.
+
+        Args:
+            px: Logitudinal distance from rear axle to front bumper.
+            pcf: Logitudinal distance from camera to front bumper.
+        """
+        cls.px = px
+        cls.pcf = pcf
