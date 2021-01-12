@@ -176,8 +176,8 @@ class PoleFactor(Factor):
                 phi = math.atan2(exp_y, exp_x)
 
                 # Scale noise standard deviation based on range
-                std_scale = max(0.001*r**2, 1)
-                # std_scale = 1
+                # This is chosen empirically
+                std_scale = 0.0005*r**2 + 1
 
                 H = compute_H(self.px-self.pcf, exp_x, exp_y)
                 scaled_noise_cov = self.noise_cov * std_scale**2
