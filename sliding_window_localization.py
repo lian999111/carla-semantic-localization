@@ -200,7 +200,7 @@ def main():
 
     ############### Loop through recorded data ###############
     # Fix the seed for noise added afterwards
-    np.random.seed(0)
+    np.random.seed(10)
 
     # List for storing pose of each time step after optimization
     optimized_poses = []
@@ -225,7 +225,7 @@ def main():
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
         noised_gnss_x = gnss_x + np.random.normal(0.0, 3.0)
-        noised_gnss_y = gnss_y + np.random.normal(0.0, 3.0)
+        noised_gnss_y = gnss_y + np.random.normal(-3.0, 3.0)
 
         raxle_loacation_gt = raxle_locations[idx]
         yaw_gt = raxle_orientations[idx][2]
@@ -243,21 +243,22 @@ def main():
             sw_graph.add_gnss_factor(
                 np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
 
-            # Add lane factor after 10 steps for init estimation to converge
-            if idx - init_idx > 10:
+            # Add pole factor after 3 steps for init estimation to converge
+            if idx - init_idx > 3:
+                if pole_detection is not None:
+                    for detected_pole in pole_detection:
+                        # if detected_pole.x < 50 and detected_pole.type != TrafficSignType.Unknown:
+                        if detected_pole.x < 50 and abs(detected_pole.y) < 25:
+                            sw_graph.add_pole_factor(detected_pole)
+
+            # Add lane factor after 3 steps for init estimation to converge
+            if idx - init_idx > 6:
                 if lane_detection.left_marking_detection is not None:
                     sw_graph.add_lane_factor(
                         lane_detection.left_marking_detection, gnss_z)
                 if lane_detection.right_marking_detection is not None:
                     sw_graph.add_lane_factor(
                         lane_detection.right_marking_detection, gnss_z)
-            
-            if idx - init_idx > 20:
-                if pole_detection is not None:
-                    for detected_pole in pole_detection:
-                        # if detected_pole.x < 50 and detected_pole.type != TrafficSignType.Unknown:
-                        if detected_pole.x < 60 and abs(detected_pole.y) < 25:
-                            sw_graph.add_pole_factor(detected_pole)
 
         # Truncate the graph if necessary
         sw_graph.try_move_sliding_window_forward()
