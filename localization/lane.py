@@ -128,7 +128,7 @@ class LaneBoundaryFactor(Factor):
         self._init_types = None
 
         # list: Stores chosen c0 and c1 of chosen expected lane boundary
-        self.expected_coeffs = None
+        self.chosen_expected_coeffs = None
         # float: Scale for the chosen Gaussian mode based on its association weight
         self._scale = 1.0
         # bool: True if null hypothesis is chosen
@@ -314,7 +314,7 @@ class LaneBoundaryFactor(Factor):
                     self._null_hypo = True
                 else:
                     self._null_hypo = False
-                    self.expected_coeffs = gated_coeffs_list[asso_idx]
+                    self.chosen_expected_coeffs = gated_coeffs_list[asso_idx]
                     # Scale down the hypothesis to account for target uncertainty
                     # This form is empirically chosen
                     self._scale = weights[asso_idx]**1
@@ -326,7 +326,7 @@ class LaneBoundaryFactor(Factor):
 
         if self._null_hypo:
             # Null hypothesis
-            self.expected_coeffs = null_expected_c0c1
+            self.chosen_expected_coeffs = null_expected_c0c1
             chosen_error = null_error
 
         return chosen_error
@@ -339,7 +339,7 @@ class LaneBoundaryFactor(Factor):
             # Zero error and jacobian together effectively result in zero information matrix as well.
             jacob = np.zeros((2, 3))
         else:
-            expected_c0, expected_c1 = self.expected_coeffs
+            expected_c0, expected_c1 = self.chosen_expected_coeffs
             jacob = compute_H(self.px, expected_c0, expected_c1)
             # Scale down jacobian matrix based on weight
             # This is to achieve the same effect of scaling infomation matrix during optimzation

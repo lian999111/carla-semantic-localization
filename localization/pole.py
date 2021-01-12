@@ -80,7 +80,7 @@ class PoleFactor(Factor):
         # bool: True to turn on semantic association
         self.semantic = self.config['semantic']
 
-        self.expected_xy = None
+        self.chosen_expected_xy = None
         self._null_hypo = False
         self._std_scale = 1.0
         self._scale = 1.0
@@ -236,7 +236,7 @@ class PoleFactor(Factor):
                     self._null_hypo = True
                 else:
                     self._null_hypo = False
-                    self.expected_xy = gated_xy_list[asso_idx]
+                    self.chosen_expected_xy = gated_xy_list[asso_idx]
                     self._std_scale = std_scales[asso_idx]
                     # To scale down the hypothesis to account for target uncertainty
                     # This form is empirically chosen
@@ -253,7 +253,7 @@ class PoleFactor(Factor):
 
         if self._null_hypo:
             # Null hypothesis
-            self.expected_xy = null_expected_xy_cam
+            self.chosen_expected_xy = null_expected_xy_cam
             chosen_error = null_error
 
         return chosen_error
@@ -263,7 +263,7 @@ class PoleFactor(Factor):
         if self._null_hypo:
             jacob = np.zeros((2, 3))
         else:
-            exp_x, exp_y = self.expected_xy
+            exp_x, exp_y = self.chosen_expected_xy
             jacob = compute_H(self.px-self.pcf, exp_x, exp_y)
             # Scale down jacobian matrix based on range
             jacob *= 1/self._std_scale
