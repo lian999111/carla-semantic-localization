@@ -69,6 +69,9 @@ class PoleFactor(Factor):
         # float: To scale up standard deviation for null hypothesis
         self.null_std_scale = pole_factor_config['null_std_scale']
 
+        # bool: True to turn on semantic association
+        self.semantic = self.config['semantic']
+
         self.expected_xy = None
         self._null_hypo = False
         self._std_scale = 1.0
@@ -175,8 +178,15 @@ class PoleFactor(Factor):
                      np.array([meas_r, meas_phi])).reshape(2, -1)
             squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
 
-            sem_likelihood = self._conditional_prob_type(
-                exp_type, meas_type)
+            # Semantic likelihood
+            if self.semantic:
+                # Conditional probability on type
+                sem_likelihood = self._conditional_prob_type(
+                    exp_type, meas_type)
+            else:
+                # Truning off semantic association is equivalent to always
+                # set semantic likelihood to 1.0
+                sem_likelihood = 1.0
 
             # if squared_mahala_dist < self.geo_gate and sem_likelihood > self.sem_gate:
             if sem_likelihood > self.sem_gate:
