@@ -20,7 +20,7 @@ def copy_se2(se2):
 
 def multivariate_normal_pdf(x_m, cov):
     """PDF of the multivariate normal distribution.
-    
+
     Scipy's mulivariate_normal.pdf() is stable but rather slow.
     This is simple implementation is a bit faster but not stable.
 
@@ -119,6 +119,8 @@ class ExpectedPoleExtractor(object):
 
     def extract(self, location, radius):
         """Extract poles in the neighborhood around the given location.
+
+        The extracted poles are wrt the world frame.
 
         Args:
             location: Array-like 2D query point in world (right-handed z-up).
