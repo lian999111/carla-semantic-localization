@@ -43,6 +43,10 @@ class SlidingWindowGraphManager(object):
         LaneBoundaryFactor.set_expected_lane_extractor(
             expected_lane_extractor)
 
+        # Instead of performing map pole queries in pole factors, graph manager
+        # queries map poles in advance and only feeds map poles in the neighborhood
+        # to the relevant pole factor. The pole factors are responsible for transforming
+        # map poles into their own frame.
         self.expected_pole_extractor = expected_pole_extractor
 
         # Factor graph
