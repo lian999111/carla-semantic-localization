@@ -92,7 +92,6 @@ class LaneBoundaryFactor(Factor):
         self.config = lane_factor_config
         self.noise_cov = np.diag([lane_factor_config['stddev_c0']**2,
                                   lane_factor_config['stddev_c1']**2])
-        self.prob_null = lane_factor_config['prob_null']
 
         # bool: True to turn on semantic association
         self.semantic = self.config['semantic']
@@ -100,6 +99,9 @@ class LaneBoundaryFactor(Factor):
         self.static = self.config['static']
         # bool: True to ignore lane boundary detection in junction areas
         self.ignore_junction = self.config['ignore_junction']
+
+        # float: Null hypothesis probability
+        self.prob_null = self.config['prob_null']
         # float: Scale for noise cov for null hypothesis
         # It is just used to make very large covariance matrix when computing
         # the weight of null hypothesis.
