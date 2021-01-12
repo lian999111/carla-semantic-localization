@@ -292,6 +292,7 @@ class SlidingWindowGraphManager(object):
             [detected_pole.x, detected_pole.y, 1])
 
         # Query map poles in the detected pole's neighborhood
+        # The results are wrt the world frame
         neighbor_poles = self.expected_pole_extractor.extract(
             (det_pole_world[0], det_pole_world[1]), self.config['pole']['query_radius'])
 

@@ -47,8 +47,8 @@ class PoleFactor(Factor):
 
         Args:
             key: Key to the pose node.
-            detected_pole: Detected pole.
-            neighboring_poles: List of poles in the neighborhood.
+            detected_pole: Detected pole wrt front bumper.
+            neighboring_poles: List of poles in the neighborhood wrt world frame.
             pose_uncert: Covariance matrix of pose.
             px: Distance from rear axle to front bumper.
             pcf: Distance from front camera to front bumper.
@@ -94,6 +94,7 @@ class PoleFactor(Factor):
         pose = variables.at(self.keys()[0])
         yaw = pose.so2().theta()
 
+        # Need to transform map poles in the neighborhood into ego (rear axle) frame
         # Matrix to transform points in world frame to ego (rear axle) frame
         tform_w2e = np.zeros((3, 3))
         rotm = np.array([[math.cos(yaw), -math.sin(yaw)],
