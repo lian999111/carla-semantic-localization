@@ -22,6 +22,10 @@ ctrv:
 
 # Parameters for lane boundary factors
 lane:
+  # For lane boundary ground truth extractor
+  lane_gt_extractor:
+    radius: 10    # (m) Search radius for lane markings
+    
   # True to turn on semantic association
   semantic: True
   # True to store the first query for expected lane detection and use it for all the rest of optimization steps.

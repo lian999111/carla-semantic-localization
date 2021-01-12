@@ -185,7 +185,10 @@ def main():
     # interface between the graph manager and the under lying map.
 
     # ExpectedLaneExtractor uses a LaneGTExtractor internally to do the queries.
-    lane_gt_extractor = LaneGTExtractor(carla_world, {'radius': 10}, False)
+    # Note: The extracted lane boundaries are wrt the query point.
+    lane_gt_extractor = LaneGTExtractor(carla_world,
+                                        localization_config['lane']['lane_gt_extractor'],
+                                        debug=False)
     expected_lane_extractor = ExpectedLaneExtractor(lane_gt_extractor)
 
     expected_pole_extractor = ExpectedPoleExtractor(pole_map)
