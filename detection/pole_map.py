@@ -11,9 +11,10 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
     """
     Generate a pole map.
 
-    The generated pole map is essentially a list of Pole objects. Given the x-y points of poles, 
-    this function clusters them (using DBSCAN) and take the means of clusters as pole landmarks 
-    in the map. The type of each pole may be assigned based on the proximity of the passed-in list of TrafficSigns.
+    The generated pole map is essentially a list of Pole objects. Given the x-y points of poles,
+    this function clusters them (using DBSCAN) and take the means of clusters as pole landmarks
+    in the map. The type of each pole may be assigned based on the proximity of the passed-in
+    list of TrafficSigns.
 
     Input:
         poles_xy: 2-by-N numpy.array representating x-y coordinates of poles.
