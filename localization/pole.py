@@ -159,94 +159,97 @@ class PoleFactor(Factor):
         # is not necessary, since its always zero.
 
         ########## Data Association ##########
-        squared_mahala_dists = []
-        errors = [null_error]
-        gated_xy_list = [null_expected_xy_cam]
-        std_scales = [1]
-        # errors = []
-        # gated_xy_list = []
-        # std_scales = []
-        asso_probs = []
-        meas_likelihoods = []
-        for (exp_x, exp_y), exp_type in zip(pole_homo_coords_cam[0:2, :].T, exp_pole_types):
-            r = math.sqrt(exp_x**2 + exp_y**2)
-            phi = math.atan2(exp_y, exp_x)
-
-            # Scale noise standard deviation based on range
-            std_scale = max(0.001*r**2, 1)
-            # std_scale = 1
-
-            H = compute_H(self.px-self.pcf, exp_x, exp_y)
-            scaled_noise_cov = self.noise_cov * std_scale**2
-            innov = H @ self.pose_uncert @ H.T + scaled_noise_cov
-
-            error = (np.array([r, phi]) -
-                     np.array([meas_r, meas_phi])).reshape(2, -1)
-            squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
-
-            # Semantic likelihood
-            if self.semantic:
-                # Conditional probability on type
-                sem_likelihood = self._conditional_prob_type(
-                    exp_type, meas_type)
-            else:
-                # Truning off semantic association is equivalent to always
-                # set semantic likelihood to 1.0
-                sem_likelihood = 1.0
-
-            # if squared_mahala_dist < self.geo_gate and sem_likelihood > self.sem_gate:
-            if sem_likelihood > self.sem_gate:
-                squared_mahala_dists.append(squared_mahala_dist)
-                errors.append(error)
-                std_scales.append(std_scale)
-                gated_xy_list.append([exp_x, exp_y])
-
-                # Measurement likelihood
-                meas_likelihood = multivariate_normal_pdf(error.squeeze(),
-                                                          cov=scaled_noise_cov)
-                meas_likelihoods.append(meas_likelihood)
-
-                # Geometric likelihood
-                geo_likelihood = multivariate_normal_pdf(error.squeeze(),
-                                                         cov=innov)
-
-                asso_prob = geo_likelihood * sem_likelihood
-                asso_probs.append(asso_prob)
-
-        if asso_probs:
-            asso_probs = np.asarray(asso_probs)
-            meas_likelihoods = np.asarray(meas_likelihoods)
-
-            # Compute weights based on total probability theorem
-            weights = (1-self.prob_null) * \
-                (asso_probs/np.sum(asso_probs))
-            # Weight measurement likelihoods
-            weighted_meas_likelihood = weights*meas_likelihoods
-
-            # Add weight and weighted likelihood of null hypothesis
-            weights = np.insert(weights, 0, self.prob_null)
-            weighted_meas_likelihood = np.insert(
-                weighted_meas_likelihood, 0, null_weighted_meas_likelihood)
-            asso_idx = np.argmax(weighted_meas_likelihood)
-
-            if asso_idx == 0:
-                self._null_hypo = True
-            else:
-                self._null_hypo = False
-                self.expected_xy = gated_xy_list[asso_idx]
-                self._std_scale = std_scales[asso_idx]
-                # To scale down the hypothesis to account for target uncertainty
-                # This form is empirically chosen
-                self._scale = weights[asso_idx]**1
-                chosen_error = errors[asso_idx]
-
-                # Scale down the error based on range
-                chosen_error /= self._std_scale
-
-                # Scale down the error based on weight
-                chosen_error *= self._scale
-        else:
+        if not exp_pole_types:
             self._null_hypo = True
+        else:
+            squared_mahala_dists = []
+            errors = [null_error]
+            gated_xy_list = [null_expected_xy_cam]
+            std_scales = [1]
+            # errors = []
+            # gated_xy_list = []
+            # std_scales = []
+            asso_probs = []
+            meas_likelihoods = []
+            for (exp_x, exp_y), exp_type in zip(pole_homo_coords_cam[0:2, :].T, exp_pole_types):
+                r = math.sqrt(exp_x**2 + exp_y**2)
+                phi = math.atan2(exp_y, exp_x)
+
+                # Scale noise standard deviation based on range
+                std_scale = max(0.001*r**2, 1)
+                # std_scale = 1
+
+                H = compute_H(self.px-self.pcf, exp_x, exp_y)
+                scaled_noise_cov = self.noise_cov * std_scale**2
+                innov = H @ self.pose_uncert @ H.T + scaled_noise_cov
+
+                error = (np.array([r, phi]) -
+                        np.array([meas_r, meas_phi])).reshape(2, -1)
+                squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
+
+                # Semantic likelihood
+                if self.semantic:
+                    # Conditional probability on type
+                    sem_likelihood = self._conditional_prob_type(
+                        exp_type, meas_type)
+                else:
+                    # Truning off semantic association is equivalent to always
+                    # set semantic likelihood to 1.0
+                    sem_likelihood = 1.0
+
+                # if squared_mahala_dist < self.geo_gate and sem_likelihood > self.sem_gate:
+                if sem_likelihood > self.sem_gate:
+                    squared_mahala_dists.append(squared_mahala_dist)
+                    errors.append(error)
+                    std_scales.append(std_scale)
+                    gated_xy_list.append([exp_x, exp_y])
+
+                    # Measurement likelihood
+                    meas_likelihood = multivariate_normal_pdf(error.squeeze(),
+                                                            cov=scaled_noise_cov)
+                    meas_likelihoods.append(meas_likelihood)
+
+                    # Geometric likelihood
+                    geo_likelihood = multivariate_normal_pdf(error.squeeze(),
+                                                            cov=innov)
+
+                    asso_prob = geo_likelihood * sem_likelihood
+                    asso_probs.append(asso_prob)
+
+            if asso_probs:
+                asso_probs = np.asarray(asso_probs)
+                meas_likelihoods = np.asarray(meas_likelihoods)
+
+                # Compute weights based on total probability theorem
+                weights = (1-self.prob_null) * \
+                    (asso_probs/np.sum(asso_probs))
+                # Weight measurement likelihoods
+                weighted_meas_likelihood = weights*meas_likelihoods
+
+                # Add weight and weighted likelihood of null hypothesis
+                weights = np.insert(weights, 0, self.prob_null)
+                weighted_meas_likelihood = np.insert(
+                    weighted_meas_likelihood, 0, null_weighted_meas_likelihood)
+                asso_idx = np.argmax(weighted_meas_likelihood)
+
+                if asso_idx == 0:
+                    self._null_hypo = True
+                else:
+                    self._null_hypo = False
+                    self.expected_xy = gated_xy_list[asso_idx]
+                    self._std_scale = std_scales[asso_idx]
+                    # To scale down the hypothesis to account for target uncertainty
+                    # This form is empirically chosen
+                    self._scale = weights[asso_idx]**1
+                    chosen_error = errors[asso_idx]
+
+                    # Scale down the error based on range
+                    chosen_error /= self._std_scale
+
+                    # Scale down the error based on weight
+                    chosen_error *= self._scale
+            else:
+                self._null_hypo = True
 
         if self._null_hypo:
             # Null hypothesis
