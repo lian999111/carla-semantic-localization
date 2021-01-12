@@ -18,6 +18,24 @@ def copy_se2(se2):
     return ms.sophus.SE2(so2, trans)
 
 
+def multivariate_normal_pdf(x_m, cov):
+    """PDF of the multivariate normal distribution.
+    
+    Scipy's mulivariate_normal.pdf() is stable but rather slow.
+    This is simple implementation is a bit faster but not stable.
+
+    Args:
+        x_m: Quantiles
+        cov: Covariance matrix.
+
+    Returns:
+        Probability density.
+    """
+    dim = cov.shape[0]
+    return (1. / (np.sqrt((2 * np.pi)**dim * np.linalg.det(cov)))
+            * np.exp(-(np.linalg.solve(cov, x_m).T.dot(x_m)) / 2))
+
+
 class ExpectedLaneExtractor(object):
     """Class for expected lane detection extraction.
 
