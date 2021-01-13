@@ -460,10 +460,10 @@ def main():
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
     # Ground truth path
-    ax.plot(loc_x_gt, loc_y_gt, '-o', ms=1, zorder=0)
+    ax.plot(loc_x_gt, loc_y_gt, '-o', color='limegreen', ms=1, zorder=0)
     # Resultant path with color
     norm = plt.Normalize(0, 3)
-    lc = LineCollection(segments, cmap='viridis', norm=norm)
+    lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
     # Set the values used for colormapping
     lc.set_array(abs_longitudinal_errors)
     lc.set_linewidth(3)
@@ -488,10 +488,10 @@ def main():
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
     # Ground truth path
-    ax.plot(loc_x_gt, loc_y_gt, '-o', ms=1, zorder=0)
+    ax.plot(loc_x_gt, loc_y_gt, '-o', color='limegreen', ms=1, zorder=0)
     # Resultant path with color
     norm = plt.Normalize(0, 1)
-    lc = LineCollection(segments, cmap='viridis', norm=norm)
+    lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
     # Set the values used for colormapping
     lc.set_array(abs_lateral_errors)
     lc.set_linewidth(3)
@@ -516,10 +516,10 @@ def main():
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
     # Ground truth path
-    ax.plot(loc_x_gt, loc_y_gt, '-o', ms=1, zorder=0)
+    ax.plot(loc_x_gt, loc_y_gt, '-o', color='limegreen', ms=1, zorder=0)
     # Resultant path with color
     norm = plt.Normalize(0, 0.5)
-    lc = LineCollection(segments, cmap='viridis', norm=norm)
+    lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
     # Set the values used for colormapping
     lc.set_array(abs_yaw_errors)
     lc.set_linewidth(3)
