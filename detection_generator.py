@@ -4,6 +4,7 @@ import os
 import argparse
 import pickle
 from shutil import copyfile
+import random
 
 import yaml
 import numpy as np
@@ -98,16 +99,21 @@ def main():
     ss_images = sensor_data['semantic_camera']['ss_image']
     depth_buffers = sensor_data['depth_camera']['depth_buffer']
     yaw_rates = sensor_data['imu']['gyro_z']
+
     # Retrieve required ground truth data
     traffic_signs = gt_data['static']['traffic_sign']
     raxle_locations = gt_data['seq']['pose']['raxle_location']
     raxle_orientations = gt_data['seq']['pose']['raxle_orientation']
 
+    lane_id_seq = gt_data['seq']['lane']['lane_id']
+    next_left_marking_coeffs_seq = gt_data['seq']['lane']['next_left_marking_coeffs']
+    next_left_marking_seq = gt_data['seq']['lane']['next_left_marking']
     left_marking_coeffs_seq = gt_data['seq']['lane']['left_marking_coeffs']
     left_marking_seq = gt_data['seq']['lane']['left_marking']
     right_marking_coeffs_seq = gt_data['seq']['lane']['right_marking_coeffs']
     right_marking_seq = gt_data['seq']['lane']['right_marking']
-    lane_id_seq = gt_data['seq']['lane']['lane_id']
+    next_right_marking_coeffs_seq = gt_data['seq']['lane']['next_right_marking_coeffs']
+    next_right_marking_seq = gt_data['seq']['lane']['next_right_marking']
 
     # Create detector objects
     pole_detector = PoleDetector(K, R, x0, vision_config['pole'])
@@ -149,11 +155,15 @@ def main():
             raxle_location, raxle_orientation, dist_raxle_to_fbumper)
         fbumper_orientation = raxle_orientation
         # Lane markings
+        lane_id = lane_id_seq[image_idx]
+        next_left_coeffs_gt = next_left_marking_coeffs_seq[image_idx]
+        next_left_marking_gt = next_left_marking_seq[image_idx]
         left_coeffs_gt = left_marking_coeffs_seq[image_idx]
         left_marking_gt = left_marking_seq[image_idx]
         right_coeffs_gt = right_marking_coeffs_seq[image_idx]
         right_marking_gt = right_marking_seq[image_idx]
-        lane_id = lane_id_seq[image_idx]
+        next_right_coeffs_gt = next_right_marking_coeffs_seq[image_idx]
+        next_right_marking_gt = next_right_marking_seq[image_idx]
 
         # Instantiate a Transform object to make transformation between front bumper and world
         fbumper2world_tfrom = Transform.from_conventional(
@@ -196,32 +206,83 @@ def main():
         if left_coeffs is None:
             # No detection
             left_detection = None
-        elif left_marking_gt is None or (abs(left_coeffs[-1] - left_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] or
-                                          abs(left_coeffs[-2] - left_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
-            # False positive
-            left_detection = MELaneMarking(
-                left_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown)
-        else:
-            # True positive. Thresholding doesn't guarantee definite true positive nevertheless.
+
+        elif left_marking_gt and \
+                abs(left_coeffs[-1] - left_coeffs_gt[0]) < lane_detection_sim_config['c0_thres'] and \
+                abs(left_coeffs[-2] - left_coeffs_gt[1]) < lane_detection_sim_config['c1_thres']:
+            # True positive (close to left lane marking gt)
+            # Thresholding doesn't guarantee definite true positive nevertheless
             left_detection = MELaneMarking.from_lane_marking(
                 left_coeffs, left_marking_gt, lane_id)
             # Perturb lane marking type
             left_detection.perturb_type(lane_detection_sim_config['fc_prob'])
 
+        elif next_left_marking_gt and \
+                abs(left_coeffs[-1] - next_left_coeffs_gt[0]) < lane_detection_sim_config['c0_thres'] and \
+                abs(left_coeffs[-2] - next_left_coeffs_gt[1]) < lane_detection_sim_config['c1_thres']:
+            # True positive (close to next left lane marking gt)
+            # Thresholding doesn't guarantee definite true positive nevertheless
+            left_detection = MELaneMarking.from_lane_marking(
+                left_coeffs, next_left_marking_gt, lane_id)
+            # Perturb lane marking type
+            left_detection.perturb_type(lane_detection_sim_config['fc_prob'])
+
+        elif right_marking_gt and \
+                abs(left_coeffs[-1] - right_coeffs_gt[0]) < lane_detection_sim_config['c0_thres'] and \
+                abs(left_coeffs[-2] - right_coeffs_gt[1]) < lane_detection_sim_config['c1_thres']:
+            # True positive (close to right lane marking gt)
+            # Thresholding doesn't guarantee definite true positive nevertheless
+            left_detection = MELaneMarking.from_lane_marking(
+                left_coeffs, right_marking_gt, lane_id)
+            # Perturb lane marking type
+            left_detection.perturb_type(lane_detection_sim_config['fc_prob'])
+
+        else:
+            # False positive
+            # Randomly choose a type
+            random_type = random.choice(list(MELaneMarkingType))
+            left_detection = MELaneMarking(
+                left_coeffs, LaneMarkingColor.Other, random_type)
+
         if right_coeffs is None:
             # No detection
             right_detection = None
-        elif right_marking_gt is None or (abs(right_coeffs[-1] - right_coeffs_gt[0]) > lane_detection_sim_config['c0_thres'] or
-                                          abs(right_coeffs[-2] - right_coeffs_gt[1]) > lane_detection_sim_config['c1_thres']):
-            # False positive
-            right_detection = MELaneMarking(
-                right_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown)
-        else:
-            # True positive. Thresholding doesn't guarantee definite true positive nevertheless.
+        elif right_marking_gt and \
+                abs(right_coeffs[-1] - right_coeffs_gt[0]) < lane_detection_sim_config['c0_thres'] and \
+                abs(right_coeffs[-2] - right_coeffs_gt[1]) < lane_detection_sim_config['c1_thres']:
+            # True positive (close to left lane marking gt)
+            # Thresholding doesn't guarantee definite true positive nevertheless
             right_detection = MELaneMarking.from_lane_marking(
                 right_coeffs, right_marking_gt, lane_id)
             # Perturb lane marking type
             right_detection.perturb_type(lane_detection_sim_config['fc_prob'])
+
+        elif next_right_marking_gt and \
+                abs(right_coeffs[-1] - next_right_coeffs_gt[0]) < lane_detection_sim_config['c0_thres'] and \
+                abs(right_coeffs[-2] - next_right_coeffs_gt[1]) < lane_detection_sim_config['c1_thres']:
+            # True positive (close to next right lane marking gt)
+            # Thresholding doesn't guarantee definite true positive nevertheless
+            right_detection = MELaneMarking.from_lane_marking(
+                right_coeffs, next_right_marking_gt, lane_id)
+            # Perturb lane marking type
+            right_detection.perturb_type(lane_detection_sim_config['fc_prob'])
+
+        elif left_marking_gt and \
+                abs(right_coeffs[-1] - left_coeffs_gt[0]) < lane_detection_sim_config['c0_thres'] and \
+                abs(right_coeffs[-2] - left_coeffs_gt[1]) < lane_detection_sim_config['c1_thres']:
+            # True positive (close to left lane marking gt)
+            # Thresholding doesn't guarantee definite true positive nevertheless
+            right_detection = MELaneMarking.from_lane_marking(
+                right_coeffs, left_marking_gt, lane_id)
+            # Perturb lane marking type
+            right_detection.perturb_type(lane_detection_sim_config['fc_prob'])
+
+        else:
+            # False positive
+            # Randomly choose a type
+            random_type = random.choice(list(MELaneMarkingType))
+            right_detection = MELaneMarking(
+                right_coeffs, LaneMarkingColor.Other, random_type)
 
         lane_marking_detection_seq.append(
             MELaneDetection(left_detection, right_detection))
@@ -238,7 +299,8 @@ def main():
             depth_image, dist_cam_to_fbumper)
         if accurate_pole_xyz is not None:
             # Filter out points that are too high to focus on the lower part of poles
-            accurate_pole_xyz = accurate_pole_xyz[:, accurate_pole_xyz[2, :] < 0.5]
+            accurate_pole_xyz = accurate_pole_xyz[:,
+                                                  accurate_pole_xyz[2, :] < 0.5]
 
             # Transform accurate poles to world frame
             accurate_pole_xyz_world = fbumper2world_tfrom.tform_e2w_numpy_array(
