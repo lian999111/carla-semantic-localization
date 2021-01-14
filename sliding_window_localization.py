@@ -163,14 +163,30 @@ def main():
     ############### Prepare figure ###############
     fig, ax = plt.subplots()
 
+    # Retrieve pose ground truth
     loc_gt_seq = raxle_locations[init_idx:end_idx+1]
     ori_gt_seq = raxle_orientations[init_idx:end_idx+1]
     location_gt = np.asarray(loc_gt_seq)
     loc_x_gt = location_gt[:, 0]
     loc_y_gt = location_gt[:, 1]
 
+    # Retrieve pole ground truth
+    sign_poles_x = [pole.x for pole in pole_map if (
+        pole.type != TrafficSignType.Unknown and pole.type != TrafficSignType.RSStop)]
+    sign_poles_y = [pole.y for pole in pole_map if (
+        pole.type != TrafficSignType.Unknown and pole.type != TrafficSignType.RSStop)]
+    general_poles_x = [pole.x for pole in pole_map if
+                       pole.type == TrafficSignType.Unknown]
+    general_poles_y = [pole.y for pole in pole_map if
+                       pole.type == TrafficSignType.Unknown]
+
     # Path ground truth
     gt_path = ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2)
+    # Pole ground truth
+    sign_poles = ax.plot(sign_poles_x, sign_poles_y,
+                         'o', color='crimson', ms=3)
+    general_poles = ax.plot(general_poles_x, general_poles_y,
+                            'o', color='midnightblue', ms=3)
     # Create a dummy map background
     map_im = ax.imshow(np.zeros((1, 1, 3), dtype=int),
                        alpha=0.5)
@@ -218,7 +234,7 @@ def main():
 
     ############### Loop through recorded data ###############
     # Fix the seed for noise added afterwards
-    np.random.seed(10)
+    np.random.seed(0)
 
     # List for storing pose of each time step after optimization
     optimized_poses = []
@@ -293,7 +309,7 @@ def main():
         optimized_poses.append(last_pose)
 
         ##### Visualize current step #####
-        half_width = 15  # (m) half width of background map
+        half_width = 20  # (m) half width of background map
         half_width_px = half_width * map_info['pixels_per_meter']
 
         ### background map ###
@@ -461,6 +477,11 @@ def main():
     ax.set_ylabel('y (m)')
     # Ground truth path
     ax.plot(loc_x_gt, loc_y_gt, '-o', color='limegreen', ms=1, zorder=0)
+    # Ground truth poles
+    ax.plot(sign_poles_x, sign_poles_y,
+            'o', color='crimson', ms=3, zorder=1)
+    ax.plot(general_poles_x, general_poles_y,
+            'o', color='midnightblue', ms=3, zorder=1)
     # Resultant path with color
     norm = plt.Normalize(0, 3)
     lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
@@ -489,6 +510,11 @@ def main():
     ax.set_ylabel('y (m)')
     # Ground truth path
     ax.plot(loc_x_gt, loc_y_gt, '-o', color='limegreen', ms=1, zorder=0)
+    # Ground truth poles
+    ax.plot(sign_poles_x, sign_poles_y,
+            'o', color='crimson', ms=3, zorder=1)
+    ax.plot(general_poles_x, general_poles_y,
+            'o', color='midnightblue', ms=3, zorder=1)
     # Resultant path with color
     norm = plt.Normalize(0, 1)
     lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
@@ -517,6 +543,11 @@ def main():
     ax.set_ylabel('y (m)')
     # Ground truth path
     ax.plot(loc_x_gt, loc_y_gt, '-o', color='limegreen', ms=1, zorder=0)
+    # Ground truth poles
+    ax.plot(sign_poles_x, sign_poles_y,
+            'o', color='crimson', ms=3, zorder=1)
+    ax.plot(general_poles_x, general_poles_y,
+            'o', color='midnightblue', ms=3, zorder=1)
     # Resultant path with color
     norm = plt.Normalize(0, 0.5)
     lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
