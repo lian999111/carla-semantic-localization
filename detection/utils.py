@@ -153,7 +153,7 @@ class MELaneMarking(object):
 
     def perturb_type(self, fc_prob):
         """
-        Perturb lane marking type.
+        Perturb lane marking type with uniform distribution.
 
         Input:
             fc_prob: Probability of false classification.
@@ -162,6 +162,27 @@ class MELaneMarking(object):
         if random.random() < fc_prob:
             while True:
                 wrong_type = random.choice(list(MELaneMarkingType))
+                if wrong_type != self.type and wrong_type != MELaneMarkingType.Unknown:
+                    self.type = wrong_type
+                    break
+
+    def perturb_type_common(self, fc_prob):
+        """
+        Perturb lane marking type with commonly seen types.
+
+        Input:
+            fc_prob: Probability of false classification.
+        """
+        # Perturb lane marking type
+        if random.random() < fc_prob:
+            while True:
+                commons = [MELaneMarkingType.DashedMarker,
+                           MELaneMarkingType.SolidMarker,
+                           MELaneMarkingType.DoubleLine_BothDashed,
+                           MELaneMarkingType.DoubleLine_BothSolid,
+                           MELaneMarkingType.DoubleLine_LeftDashed,
+                           MELaneMarkingType.DoubleLine_RightDashed]
+                wrong_type = random.choice(commons)
                 if wrong_type != self.type and wrong_type != MELaneMarkingType.Unknown:
                     self.type = wrong_type
                     break
