@@ -70,6 +70,8 @@ def main():
     dist_cam_to_fbumper = dist_raxle_to_fbumper \
         - carla_config['sensor']['front_camera']['pos_x'] \
         - carla_config['ego_veh']['raxle_to_cg']
+    
+    dist_raxle_to_cam = dist_raxle_to_fbumper - dist_cam_to_fbumper
 
     # Read configurations for localization
     with args.localization_config as f:
@@ -196,9 +198,10 @@ def main():
     left_lb = ax.plot([], [])[0]
     right_lb = ax.plot([], [])[0]
     # Pole detection
-    sign_pole_dots = ax.plot([], [], 'x', color='crimson', ms=3, zorder=3)[0]
-    general_pole_dots = ax.plot(
-        [], [], 'x', color='midnightblue', ms=3, zorder=3)[0]
+    sign_pole_plot = ax.plot([], [], '-o', linewidth=0.2,
+                             color='crimson', fillstyle='none', ms=3, zorder=3)[0]
+    general_pole_plot = ax.plot([], [], '-o', linewidth=0.2,
+                                color='midnightblue', fillstyle='none', ms=3, zorder=3)[0]
 
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
@@ -264,7 +267,7 @@ def main():
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
         noised_gnss_x = gnss_x + np.random.normal(3.0, 3.0)
-        noised_gnss_y = gnss_y + np.random.normal(3.0, 3.0)
+        noised_gnss_y = gnss_y + np.random.normal(-3.0, 3.0)
 
         raxle_loacation_gt = raxle_locations[idx]
         yaw_gt = raxle_orientations[idx][2]
@@ -272,7 +275,8 @@ def main():
 
         # Add prior factor
         if idx == init_idx:
-            sw_graph.add_prior_factor(noised_gnss_x, noised_gnss_y, yaw_gt)
+            sw_graph.add_prior_factor(
+                noised_gnss_x, noised_gnss_y, noised_yaw_gt)
 
         if idx > init_idx:
             # Add CTRV between factor
@@ -387,6 +391,9 @@ def main():
 
         ### Visualize pole detection ###
         if pole_detection:
+            cam_coord_world = tform_e2w @ np.array([dist_raxle_to_cam, 0, 1])
+            cam_x_world = cam_coord_world[0]
+            cam_y_world = cam_coord_world[1]
             # Traffic signs
             sign_coords_ego = np.array(
                 [[pole.x, pole.y, 1] for pole in pole_detection if (
@@ -394,12 +401,19 @@ def main():
                     pole.type != TrafficSignType.RSStop)]).T
             if sign_coords_ego.size:
                 sign_coords_world = tform_fbumper2w @ sign_coords_ego
+                line_pts_x = []
+                line_pts_y = []
+                for coord in sign_coords_world.T:
+                    line_pts_x.append(cam_x_world)
+                    line_pts_x.append(coord[0])
+                    line_pts_y.append(cam_y_world)
+                    line_pts_y.append(coord[1])
                 # Update plot
-                sign_pole_dots.set_data(sign_coords_world[0, :],
-                                        sign_coords_world[1, :])
+                sign_pole_plot.set_data(line_pts_x,
+                                        line_pts_y)
             else:
                 # Update plot
-                sign_pole_dots.set_data([], [])
+                sign_pole_plot.set_data([], [])
 
             # General poles
             pole_coords_ego = np.array(
@@ -407,15 +421,22 @@ def main():
                     pole.type == TrafficSignType.Unknown]).T
             if pole_coords_ego.size:
                 pole_coords_world = tform_fbumper2w @ pole_coords_ego
+                line_pts_x = []
+                line_pts_y = []
+                for coord in pole_coords_world.T:
+                    line_pts_x.append(cam_x_world)
+                    line_pts_x.append(coord[0])
+                    line_pts_y.append(cam_y_world)
+                    line_pts_y.append(coord[1])
                 # Update plot
-                general_pole_dots.set_data(pole_coords_world[0, :],
-                                           pole_coords_world[1, :])
+                general_pole_plot.set_data(line_pts_x,
+                                           line_pts_y)
             else:
-                general_pole_dots.set_data([], [])
+                general_pole_plot.set_data([], [])
         else:
             # Update plot
-            sign_pole_dots.set_data([], [])
-            general_pole_dots.set_data([], [])
+            sign_pole_plot.set_data([], [])
+            general_pole_plot.set_data([], [])
 
         ax.set_title(idx)
         plt.pause(0.001)
