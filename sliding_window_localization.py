@@ -282,16 +282,12 @@ def main():
             sw_graph.add_gnss_factor(
                 np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
 
-            # Add pole factor after 3 steps for init estimation to converge
-            if idx - init_idx > 3:
-                if pole_detection is not None:
-                    for detected_pole in pole_detection:
-                        # if detected_pole.x < 50 and detected_pole.type != TrafficSignType.Unknown:
-                        if detected_pole.x < 50 and abs(detected_pole.y) < 25:
-                            sw_graph.add_pole_factor(detected_pole)
+            # Add rs stop factor
+            if rs_stop_detection is not None:
+                sw_graph.add_rs_stop_factor(rs_stop_detection, gnss_z)
 
-            # Add lane factor after 3 steps for init estimation to converge
-            if idx - init_idx > 6:
+            # Add lane factor after 10 steps for init estimation to converge
+            if idx - init_idx >= 10:
                 if lane_detection.left_marking_detection is not None:
                     sw_graph.add_lane_factor(
                         lane_detection.left_marking_detection, gnss_z)
@@ -299,8 +295,12 @@ def main():
                     sw_graph.add_lane_factor(
                         lane_detection.right_marking_detection, gnss_z)
 
-            if rs_stop_detection is not None:
-                sw_graph.add_rs_stop_factor(rs_stop_detection, gnss_z)
+            # Add pole factor after 15 steps for init estimation to converge
+            if idx - init_idx >= 15:
+                if pole_detection is not None:
+                    for detected_pole in pole_detection:
+                        if detected_pole.x < 50 and abs(detected_pole.y) < 25:
+                            sw_graph.add_pole_factor(detected_pole)
 
         # Truncate the graph if necessary
         sw_graph.try_move_sliding_window_forward()
