@@ -483,7 +483,7 @@ def main():
     ############### Visualize errors ###############
     # Prepare background
     loc_gts = np.asarray(loc_gt_seq)
-    margin = 7  # (m)
+    margin = 25  # (m)
     x_min = min(loc_gts[:, 0].min(), min(opti_loc_x)) - margin
     x_max = max(loc_gts[:, 0].max(), max(opti_loc_x)) + margin
     y_min = min(loc_gts[:, 1].min(), min(opti_loc_y)) - margin
