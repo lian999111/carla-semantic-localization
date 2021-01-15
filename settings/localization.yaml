@@ -6,9 +6,9 @@ graph:
   use_prev_posteriori: True
 
 prior:
-  stddev_x: 5.0 # Standard deviation in the noise model for x.
-  stddev_y: 5.0 # Standard deviation in the noise model for y.
-  stddev_theta: 5.0 # Standard deviation in the noise model for heading.
+  stddev_x: 10.0 # Standard deviation in the noise model for x.
+  stddev_y: 10.0 # Standard deviation in the noise model for y.
+  stddev_theta: 10.0 # Standard deviation in the noise model for heading.
 
 # Parameters for GPS factor
 gnss:
