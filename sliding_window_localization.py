@@ -195,6 +195,10 @@ def main():
     # Lane boundary detection
     left_lb = ax.plot([], [])[0]
     right_lb = ax.plot([], [])[0]
+    # Pole detection
+    sign_pole_dots = ax.plot([], [], 'x', color='crimson', ms=3, zorder=3)[0]
+    general_pole_dots = ax.plot(
+        [], [], 'x', color='midnightblue', ms=3, zorder=3)[0]
 
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
@@ -356,6 +360,7 @@ def main():
                                         [0, 0, 1]])
         # Matrix to transform points in front bumper to world frame
         tform_fbumper2w = tform_e2w @ tfrom_fbumper2raxel
+
         lb_x = np.linspace(0, 10, 10)
         if lane_detection.left_marking_detection:
             lb_y = lane_detection.left_marking_detection.compute_y(lb_x)
@@ -378,6 +383,38 @@ def main():
         else:
             # Update plot
             right_lb.set_data([], [])
+
+        ### Visualize pole detection ###
+        if pole_detection:
+            # Traffic signs
+            sign_coords_ego = np.array(
+                [[pole.x, pole.y, 1] for pole in pole_detection if (
+                    pole.type != TrafficSignType.Unknown and
+                    pole.type != TrafficSignType.RSStop)]).T
+            if sign_coords_ego.size:
+                sign_coords_world = tform_fbumper2w @ sign_coords_ego
+                # Update plot
+                sign_pole_dots.set_data(sign_coords_world[0, :],
+                                        sign_coords_world[1, :])
+            else:
+                # Update plot
+                sign_pole_dots.set_data([], [])
+
+            # General poles
+            pole_coords_ego = np.array(
+                [[pole.x, pole.y, 1] for pole in pole_detection if
+                    pole.type == TrafficSignType.Unknown]).T
+            if pole_coords_ego.size:
+                pole_coords_world = tform_fbumper2w @ pole_coords_ego
+                # Update plot
+                general_pole_dots.set_data(pole_coords_world[0, :],
+                                           pole_coords_world[1, :])
+            else:
+                general_pole_dots.set_data([], [])
+        else:
+            # Update plot
+            sign_pole_dots.set_data([], [])
+            general_pole_dots.set_data([], [])
 
         ax.set_title(idx)
         plt.pause(0.001)
