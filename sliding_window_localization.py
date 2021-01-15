@@ -271,7 +271,7 @@ def main():
 
         raxle_loacation_gt = raxle_locations[idx]
         yaw_gt = raxle_orientations[idx][2]
-        noised_yaw_gt = yaw_gt + np.random.normal(0.0, 0.2)
+        noised_yaw_gt = yaw_gt + np.random.normal(0.0, 0.1)
 
         # Add prior factor
         if idx == init_idx:
