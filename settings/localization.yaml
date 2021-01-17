@@ -12,8 +12,8 @@ prior:
 
 # Parameters for GPS factor
 gnss:
-  stddev_x: 5.0 # Standard deviation in the noise model for x.
-  stddev_y: 5.0 # Standard deviation in the noise model for y.
+  stddev_x: 10.0 # Standard deviation in the noise model for x.
+  stddev_y: 10.0 # Standard deviation in the noise model for y.
 
 # Parameter for ctrv odometry factor
 ctrv:
