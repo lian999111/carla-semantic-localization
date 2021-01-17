@@ -300,8 +300,8 @@ def main():
                     sw_graph.add_lane_factor(
                         lane_detection.right_marking_detection, gnss_z)
 
-            # Add pole factor after 15 steps for init estimation to converge
-            if idx - init_idx >= 15:
+            # Add pole factor after 10 steps for init estimation to converge
+            if idx - init_idx >= 10:
                 if pole_detection is not None:
                     for detected_pole in pole_detection:
                         if detected_pole.x < 50 and abs(detected_pole.y) < 25:
