@@ -12,7 +12,7 @@ clustering:
   # The maximum distance between two samples for one to be considered as in the neighborhood of the other.
   eps: 0.3  # (m)
   # The number of samples in a neighborhood for a point to be considered as a core point. This includes the point itself.
-  min_samples: 2
+  min_samples: 5
 
 classification:
   # The max distance between a TrafficSign and a pole that are to be associated.
