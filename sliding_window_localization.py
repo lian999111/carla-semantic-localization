@@ -453,7 +453,8 @@ def main():
 
     # imageio.mimsave('./localization.gif', gif_image_seq, fps=10)
 
-    ############### Compute errors ###############
+    ############### Evaluation ###############
+    #### Compute errors ####
     lon_errs, lat_errs, yaw_errs = evtools.compute_errors(pose_estimations,
                                                           loc_gt_seq, ori_gt_seq)
 
@@ -462,7 +463,7 @@ def main():
     abs_lat_errs = np.abs(np.asarray(lat_errs))
     abs_yaw_errs = np.abs(np.asarray(yaw_errs))
 
-    ############### Visualize errors ###############
+    #### Visualize errors ####
     # Prepare local map as background
     local_map_image, extent = evtools.get_local_map_image(
         loc_gt_seq, pose_estimations, map_image, map_info)
