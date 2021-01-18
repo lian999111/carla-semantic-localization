@@ -31,7 +31,7 @@ lane:
   # True to store the first query for expected lane detection and use it for all the rest of optimization steps.
   # False to query for expected lane detection at every optimization step.
   static: True
-  # True to ignore lane boundary detection when in junction area.
+  # True to ignore lane boundary detection when in or approaching junction area.
   ignore_junction: False 
 
   stddev_c0: 0.5 # Standard deviation in the measurement noise model for c0.
