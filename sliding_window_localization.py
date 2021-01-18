@@ -19,7 +19,7 @@ from carlasim.utils import TrafficSignType
 from localization.graph_manager import SlidingWindowGraphManager
 from localization.utils import ExpectedLaneExtractor, ExpectedPoleExtractor, ExpectedRSStopExtractor
 from localization.eval.map_image import MapImage
-from localization.eval.utils import compute_errors, world_to_pixel, plot_se2_with_cov, get_local_map_image, adjust_figure
+import localization.eval.utils as evtools
 
 try:
     sys.path.append(glob.glob('./carla-*%d.%d-%s.egg' % (
@@ -320,7 +320,7 @@ def main():
         ### background map ###
         # Get image coordinate of the latest pose on the map image
         last_loc = last_pose.translation()
-        image_coord = world_to_pixel(carla.Location(
+        image_coord = evtools.world_to_pixel(carla.Location(
             last_loc[0], -last_loc[1]), map_info)
 
         # Crop the map image for display
@@ -340,7 +340,7 @@ def main():
         for node_idx in sw_graph.get_idc_in_graph():
             pose = sw_graph.get_result(node_idx)
             cov = sw_graph.get_marignal_cov_matrix(node_idx)
-            pose_plots.append(plot_se2_with_cov(
+            pose_plots.append(evtools.plot_se2_with_cov(
                 ax, pose, cov, confidence=0.999))
 
         ### Visualize GNSS ###
@@ -455,8 +455,8 @@ def main():
 
     # TODO: Make following functions in eval package
     ############### Compute errors ###############
-    lon_errs, lat_errs, yaw_errs = compute_errors(pose_estimations,
-                                                  loc_gt_seq, ori_gt_seq)
+    lon_errs, lat_errs, yaw_errs = evtools.compute_errors(pose_estimations,
+                                                          loc_gt_seq, ori_gt_seq)
 
     # Absolute errors
     abs_lon_errs = np.abs(np.asarray(lon_errs))
@@ -465,116 +465,26 @@ def main():
 
     ############### Visualize errors ###############
     # Prepare local map as background
-    local_map_image, extent = get_local_map_image(
+    local_map_image, extent = evtools.get_local_map_image(
         loc_gt_seq, pose_estimations, map_image, map_info)
-    # Height-to-width aspect ratio
-    aspect = float(local_map_image.shape[0])/local_map_image.shape[1]
-    # Prepare path segments
-    x_estimations = [pose.translation()[0] for pose in pose_estimations]
-    y_estimations = [pose.translation()[1] for pose in pose_estimations]
-    points = np.array([x_estimations, y_estimations]).T.reshape(-1, 1, 2)
-    segments = np.concatenate((points[:-1], points[1:]), axis=1)
 
     ## Longitudinal error ##
-    fig, ax = plt.subplots()
-    ax.set_title('Longitudinal Error (m)')
-    ax.set_xlabel('x (m)')
-    ax.set_ylabel('y (m)')
-    # Ground truth path
-    ax.plot(loc_x_gts, loc_y_gts, '-o', color='limegreen', ms=1, zorder=0)
-    # Ground truth poles
-    ax.plot(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
-            'o', color='crimson', ms=3, zorder=1)
-    ax.plot(general_pole_coords[:, 0], general_pole_coords[:, 1],
-            'o', color='midnightblue', ms=3, zorder=1)
-    # Resultant path with color
-    norm = plt.Normalize(0, 3)
-    lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
-    # Set the values used for colormapping
-    lc.set_array(abs_lon_errs)
-    lc.set_linewidth(3)
-    line = ax.add_collection(lc)
-    ax.imshow(local_map_image,
-              extent=extent,
-              alpha=0.5)
-    adjust_figure(fig, aspect)
-
-    # Add color bar
-    # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
-    fig_width = fig.get_size_inches()[0]
-    cax = fig.add_axes([ax.get_position().x1+0.05/fig_width,
-                        ax.get_position().y0,
-                        0.1/fig_width,
-                        ax.get_position().height])
-    fig.colorbar(line, cax=cax)
-    # plt.savefig("test.png",bbox_inches='tight')
+    evtools.gen_colored_error_plot('Longitudinal Error (m)', abs_lon_errs,
+                                   loc_gt_seq, pose_estimations,
+                                   sign_pole_coords, general_pole_coords,
+                                   local_map_image, extent)
 
     ## Lateral error ##
-    fig, ax = plt.subplots()
-    ax.set_title('Lateral Error (m)')
-    ax.set_xlabel('x (m)')
-    ax.set_ylabel('y (m)')
-    # Ground truth path
-    ax.plot(loc_x_gts, loc_y_gts, '-o', color='limegreen', ms=1, zorder=0)
-    # Ground truth poles
-    ax.plot(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
-            'o', color='crimson', ms=3, zorder=1)
-    ax.plot(general_pole_coords[:, 0], general_pole_coords[:, 1],
-            'o', color='midnightblue', ms=3, zorder=1)
-    # Resultant path with color
-    norm = plt.Normalize(0, 1)
-    lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
-    # Set the values used for colormapping
-    lc.set_array(abs_lat_errs)
-    lc.set_linewidth(3)
-    line = ax.add_collection(lc)
-    ax.imshow(local_map_image,
-              extent=extent,
-              alpha=0.5)
-    adjust_figure(fig, aspect)
-
-    # Add color bar
-    # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
-    fig_width = fig.get_size_inches()[0]
-    cax = fig.add_axes([ax.get_position().x1+0.05/fig_width,
-                        ax.get_position().y0,
-                        0.1/fig_width,
-                        ax.get_position().height])
-    fig.colorbar(line, cax=cax)
+    evtools.gen_colored_error_plot('Lateral Error (m)', abs_lat_errs,
+                                   loc_gt_seq, pose_estimations,
+                                   sign_pole_coords, general_pole_coords,
+                                   local_map_image, extent)
 
     ## Yaw error ##
-    fig, ax = plt.subplots()
-    ax.set_title('Yaw Error (rad)')
-    ax.set_xlabel('x (m)')
-    ax.set_ylabel('y (m)')
-    # Ground truth path
-    ax.plot(loc_x_gts, loc_y_gts, '-o', color='limegreen', ms=1, zorder=0)
-    # Ground truth poles
-    ax.plot(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
-            'o', color='crimson', ms=3, zorder=1)
-    ax.plot(general_pole_coords[:, 0], general_pole_coords[:, 1],
-            'o', color='midnightblue', ms=3, zorder=1)
-    # Resultant path with color
-    norm = plt.Normalize(0, 0.5)
-    lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
-    # Set the values used for colormapping
-    lc.set_array(abs_yaw_errs)
-    lc.set_linewidth(3)
-    line = ax.add_collection(lc)
-    ax.imshow(local_map_image,
-              extent=extent,
-              alpha=0.5)
-
-    adjust_figure(fig, aspect)
-
-    # Add color bar
-    # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
-    fig_width = fig.get_size_inches()[0]
-    cax = fig.add_axes([ax.get_position().x1+0.05/fig_width,
-                        ax.get_position().y0,
-                        0.1/fig_width,
-                        ax.get_position().height])
-    fig.colorbar(line, cax=cax)
+    evtools.gen_colored_error_plot('Yaw Error (rad)', abs_yaw_errs,
+                                   loc_gt_seq, pose_estimations,
+                                   sign_pole_coords, general_pole_coords,
+                                   local_map_image, extent)
 
     plt.show()
 

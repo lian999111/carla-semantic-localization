@@ -7,6 +7,7 @@ import glob
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 from scipy.stats import chi2
 from scipy.linalg import sqrtm
 
@@ -158,6 +159,51 @@ def get_local_map_image(loc_gt_seq, pose_estimations, map_image, map_info, margi
                                 left_idx:right_idx]
 
     return local_map_image, extent
+
+
+def gen_colored_error_plot(title, errors, loc_gt_seq, pose_estimations, sign_pole_coords, general_pole_coords, local_map_img, extent):
+    # Prepare path segments
+    x_estimations = [pose.translation()[0] for pose in pose_estimations]
+    y_estimations = [pose.translation()[1] for pose in pose_estimations]
+    points = np.array([x_estimations, y_estimations]).T.reshape(-1, 1, 2)
+    segments = np.concatenate((points[:-1], points[1:]), axis=1)
+
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+    ax.set_xlabel('x (m)')
+    ax.set_ylabel('y (m)')
+    # Ground truth path
+    loc_gts = np.asarray(loc_gt_seq)
+    ax.plot(loc_gts[:, 0], loc_gts[:, 1], '-o', color='limegreen', ms=1, zorder=0)
+    # Ground truth poles
+    ax.plot(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
+            'o', color='crimson', ms=3, zorder=1)
+    ax.plot(general_pole_coords[:, 0], general_pole_coords[:, 1],
+            'o', color='midnightblue', ms=3, zorder=1)
+    # Resultant path with color
+    norm = plt.Normalize(0, 3)
+    lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
+    # Set the values used for colormapping
+    lc.set_array(errors)
+    lc.set_linewidth(3)
+    line = ax.add_collection(lc)
+
+    # Background map image
+    # Height-to-width aspect ratio
+    aspect = float(local_map_img.shape[0])/local_map_img.shape[1]
+    ax.imshow(local_map_img,
+              extent=extent,
+              alpha=0.5)
+    adjust_figure(fig, aspect)
+
+    # Add color bar
+    # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
+    fig_width = fig.get_size_inches()[0]
+    cax = fig.add_axes([ax.get_position().x1+0.05/fig_width,
+                        ax.get_position().y0,
+                        0.1/fig_width,
+                        ax.get_position().height])
+    fig.colorbar(line, cax=cax)
 
 
 def adjust_figure(fig, aspect, size=7):
