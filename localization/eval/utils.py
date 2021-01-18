@@ -1,10 +1,23 @@
 """Utility functions for localization evaluation"""
 
 import math
+import sys
+import os
+import glob
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import chi2
 from scipy.linalg import sqrtm
+
+try:
+    sys.path.append(glob.glob('./carla-*%d.%d-%s.egg' % (
+        sys.version_info.major,
+        sys.version_info.minor,
+        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
+except IndexError:
+    pass
+import carla
 
 
 def compute_errors(pose_estis, loc_gt_seq, ori_gt_seq):
@@ -106,6 +119,45 @@ def plot_se2_with_cov(ax, pose, cov, vehicle_size=0.5, line_color='k', vehicle_c
 
     ellipse = ax.add_line(line)
     return triangle, ellipse
+
+
+def get_local_map_image(loc_gt_seq, pose_estimations, map_image, map_info, margin=25):
+    """Get local map image given the trajectory.
+
+    Args:
+        loc_gt_seq (list): List of ground truth locations.
+        pose_estimations (list of sophus.SE2): List of pose esitmations.
+        map_image (np.ndarray): Map image.
+        map_info (dict): Metainfo of the map image.
+        margin (int): Margin to be included around the trajectory.
+    Returns:
+        local_map_image: Local map image.
+        extent: Extent of the local map image for imshow().
+    """
+    loc_gts = np.asarray(loc_gt_seq)
+    x_estimations = [pose.translation()[0] for pose in pose_estimations]
+    y_estimations = [pose.translation()[1] for pose in pose_estimations]
+    x_min = min(loc_gts[:, 0].min(), min(x_estimations)) - margin
+    x_max = max(loc_gts[:, 0].max(), max(x_estimations)) + margin
+    y_min = min(loc_gts[:, 1].min(), min(y_estimations)) - margin
+    y_max = max(loc_gts[:, 1].max(), max(y_estimations)) + margin
+    extent = [x_min, x_max, y_min, y_max]
+
+    x_center = (x_max + x_min)/2
+    y_center = (y_max + y_min)/2
+    x_half_width = (x_max - x_min)/2
+    y_half_width = (y_max - y_min)/2
+
+    map_center = world_to_pixel(
+        carla.Location(x_center, -y_center, 0), map_info)
+    left_idx = map_center[0] - int(x_half_width*map_info['pixels_per_meter'])
+    right_idx = map_center[0] + int(x_half_width*map_info['pixels_per_meter'])
+    bottom_idx = map_center[1] + int(y_half_width*map_info['pixels_per_meter'])
+    top_idx = map_center[1] - int(y_half_width*map_info['pixels_per_meter'])
+    local_map_image = map_image[top_idx:bottom_idx,
+                                left_idx:right_idx]
+
+    return local_map_image, extent
 
 
 def adjust_figure(fig, aspect, size=7):

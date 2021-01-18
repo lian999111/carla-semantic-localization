@@ -19,7 +19,7 @@ from carlasim.utils import TrafficSignType
 from localization.graph_manager import SlidingWindowGraphManager
 from localization.utils import ExpectedLaneExtractor, ExpectedPoleExtractor, ExpectedRSStopExtractor
 from localization.eval.map_image import MapImage
-from localization.eval.utils import compute_errors, world_to_pixel, plot_se2_with_cov, adjust_figure
+from localization.eval.utils import compute_errors, world_to_pixel, plot_se2_with_cov, get_local_map_image, adjust_figure
 
 try:
     sys.path.append(glob.glob('./carla-*%d.%d-%s.egg' % (
@@ -468,31 +468,13 @@ def main():
     abs_yaw_errs = np.abs(np.asarray(yaw_errs))
 
     ############### Visualize errors ###############
-    # Prepare background
-    loc_gts = np.asarray(loc_gt_seq)
+    # Prepare local map as background
+    local_map_image, extent = get_local_map_image(loc_gt_seq, pose_estimations, map_image, map_info)
+    # Height-to-width aspect ratio
+    aspect = float(local_map_image.shape[0])/local_map_image.shape[1]
+    # Prepare path segments
     x_estimations = [pose.translation()[0] for pose in pose_estimations]
     y_estimations = [pose.translation()[1] for pose in pose_estimations]
-    margin = 25  # (m)
-    x_min = min(loc_gts[:, 0].min(), min(x_estimations)) - margin
-    x_max = max(loc_gts[:, 0].max(), max(x_estimations)) + margin
-    y_min = min(loc_gts[:, 1].min(), min(y_estimations)) - margin
-    y_max = max(loc_gts[:, 1].max(), max(y_estimations)) + margin
-    x_center = (x_max + x_min)/2
-    y_center = (y_max + y_min)/2
-    x_half_width = (x_max - x_min)/2
-    y_half_width = (y_max - y_min)/2
-    aspect = y_half_width/x_half_width  # height-to-width aspect ratio
-
-    map_center = world_to_pixel(
-        carla.Location(x_center, -y_center, 0), map_info)
-    left_idx = map_center[0] - int(x_half_width*map_info['pixels_per_meter'])
-    right_idx = map_center[0] + int(x_half_width*map_info['pixels_per_meter'])
-    bottom_idx = map_center[1] + int(y_half_width*map_info['pixels_per_meter'])
-    top_idx = map_center[1] - int(y_half_width*map_info['pixels_per_meter'])
-    local_map_image = map_image[top_idx:bottom_idx,
-                                left_idx:right_idx]
-
-    # Prepare path segments
     points = np.array([x_estimations, y_estimations]).T.reshape(-1, 1, 2)
     segments = np.concatenate((points[:-1], points[1:]), axis=1)
 
@@ -516,7 +498,7 @@ def main():
     lc.set_linewidth(3)
     line = ax.add_collection(lc)
     ax.imshow(local_map_image,
-              extent=[x_min, x_max, y_min, y_max],
+              extent=extent,
               alpha=0.5)
     adjust_figure(fig, aspect)
 
@@ -550,7 +532,7 @@ def main():
     lc.set_linewidth(3)
     line = ax.add_collection(lc)
     ax.imshow(local_map_image,
-              extent=[x_min, x_max, y_min, y_max],
+              extent=extent,
               alpha=0.5)
     adjust_figure(fig, aspect)
 
@@ -583,7 +565,7 @@ def main():
     lc.set_linewidth(3)
     line = ax.add_collection(lc)
     ax.imshow(local_map_image,
-              extent=[x_min, x_max, y_min, y_max],
+              extent=extent,
               alpha=0.5)
 
     adjust_figure(fig, aspect)
