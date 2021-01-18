@@ -55,7 +55,17 @@ def compute_errors(pose_estis, loc_gt_seq, ori_gt_seq):
 
 
 def world_to_pixel(location, map_info, offset=(0, 0)):
-    """Convert the world coordinates to pixel coordinates"""
+    """Convert the world coordinates to pixel coordinates in a map image.
+
+    Since the map images are generated using Carla's demo codes, the conversion
+    requires the location to be represented in Carla's coordinate system.
+    
+    Args:
+        location (carla.Location): Location of interest.
+        map_info (dict): Metainfo of the map image.
+    Returns:
+        Pixel coordinate of the given carla.Location.
+    """
     x = map_info['scale'] * map_info['pixels_per_meter'] * \
         (location.x - map_info['world_offset_x'])
     y = map_info['scale'] * map_info['pixels_per_meter'] * \
