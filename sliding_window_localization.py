@@ -453,7 +453,6 @@ def main():
 
     # imageio.mimsave('./localization.gif', gif_image_seq, fps=10)
 
-    # TODO: Make following functions in eval package
     ############### Compute errors ###############
     lon_errs, lat_errs, yaw_errs = evtools.compute_errors(pose_estimations,
                                                           loc_gt_seq, ori_gt_seq)
