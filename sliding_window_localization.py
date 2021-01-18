@@ -173,21 +173,17 @@ def main():
     loc_y_gts = location_gt[:, 1]
 
     # Retrieve pole ground truth
-    sign_poles_x = [pole.x for pole in pole_map if (
-        pole.type != TrafficSignType.Unknown and pole.type != TrafficSignType.RSStop)]
-    sign_poles_y = [pole.y for pole in pole_map if (
-        pole.type != TrafficSignType.Unknown and pole.type != TrafficSignType.RSStop)]
-    general_poles_x = [pole.x for pole in pole_map if
-                       pole.type == TrafficSignType.Unknown]
-    general_poles_y = [pole.y for pole in pole_map if
-                       pole.type == TrafficSignType.Unknown]
+    sign_pole_coords = np.array([[pole.x, pole.y] for pole in pole_map if (
+        pole.type != TrafficSignType.Unknown and pole.type != TrafficSignType.RSStop)])
+    general_pole_coords = np.array([[pole.x, pole.y] for pole in pole_map if
+                                    pole.type == TrafficSignType.Unknown])
 
     # Path ground truth
     gt_path = ax.plot(loc_x_gts, loc_y_gts, '-o', ms=2)
     # Pole ground truth
-    sign_poles = ax.plot(sign_poles_x, sign_poles_y,
+    sign_poles = ax.plot(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
                          'o', color='crimson', ms=3)
-    general_poles = ax.plot(general_poles_x, general_poles_y,
+    general_poles = ax.plot(general_pole_coords[:, 0], general_pole_coords[:, 1],
                             'o', color='midnightblue', ms=3)
     # Create a dummy map background
     map_im = ax.imshow(np.zeros((1, 1, 3), dtype=int),
@@ -469,7 +465,8 @@ def main():
 
     ############### Visualize errors ###############
     # Prepare local map as background
-    local_map_image, extent = get_local_map_image(loc_gt_seq, pose_estimations, map_image, map_info)
+    local_map_image, extent = get_local_map_image(
+        loc_gt_seq, pose_estimations, map_image, map_info)
     # Height-to-width aspect ratio
     aspect = float(local_map_image.shape[0])/local_map_image.shape[1]
     # Prepare path segments
@@ -486,9 +483,9 @@ def main():
     # Ground truth path
     ax.plot(loc_x_gts, loc_y_gts, '-o', color='limegreen', ms=1, zorder=0)
     # Ground truth poles
-    ax.plot(sign_poles_x, sign_poles_y,
+    ax.plot(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
             'o', color='crimson', ms=3, zorder=1)
-    ax.plot(general_poles_x, general_poles_y,
+    ax.plot(general_pole_coords[:, 0], general_pole_coords[:, 1],
             'o', color='midnightblue', ms=3, zorder=1)
     # Resultant path with color
     norm = plt.Normalize(0, 3)
@@ -520,9 +517,9 @@ def main():
     # Ground truth path
     ax.plot(loc_x_gts, loc_y_gts, '-o', color='limegreen', ms=1, zorder=0)
     # Ground truth poles
-    ax.plot(sign_poles_x, sign_poles_y,
+    ax.plot(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
             'o', color='crimson', ms=3, zorder=1)
-    ax.plot(general_poles_x, general_poles_y,
+    ax.plot(general_pole_coords[:, 0], general_pole_coords[:, 1],
             'o', color='midnightblue', ms=3, zorder=1)
     # Resultant path with color
     norm = plt.Normalize(0, 1)
@@ -553,9 +550,9 @@ def main():
     # Ground truth path
     ax.plot(loc_x_gts, loc_y_gts, '-o', color='limegreen', ms=1, zorder=0)
     # Ground truth poles
-    ax.plot(sign_poles_x, sign_poles_y,
+    ax.plot(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
             'o', color='crimson', ms=3, zorder=1)
-    ax.plot(general_poles_x, general_poles_y,
+    ax.plot(general_pole_coords[:, 0], general_pole_coords[:, 1],
             'o', color='midnightblue', ms=3, zorder=1)
     # Resultant path with color
     norm = plt.Normalize(0, 0.5)
