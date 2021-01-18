@@ -19,7 +19,7 @@ from carlasim.utils import TrafficSignType
 from localization.graph_manager import SlidingWindowGraphManager
 from localization.utils import ExpectedLaneExtractor, ExpectedPoleExtractor, ExpectedRSStopExtractor
 from localization.eval.map_image import MapImage
-from localization.eval.utils import world_to_pixel, plot_se2_with_cov, adjust_figure
+from localization.eval.utils import compute_errors, world_to_pixel, plot_se2_with_cov, adjust_figure
 
 try:
     sys.path.append(glob.glob('./carla-*%d.%d-%s.egg' % (
@@ -169,8 +169,8 @@ def main():
     loc_gt_seq = raxle_locations[init_idx:end_idx+1]
     ori_gt_seq = raxle_orientations[init_idx:end_idx+1]
     location_gt = np.asarray(loc_gt_seq)
-    loc_x_gt = location_gt[:, 0]
-    loc_y_gt = location_gt[:, 1]
+    loc_x_gts = location_gt[:, 0]
+    loc_y_gts = location_gt[:, 1]
 
     # Retrieve pole ground truth
     sign_poles_x = [pole.x for pole in pole_map if (
@@ -183,7 +183,7 @@ def main():
                        pole.type == TrafficSignType.Unknown]
 
     # Path ground truth
-    gt_path = ax.plot(loc_x_gt, loc_y_gt, '-o', ms=2)
+    gt_path = ax.plot(loc_x_gts, loc_y_gts, '-o', ms=2)
     # Pole ground truth
     sign_poles = ax.plot(sign_poles_x, sign_poles_y,
                          'o', color='crimson', ms=3)
@@ -244,7 +244,7 @@ def main():
     np.random.seed(0)
 
     # List for storing pose of each time step after optimization
-    optimized_poses = []
+    pose_estimations = []
     gif_image_seq = []
     for idx, timestamp in enumerate(timestamp_seq):
 
@@ -266,8 +266,8 @@ def main():
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(0.0, 3.0)
-        noised_gnss_y = gnss_y + np.random.normal(0.0, 3.0)
+        noised_gnss_x = gnss_x + np.random.normal(3.0, 5.0)
+        noised_gnss_y = gnss_y + np.random.normal(3.0, 5.0)
 
         raxle_loacation_gt = raxle_locations[idx]
         yaw_gt = raxle_orientations[idx][2]
@@ -315,7 +315,7 @@ def main():
 
         # Record the lastest pose after optimization
         last_pose = sw_graph.last_optimized_se2
-        optimized_poses.append(last_pose)
+        pose_estimations.append(last_pose)
 
         ##### Visualize current step #####
         half_width = 20  # (m) half width of background map
@@ -458,60 +458,25 @@ def main():
     # imageio.mimsave('./localization.gif', gif_image_seq, fps=10)
 
     # TODO: Make following functions in eval package
-    ############### Evaluate ###############
-    opti_loc_x = []
-    opti_loc_y = []
-    opti_yaw = []
-    longitudinal_errors = []
-    lateral_errors = []
-    yaw_errors = []
-    for loc_gt, ori_gt, opti_pose in zip(loc_gt_seq, ori_gt_seq, optimized_poses):
-        x_gt = loc_gt[0]
-        y_gt = loc_gt[1]
-        yaw_gt = ori_gt[2]
-
-        # Translational error
-        # Matrix that transforms a point in ego frame to world frame
-        tform_e2w = np.array([[math.cos(yaw_gt), -math.sin(yaw_gt), x_gt],
-                              [math.sin(yaw_gt), math.cos(yaw_gt), y_gt],
-                              [0, 0, 1]])
-        tform_w2e = np.linalg.inv(tform_e2w)
-
-        trvec_world = np.append(opti_pose.translation(), 1)
-        trvec_ego = tform_w2e @ trvec_world
-
-        longitudinal_errors.append(trvec_ego[0])
-        lateral_errors.append(trvec_ego[1])
-
-        # Rotational error
-        yaw = opti_pose.so2().theta()
-        yaw_error = yaw - yaw_gt
-        # Since yaw angle is in a cyclic space, when the amount of error is larger than 180 degrees,
-        # we need to correct it.
-        if yaw_error > math.pi:
-            yaw_error = 2*math.pi - yaw_error
-        elif yaw_error < -math.pi:
-            yaw_error = 2*math.pi + yaw_error
-        yaw_errors.append(yaw_error)
-
-        # Localization results
-        opti_loc_x.append(opti_pose.translation()[0])
-        opti_loc_y.append(opti_pose.translation()[1])
-        opti_yaw.append(yaw)
+    ############### Compute errors ###############
+    lon_errs, lat_errs, yaw_errs = compute_errors(pose_estimations,
+                                                  loc_gt_seq, ori_gt_seq)
 
     # Absolute errors
-    abs_longitudinal_errors = np.abs(np.asarray(longitudinal_errors))
-    abs_lateral_errors = np.abs(np.asarray(lateral_errors))
-    abs_yaw_errors = np.abs(np.asarray(yaw_errors))
+    abs_lon_errs = np.abs(np.asarray(lon_errs))
+    abs_lat_errs = np.abs(np.asarray(lat_errs))
+    abs_yaw_errs = np.abs(np.asarray(yaw_errs))
 
     ############### Visualize errors ###############
     # Prepare background
     loc_gts = np.asarray(loc_gt_seq)
+    x_estimations = [pose.translation()[0] for pose in pose_estimations]
+    y_estimations = [pose.translation()[1] for pose in pose_estimations]
     margin = 25  # (m)
-    x_min = min(loc_gts[:, 0].min(), min(opti_loc_x)) - margin
-    x_max = max(loc_gts[:, 0].max(), max(opti_loc_x)) + margin
-    y_min = min(loc_gts[:, 1].min(), min(opti_loc_y)) - margin
-    y_max = max(loc_gts[:, 1].max(), max(opti_loc_y)) + margin
+    x_min = min(loc_gts[:, 0].min(), min(x_estimations)) - margin
+    x_max = max(loc_gts[:, 0].max(), max(x_estimations)) + margin
+    y_min = min(loc_gts[:, 1].min(), min(y_estimations)) - margin
+    y_max = max(loc_gts[:, 1].max(), max(y_estimations)) + margin
     x_center = (x_max + x_min)/2
     y_center = (y_max + y_min)/2
     x_half_width = (x_max - x_min)/2
@@ -528,7 +493,7 @@ def main():
                                 left_idx:right_idx]
 
     # Prepare path segments
-    points = np.array([opti_loc_x, opti_loc_y]).T.reshape(-1, 1, 2)
+    points = np.array([x_estimations, y_estimations]).T.reshape(-1, 1, 2)
     segments = np.concatenate((points[:-1], points[1:]), axis=1)
 
     ## Longitudinal error ##
@@ -537,7 +502,7 @@ def main():
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
     # Ground truth path
-    ax.plot(loc_x_gt, loc_y_gt, '-o', color='limegreen', ms=1, zorder=0)
+    ax.plot(loc_x_gts, loc_y_gts, '-o', color='limegreen', ms=1, zorder=0)
     # Ground truth poles
     ax.plot(sign_poles_x, sign_poles_y,
             'o', color='crimson', ms=3, zorder=1)
@@ -547,7 +512,7 @@ def main():
     norm = plt.Normalize(0, 3)
     lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
     # Set the values used for colormapping
-    lc.set_array(abs_longitudinal_errors)
+    lc.set_array(abs_lon_errs)
     lc.set_linewidth(3)
     line = ax.add_collection(lc)
     ax.imshow(local_map_image,
@@ -563,6 +528,7 @@ def main():
                         0.1/fig_width,
                         ax.get_position().height])
     fig.colorbar(line, cax=cax)
+    # plt.savefig("test.png",bbox_inches='tight')
 
     ## Lateral error ##
     fig, ax = plt.subplots()
@@ -570,7 +536,7 @@ def main():
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
     # Ground truth path
-    ax.plot(loc_x_gt, loc_y_gt, '-o', color='limegreen', ms=1, zorder=0)
+    ax.plot(loc_x_gts, loc_y_gts, '-o', color='limegreen', ms=1, zorder=0)
     # Ground truth poles
     ax.plot(sign_poles_x, sign_poles_y,
             'o', color='crimson', ms=3, zorder=1)
@@ -580,7 +546,7 @@ def main():
     norm = plt.Normalize(0, 1)
     lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
     # Set the values used for colormapping
-    lc.set_array(abs_lateral_errors)
+    lc.set_array(abs_lat_errs)
     lc.set_linewidth(3)
     line = ax.add_collection(lc)
     ax.imshow(local_map_image,
@@ -603,7 +569,7 @@ def main():
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
     # Ground truth path
-    ax.plot(loc_x_gt, loc_y_gt, '-o', color='limegreen', ms=1, zorder=0)
+    ax.plot(loc_x_gts, loc_y_gts, '-o', color='limegreen', ms=1, zorder=0)
     # Ground truth poles
     ax.plot(sign_poles_x, sign_poles_y,
             'o', color='crimson', ms=3, zorder=1)
@@ -613,7 +579,7 @@ def main():
     norm = plt.Normalize(0, 0.5)
     lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
     # Set the values used for colormapping
-    lc.set_array(abs_yaw_errors)
+    lc.set_array(abs_yaw_errs)
     lc.set_linewidth(3)
     line = ax.add_collection(lc)
     ax.imshow(local_map_image,

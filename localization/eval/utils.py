@@ -7,6 +7,53 @@ from scipy.stats import chi2
 from scipy.linalg import sqrtm
 
 
+def compute_errors(pose_estis, loc_gt_seq, ori_gt_seq):
+    """Compute longitudinal, lateral, and yaw errors.
+
+    Args:
+        pose_estis (list of sophus.SE2): List of pose esitmations.
+        loc_gt_seq (list): List of ground truth locations.
+        ori_gt_seq (list): List of ground truth orientations.
+    Returns:
+        longitudinal_errors (list): List of longitudinal errors
+        lateral_errors (list): List of lateral errors
+        yaw_errors (list): List of yaw errors
+    """
+    longitudinal_errors = []
+    lateral_errors = []
+    yaw_errors = []
+    for loc_gt, ori_gt, pose_esit in zip(loc_gt_seq, ori_gt_seq, pose_estis):
+        x_gt = loc_gt[0]
+        y_gt = loc_gt[1]
+        yaw_gt = ori_gt[2]
+
+        # Translational error
+        # Matrix that transforms a point in ego frame to world frame
+        tform_e2w = np.array([[math.cos(yaw_gt), -math.sin(yaw_gt), x_gt],
+                              [math.sin(yaw_gt), math.cos(yaw_gt), y_gt],
+                              [0, 0, 1]])
+        tform_w2e = np.linalg.inv(tform_e2w)
+
+        trvec_world = np.append(pose_esit.translation(), 1)
+        trvec_ego = tform_w2e @ trvec_world
+
+        longitudinal_errors.append(trvec_ego[0])
+        lateral_errors.append(trvec_ego[1])
+
+        # Rotational error
+        yaw = pose_esit.so2().theta()
+        yaw_error = yaw - yaw_gt
+        # Since yaw angle is in a cyclic space, when the amount of error is larger than 180 degrees,
+        # we need to correct it.
+        if yaw_error > math.pi:
+            yaw_error = 2*math.pi - yaw_error
+        elif yaw_error < -math.pi:
+            yaw_error = 2*math.pi + yaw_error
+        yaw_errors.append(yaw_error)
+
+    return longitudinal_errors, lateral_errors, yaw_errors
+
+
 def world_to_pixel(location, map_info, offset=(0, 0)):
     """Convert the world coordinates to pixel coordinates"""
     x = map_info['scale'] * map_info['pixels_per_meter'] * \
