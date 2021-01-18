@@ -73,7 +73,7 @@ def world_to_pixel(location, map_info, offset=(0, 0)):
 
     Since the map images are generated using Carla's demo codes, the conversion
     requires the location to be represented in Carla's coordinate system.
-    
+
     Args:
         location (carla.Location): Location of interest.
         map_info (dict): Metainfo of the map image.
@@ -161,7 +161,22 @@ def get_local_map_image(loc_gt_seq, pose_estimations, map_image, map_info, margi
     return local_map_image, extent
 
 
-def gen_colored_error_plot(title, errors, loc_gt_seq, pose_estimations, sign_pole_coords, general_pole_coords, local_map_img, extent):
+def gen_colored_error_plot(title, errors,
+                           loc_gt_seq, pose_estimations,
+                           sign_pole_coords, general_pole_coords,
+                           local_map_img, extent):
+    """Generate colored error plot.
+
+    Args:
+        title (string): Title of the plot.
+        errors (array-like): A sequence of errors.
+        loc_gt_seq (list): List of ground truth locations.
+        pose_estimations (list): List of pose estimations.
+        sign_pole_coords (np.ndarray): Ground truth coordinates of traffic sign poles.
+        general_pole_coords (np.ndarray): Ground truth coordinates of general poles.
+        local_map_img (np.ndarray): Local map image.
+        extent (list): Extent of the local map image for imshow().
+    """
     # Prepare path segments
     x_estimations = [pose.translation()[0] for pose in pose_estimations]
     y_estimations = [pose.translation()[1] for pose in pose_estimations]
@@ -174,7 +189,8 @@ def gen_colored_error_plot(title, errors, loc_gt_seq, pose_estimations, sign_pol
     ax.set_ylabel('y (m)')
     # Ground truth path
     loc_gts = np.asarray(loc_gt_seq)
-    ax.plot(loc_gts[:, 0], loc_gts[:, 1], '-o', color='limegreen', ms=1, zorder=0)
+    ax.plot(loc_gts[:, 0], loc_gts[:, 1], '-o',
+            color='limegreen', ms=1, zorder=0)
     # Ground truth poles
     ax.plot(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
             'o', color='crimson', ms=3, zorder=1)
