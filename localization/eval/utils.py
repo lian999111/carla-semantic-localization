@@ -8,7 +8,7 @@ from scipy.linalg import sqrtm
 
 
 def world_to_pixel(location, map_info, offset=(0, 0)):
-    """Converts the world coordinates to pixel coordinates"""
+    """Convert the world coordinates to pixel coordinates"""
     x = map_info['scale'] * map_info['pixels_per_meter'] * \
         (location.x - map_info['world_offset_x'])
     y = map_info['scale'] * map_info['pixels_per_meter'] * \
@@ -52,7 +52,7 @@ def plot_se2_with_cov(ax, pose, cov, vehicle_size=0.5, line_color='k', vehicle_c
 
 
 def adjust_figure(fig, aspect, size=7):
-    """Add color bar and adjust figure size to fit.
+    """Adjust figure size to fit.
 
     Args:
         fig: Figure object.
