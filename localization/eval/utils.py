@@ -161,7 +161,7 @@ def get_local_map_image(loc_gt_seq, pose_estimations, map_image, map_info, margi
     return local_map_image, extent
 
 
-def gen_colored_error_plot(title, errors,
+def gen_colored_error_plot(title, errors, upper_bound,
                            loc_gt_seq, pose_estimations,
                            sign_pole_coords, general_pole_coords,
                            local_map_img, extent):
@@ -170,6 +170,7 @@ def gen_colored_error_plot(title, errors,
     Args:
         title (string): Title of the plot.
         errors (array-like): A sequence of errors.
+        upper_bound (float): Error value corresponding to the maximum in the color map.
         loc_gt_seq (list): List of ground truth locations.
         pose_estimations (list): List of pose estimations.
         sign_pole_coords (np.ndarray): Ground truth coordinates of traffic sign poles.
@@ -197,7 +198,7 @@ def gen_colored_error_plot(title, errors,
     ax.plot(general_pole_coords[:, 0], general_pole_coords[:, 1],
             'o', color='midnightblue', ms=3, zorder=1)
     # Resultant path with color
-    norm = plt.Normalize(0, 3)
+    norm = plt.Normalize(0, upper_bound)
     lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
     # Set the values used for colormapping
     lc.set_array(errors)
