@@ -239,7 +239,7 @@ def main():
 
     ############### Loop through recorded data ###############
     # Fix the seed for noise added afterwards
-    np.random.seed(10)
+    np.random.seed(0)
 
     # Lists for pre init phase
     init_gnss_x = []
