@@ -61,7 +61,7 @@ world:
 ## Behavior Agent (uncomment this section to use behavior agent)
 behavior_agent:
   ignore_traffic_light: True
-  behavior: 'normal'    # 'cautious', 'normal', 'aggressive'  Note: 'aggressive' often cause instability.
+  behavior: 'normal'    # 'cautious', 'normal', 'aggressive'
   # x, y, z in Carla's coordinate system (left-handed z-up)
   # These are just rough coordinates. 
   # The nearest carla.Waypoints will be retrieved around these rough goals.
