@@ -207,14 +207,17 @@ class PoleFactor(Factor):
                     # Measurement likelihood
                     meas_likelihood = multivariate_normal_pdf(error.squeeze(),
                                                             cov=scaled_noise_cov)
-                    meas_likelihoods.append(meas_likelihood)
 
                     # Geometric likelihood
                     geo_likelihood = multivariate_normal_pdf(error.squeeze(),
                                                             cov=innov)
-
-                    asso_prob = geo_likelihood * sem_likelihood
-                    asso_probs.append(asso_prob)
+                    # Due to numerical errors, likelihood can become exactly 0.0
+                    # in some very rare cases.
+                    # When it happens, simply ignore it.
+                    if meas_likelihood > 0.0 and geo_likelihood > 0.0:
+                        meas_likelihoods.append(meas_likelihood)
+                        asso_prob = geo_likelihood * sem_likelihood
+                        asso_probs.append(asso_prob)
 
             if asso_probs:
                 asso_probs = np.asarray(asso_probs)
