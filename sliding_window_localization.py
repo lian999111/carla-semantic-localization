@@ -241,9 +241,11 @@ def main():
     # Fix the seed for noise added afterwards
     np.random.seed(10)
 
-    # List for storing pose of each time step after optimization
+    # Lists for pre init phase
     init_gnss_x = []
     init_gnss_y = []
+
+    # List for storing pose of each time step after optimization
     pose_estimations = []
     gif_image_seq = []
     for idx, timestamp in enumerate(timestamp_seq):
@@ -297,7 +299,7 @@ def main():
             sw_graph.add_gnss_factor(
                 np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
 
-            # # Add rs stop factor
+            # Add rs stop factor
             if rs_stop_detection is not None:
                 sw_graph.add_rs_stop_factor(rs_stop_detection, gnss_z)
 
@@ -309,7 +311,7 @@ def main():
                 sw_graph.add_lane_factor(
                     lane_detection.right_marking_detection, gnss_z)
 
-            # # Add pole factors
+            # Add pole factors
             if pole_detection is not None:
                 for detected_pole in pole_detection:
                     if detected_pole.x < 50 and abs(detected_pole.y) < 25:
