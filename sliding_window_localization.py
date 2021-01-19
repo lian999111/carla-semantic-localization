@@ -107,8 +107,10 @@ def main():
     rs_stop_detection_seq = detections['rs_stop']
 
     # Indices to clip the recording
-    # Only data between the indices are used
-    init_idx = 10
+    # GNSS data between pre_init_idx and init_idx will be averaged to get the initial guess.
+    # Data between init_idx and end_idx will be used for localization.
+    pre_init_idx = 10
+    init_idx = 20
     end_idx = 2000
 
     ############### Connect to Carla server ###############
@@ -237,14 +239,16 @@ def main():
 
     ############### Loop through recorded data ###############
     # Fix the seed for noise added afterwards
-    np.random.seed(0)
+    np.random.seed(10)
 
     # List for storing pose of each time step after optimization
+    init_gnss_x = []
+    init_gnss_y = []
     pose_estimations = []
     gif_image_seq = []
     for idx, timestamp in enumerate(timestamp_seq):
 
-        if idx < init_idx:
+        if idx < pre_init_idx:
             continue
 
         delta_t = timestamp - timestamp_seq[idx-1]
@@ -262,18 +266,28 @@ def main():
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(3.0, 5.0)
-        noised_gnss_y = gnss_y + np.random.normal(3.0, 5.0)
+        noised_gnss_x = gnss_x + np.random.normal(.0, 3.0)
+        noised_gnss_y = gnss_y + np.random.normal(.0, 3.0)
 
         raxle_loacation_gt = raxle_locations[idx]
         yaw_gt = raxle_orientations[idx][2]
         noised_yaw_gt = yaw_gt + np.random.normal(0.0, 0.1)
 
-        # Add prior factor
-        if idx == init_idx:
-            sw_graph.add_prior_factor(
-                noised_gnss_x, noised_gnss_y, noised_yaw_gt)
+        # Pre init phase
+        # Add GNSS data to list to be averaged.
+        if idx < init_idx:
+            init_gnss_x.append(noised_gnss_x)
+            init_gnss_y.append(noised_gnss_y)
 
+        # End of pre init phase
+        # Use averaged x and y from GNSS as prior.
+        if idx == init_idx:
+            avg_gnss_x = sum(init_gnss_x)/len(init_gnss_x)
+            avg_gnss_y = sum(init_gnss_y)/len(init_gnss_y)
+            sw_graph.add_prior_factor(
+                avg_gnss_x, avg_gnss_y, noised_yaw_gt)
+
+        # Localization phase
         if idx > init_idx:
             # Add CTRV between factor
             sw_graph.add_ctrv_between_factor(
@@ -283,175 +297,176 @@ def main():
             sw_graph.add_gnss_factor(
                 np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
 
-            # Add rs stop factor
+            # # Add rs stop factor
             if rs_stop_detection is not None:
                 sw_graph.add_rs_stop_factor(rs_stop_detection, gnss_z)
 
-            # Add lane factor after 10 steps for init estimation to converge
-            if idx - init_idx >= 10:
-                if lane_detection.left_marking_detection is not None:
-                    sw_graph.add_lane_factor(
-                        lane_detection.left_marking_detection, gnss_z)
-                if lane_detection.right_marking_detection is not None:
-                    sw_graph.add_lane_factor(
-                        lane_detection.right_marking_detection, gnss_z)
+            # Add lane boundary factors
+            if lane_detection.left_marking_detection is not None:
+                sw_graph.add_lane_factor(
+                    lane_detection.left_marking_detection, gnss_z)
+            if lane_detection.right_marking_detection is not None:
+                sw_graph.add_lane_factor(
+                    lane_detection.right_marking_detection, gnss_z)
 
-            # Add pole factor after 10 steps for init estimation to converge
-            if idx - init_idx >= 10:
-                if pole_detection is not None:
-                    for detected_pole in pole_detection:
-                        if detected_pole.x < 50 and abs(detected_pole.y) < 25:
-                            sw_graph.add_pole_factor(detected_pole)
+            # # Add pole factors
+            if pole_detection is not None:
+                for detected_pole in pole_detection:
+                    if detected_pole.x < 50 and abs(detected_pole.y) < 25:
+                        sw_graph.add_pole_factor(detected_pole)
 
-        # Truncate the graph if necessary
-        sw_graph.try_move_sliding_window_forward()
+        # Solve the sliding window graph
+        if idx >= init_idx:
+            # Truncate the graph if necessary
+            sw_graph.try_move_sliding_window_forward()
 
-        # Optimize graph
-        sw_graph.solve_one_step()
+            # Optimize graph
+            sw_graph.solve_one_step()
 
-        # Record the lastest pose after optimization
-        last_pose = sw_graph.last_optimized_se2
-        pose_estimations.append(last_pose)
+            # Record the lastest pose after optimization
+            last_pose = sw_graph.last_optimized_se2
+            pose_estimations.append(last_pose)
 
-        ##### Visualize current step #####
-        half_width = 20  # (m) half width of background map
-        half_width_px = half_width * map_info['pixels_per_meter']
+            ##### Visualize current step #####
+            half_width = 20  # (m) half width of background map
+            half_width_px = half_width * map_info['pixels_per_meter']
 
-        ### background map ###
-        # Get image coordinate of the latest pose on the map image
-        last_loc = last_pose.translation()
-        image_coord = evtools.world_to_pixel(carla.Location(
-            last_loc[0], -last_loc[1]), map_info)
+            ### background map ###
+            # Get image coordinate of the latest pose on the map image
+            last_loc = last_pose.translation()
+            image_coord = evtools.world_to_pixel(carla.Location(
+                last_loc[0], -last_loc[1]), map_info)
 
-        # Crop the map image for display
-        local_map_image = map_image[image_coord[1]-half_width_px:image_coord[1]+half_width_px,
-                                    image_coord[0]-half_width_px:image_coord[0]+half_width_px]
+            # Crop the map image for display
+            local_map_image = map_image[image_coord[1]-half_width_px:image_coord[1]+half_width_px,
+                                        image_coord[0]-half_width_px:image_coord[0]+half_width_px]
 
-        # Past the cropped map image to the correct place
-        left = last_loc[0] - half_width
-        right = last_loc[0] + half_width
-        bottom = last_loc[1] - half_width
-        top = last_loc[1] + half_width
-        map_im.set_data(local_map_image)
-        map_im.set_extent([left, right, bottom, top])
+            # Past the cropped map image to the correct place
+            left = last_loc[0] - half_width
+            right = last_loc[0] + half_width
+            bottom = last_loc[1] - half_width
+            top = last_loc[1] + half_width
+            map_im.set_data(local_map_image)
+            map_im.set_extent([left, right, bottom, top])
 
-        ### Visualize poses ###
-        pose_plots = []
-        for node_idx in sw_graph.get_idc_in_graph():
-            pose = sw_graph.get_result(node_idx)
-            cov = sw_graph.get_marignal_cov_matrix(node_idx)
-            pose_plots.append(evtools.plot_se2_with_cov(
-                ax, pose, cov, confidence=0.999))
+            ### Visualize poses ###
+            pose_plots = []
+            for node_idx in sw_graph.get_idc_in_graph():
+                pose = sw_graph.get_result(node_idx)
+                cov = sw_graph.get_marignal_cov_matrix(node_idx)
+                pose_plots.append(evtools.plot_se2_with_cov(
+                    ax, pose, cov, confidence=0.999))
 
-        ### Visualize GNSS ###
-        gnss_dot.set_data(noised_gnss_x, noised_gnss_y)
+            ### Visualize GNSS ###
+            gnss_dot.set_data(noised_gnss_x, noised_gnss_y)
 
-        ### Visualize Lane boundary detection ###
-        last_se2 = sw_graph.last_optimized_se2
-        last_x = last_se2.translation()[0]
-        last_y = last_se2.translation()[1]
-        last_yaw = last_se2.so2().theta()
-        # Matrix to transform points in ego frame to world frame
-        tform_e2w = np.array([[math.cos(last_yaw), -math.sin(last_yaw), last_x],
-                              [math.sin(last_yaw), math.cos(last_yaw), last_y],
-                              [0, 0, 1]])
-        # Matrix to transform points in front bumper to ego frame
-        tfrom_fbumper2raxel = np.array([[1, 0, dist_raxle_to_fbumper],
-                                        [0, 1, 0],
-                                        [0, 0, 1]])
-        # Matrix to transform points in front bumper to world frame
-        tform_fbumper2w = tform_e2w @ tfrom_fbumper2raxel
+            ### Visualize Lane boundary detection ###
+            last_se2 = sw_graph.last_optimized_se2
+            last_x = last_se2.translation()[0]
+            last_y = last_se2.translation()[1]
+            last_yaw = last_se2.so2().theta()
+            # Matrix to transform points in ego frame to world frame
+            tform_e2w = np.array([[math.cos(last_yaw), -math.sin(last_yaw), last_x],
+                                  [math.sin(last_yaw), math.cos(
+                                      last_yaw), last_y],
+                                  [0, 0, 1]])
+            # Matrix to transform points in front bumper to ego frame
+            tfrom_fbumper2raxel = np.array([[1, 0, dist_raxle_to_fbumper],
+                                            [0, 1, 0],
+                                            [0, 0, 1]])
+            # Matrix to transform points in front bumper to world frame
+            tform_fbumper2w = tform_e2w @ tfrom_fbumper2raxel
 
-        lb_x = np.linspace(0, 10, 10)
-        if lane_detection.left_marking_detection:
-            lb_y = lane_detection.left_marking_detection.compute_y(lb_x)
-            lb_pts_wrt_fbumper = np.array(
-                [lb_x, lb_y, np.ones((lb_x.shape[0],))])
-            lb_pts_world = tform_fbumper2w @ lb_pts_wrt_fbumper
-            # Update plot
-            left_lb.set_data(lb_pts_world[0], lb_pts_world[1])
-        else:
-            # Update plot
-            left_lb.set_data([], [])
-
-        if lane_detection.right_marking_detection:
-            lb_y = lane_detection.right_marking_detection.compute_y(lb_x)
-            lb_pts_wrt_fbumper = np.array(
-                [lb_x, lb_y, np.ones((lb_x.shape[0],))])
-            lb_pts_world = tform_fbumper2w @ lb_pts_wrt_fbumper
-            # Update plot
-            right_lb.set_data(lb_pts_world[0], lb_pts_world[1])
-        else:
-            # Update plot
-            right_lb.set_data([], [])
-
-        ### Visualize pole detection ###
-        cam_coord_world = tform_e2w @ np.array([dist_raxle_to_cam, 0, 1])
-        cam_x_world = cam_coord_world[0]
-        cam_y_world = cam_coord_world[1]
-        if pole_detection:
-            # Traffic signs
-            sign_coords_fbumper = np.array(
-                [[pole.x, pole.y, 1] for pole in pole_detection if (
-                    pole.type != TrafficSignType.Unknown and
-                    pole.type != TrafficSignType.RSStop)]).T
-
-            line_pts_x = [cam_x_world]
-            line_pts_y = [cam_y_world]
-            if sign_coords_fbumper.size:
-                sign_coords_world = tform_fbumper2w @ sign_coords_fbumper
-                for coord in sign_coords_world.T:
-                    line_pts_x.append(coord[0])
-                    line_pts_x.append(cam_x_world)
-                    line_pts_y.append(coord[1])
-                    line_pts_y.append(cam_y_world)
+            lb_x = np.linspace(0, 10, 10)
+            if lane_detection.left_marking_detection:
+                lb_y = lane_detection.left_marking_detection.compute_y(lb_x)
+                lb_pts_wrt_fbumper = np.array(
+                    [lb_x, lb_y, np.ones((lb_x.shape[0],))])
+                lb_pts_world = tform_fbumper2w @ lb_pts_wrt_fbumper
                 # Update plot
-                sign_pole_plot.set_data(line_pts_x,
-                                        line_pts_y)
+                left_lb.set_data(lb_pts_world[0], lb_pts_world[1])
             else:
                 # Update plot
-                sign_pole_plot.set_data(line_pts_x, line_pts_y)
+                left_lb.set_data([], [])
 
-            # General poles
-            pole_coords_fbumper = np.array(
-                [[pole.x, pole.y, 1] for pole in pole_detection if
-                    pole.type == TrafficSignType.Unknown]).T
-
-            line_pts_x = [cam_x_world]
-            line_pts_y = [cam_y_world]
-            if pole_coords_fbumper.size:
-                pole_coords_world = tform_fbumper2w @ pole_coords_fbumper
-                for coord in pole_coords_world.T:
-                    line_pts_x.append(coord[0])
-                    line_pts_x.append(cam_x_world)
-                    line_pts_y.append(coord[1])
-                    line_pts_y.append(cam_y_world)
+            if lane_detection.right_marking_detection:
+                lb_y = lane_detection.right_marking_detection.compute_y(lb_x)
+                lb_pts_wrt_fbumper = np.array(
+                    [lb_x, lb_y, np.ones((lb_x.shape[0],))])
+                lb_pts_world = tform_fbumper2w @ lb_pts_wrt_fbumper
                 # Update plot
-                general_pole_plot.set_data(line_pts_x,
-                                           line_pts_y)
+                right_lb.set_data(lb_pts_world[0], lb_pts_world[1])
             else:
-                general_pole_plot.set_data(line_pts_x, line_pts_y)
-        else:
-            # Update plot
-            sign_pole_plot.set_data([], [])
-            general_pole_plot.set_data(cam_x_world, cam_y_world)
+                # Update plot
+                right_lb.set_data([], [])
 
-        ax.set_title(idx)
-        plt.pause(0.001)
+            ### Visualize pole detection ###
+            cam_coord_world = tform_e2w @ np.array([dist_raxle_to_cam, 0, 1])
+            cam_x_world = cam_coord_world[0]
+            cam_y_world = cam_coord_world[1]
+            if pole_detection:
+                # Traffic signs
+                sign_coords_fbumper = np.array(
+                    [[pole.x, pole.y, 1] for pole in pole_detection if (
+                        pole.type != TrafficSignType.Unknown and
+                        pole.type != TrafficSignType.RSStop)]).T
 
-        image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
-        image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-        gif_image_seq.append(image)
+                line_pts_x = [cam_x_world]
+                line_pts_y = [cam_y_world]
+                if sign_coords_fbumper.size:
+                    sign_coords_world = tform_fbumper2w @ sign_coords_fbumper
+                    for coord in sign_coords_world.T:
+                        line_pts_x.append(coord[0])
+                        line_pts_x.append(cam_x_world)
+                        line_pts_y.append(coord[1])
+                        line_pts_y.append(cam_y_world)
+                    # Update plot
+                    sign_pole_plot.set_data(line_pts_x,
+                                            line_pts_y)
+                else:
+                    # Update plot
+                    sign_pole_plot.set_data(line_pts_x, line_pts_y)
 
-        # Remove artists for poses
-        for triangle, ellipse in pose_plots:
-            triangle.remove()
-            ellipse.remove()
+                # General poles
+                pole_coords_fbumper = np.array(
+                    [[pole.x, pole.y, 1] for pole in pole_detection if
+                        pole.type == TrafficSignType.Unknown]).T
 
-        if idx >= end_idx:
-            break
+                line_pts_x = [cam_x_world]
+                line_pts_y = [cam_y_world]
+                if pole_coords_fbumper.size:
+                    pole_coords_world = tform_fbumper2w @ pole_coords_fbumper
+                    for coord in pole_coords_world.T:
+                        line_pts_x.append(coord[0])
+                        line_pts_x.append(cam_x_world)
+                        line_pts_y.append(coord[1])
+                        line_pts_y.append(cam_y_world)
+                    # Update plot
+                    general_pole_plot.set_data(line_pts_x,
+                                               line_pts_y)
+                else:
+                    general_pole_plot.set_data(line_pts_x, line_pts_y)
+            else:
+                # Update plot
+                sign_pole_plot.set_data([], [])
+                general_pole_plot.set_data(cam_x_world, cam_y_world)
 
-    # imageio.mimsave('./localization.gif', gif_image_seq, fps=10)
+            ax.set_title(idx)
+            plt.pause(0.001)
+
+            image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
+            image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+            gif_image_seq.append(image)
+
+            # Remove artists for poses
+            for triangle, ellipse in pose_plots:
+                triangle.remove()
+                ellipse.remove()
+
+            if idx >= end_idx:
+                break
+
+        # imageio.mimsave('./localization.gif', gif_image_seq, fps=10)
 
     ############### Evaluation ###############
     #### Compute errors ####
