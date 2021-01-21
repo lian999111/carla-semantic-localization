@@ -187,6 +187,8 @@ def main():
                          'o', color='crimson', ms=3)
     general_poles = ax.plot(general_pole_coords[:, 0], general_pole_coords[:, 1],
                             'o', color='midnightblue', ms=3)
+    # Pose ground truth
+    pose_gt_dot = ax.plot([], [], '^', color='pink', ms=4, zorder=3)[0]
     # Create a dummy map background
     map_im = ax.imshow(np.zeros((1, 1, 3), dtype=int),
                        alpha=0.5)
@@ -358,6 +360,9 @@ def main():
                 cov = sw_graph.get_marignal_cov_matrix(node_idx)
                 pose_plots.append(evtools.plot_se2_with_cov(
                     ax, pose, cov, ellip_color='k', confidence=0.999))
+
+            ### Visualize pose ground truth ###
+            pose_gt_dot.set_data(loc_x_gts[idx-init_idx], loc_y_gts[idx-init_idx])
 
             ### Visualize GNSS ###
             gnss_dot.set_data(noised_gnss_x, noised_gnss_y)
