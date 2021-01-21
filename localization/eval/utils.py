@@ -87,7 +87,7 @@ def world_to_pixel(location, map_info, offset=(0, 0)):
     return [int(x - offset[0]), int(y - offset[1])]
 
 
-def plot_se2_with_cov(ax, pose, cov, vehicle_size=0.5, line_color='k', vehicle_color='r', confidence=0.99):
+def plot_se2_with_cov(ax, pose, cov, vehicle_size=0.5, ellip_color='k', vehicle_color='r', confidence=0.99):
     # Plot a triangle representing the ego vehicle
     p1 = pose.translation() + pose.so2() * np.array([1, 0]) * vehicle_size
     p2 = pose.translation() + pose.so2() * \
@@ -95,7 +95,7 @@ def plot_se2_with_cov(ax, pose, cov, vehicle_size=0.5, line_color='k', vehicle_c
     p3 = pose.translation() + pose.so2() * np.array([-0.5, 0.5]) * vehicle_size
 
     line = plt.Polygon([p1, p2, p3], closed=True, fill=True,
-                       edgecolor=line_color, facecolor=vehicle_color, zorder=2)
+                       edgecolor='k', facecolor=vehicle_color, zorder=2)
     triangle = ax.add_line(line)
 
     # Plot covariance
@@ -116,7 +116,7 @@ def plot_se2_with_cov(ax, pose, cov, vehicle_size=0.5, line_color='k', vehicle_c
     pts = rotm @ sqrtm(cov_2d) @ circle + pose.translation().reshape(2, 1)
 
     line = plt.Polygon(pts.T, closed=True, fill=False,
-                       edgecolor=line_color, zorder=2)
+                       edgecolor=ellip_color, zorder=2)
 
     ellipse = ax.add_line(line)
     return triangle, ellipse

@@ -357,7 +357,7 @@ def main():
                 pose = sw_graph.get_result(node_idx)
                 cov = sw_graph.get_marignal_cov_matrix(node_idx)
                 pose_plots.append(evtools.plot_se2_with_cov(
-                    ax, pose, cov, confidence=0.999))
+                    ax, pose, cov, ellip_color='k', confidence=0.999))
 
             ### Visualize GNSS ###
             gnss_dot.set_data(noised_gnss_x, noised_gnss_y)
