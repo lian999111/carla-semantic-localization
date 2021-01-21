@@ -192,7 +192,7 @@ def main():
     map_im = ax.imshow(np.zeros((1, 1, 3), dtype=int),
                        alpha=0.5)
     # Pose ground truth
-    pose_gt_dot = ax.plot([], [], '^', color='pink', ms=4, zorder=3)[0]
+    pose_gt_dot = ax.plot([], [], 'x', color='pink', ms=6, zorder=3)[0]
     # Dot of gnss measurement
     gnss_dot = ax.plot([], [], 'o', color='gold', ms=4, zorder=3)[0]
     # Lane boundary detection
