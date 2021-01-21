@@ -187,11 +187,12 @@ def main():
                          'o', color='crimson', ms=3)
     general_poles = ax.plot(general_pole_coords[:, 0], general_pole_coords[:, 1],
                             'o', color='midnightblue', ms=3)
-    # Pose ground truth
-    pose_gt_dot = ax.plot([], [], '^', color='pink', ms=4, zorder=3)[0]
+
     # Create a dummy map background
     map_im = ax.imshow(np.zeros((1, 1, 3), dtype=int),
                        alpha=0.5)
+    # Pose ground truth
+    pose_gt_dot = ax.plot([], [], '^', color='pink', ms=4, zorder=3)[0]
     # Dot of gnss measurement
     gnss_dot = ax.plot([], [], 'o', color='gold', ms=4, zorder=3)[0]
     # Lane boundary detection
