@@ -7,6 +7,7 @@ import numpy as np
 import minisam as ms
 import minisam.sophus as sophus
 
+from .prior import MMPriorFactor
 from model.ctrv import compute_F
 from .odom import create_ctrv_between_factor
 from .gnss import GNSSFactor
@@ -34,7 +35,7 @@ class SlidingWindowGraphManager(object):
             expected_pole_extractor: Expected pole extractor for pole factor.
             first_node_idx (int): Index of the first node.
                 Sometimes it is more convenient to let indices consistent with recorded data.
-                Especially when performing localization using only part of data that don't start from 
+                Especially when performing localization using only part of data that don't start from
                 the beginning of the recording.
         """
         self.px = px
@@ -112,30 +113,39 @@ class SlidingWindowGraphManager(object):
         # an Exceptio will be raised.
         self.odom_added = False
 
-    def add_prior_factor(self, x, y, theta, prior_noise=None):
+    def add_prior_factor(self, x, y, theta, prior_cov=None):
         """Add prior factor to first pose node.
 
-        The first pose node, so-called prior node, in the sliding window only has a prior factor apart 
-        from the between factor, which connects the prior node and the second pose node. 
+        The first pose node, so-called prior node, in the sliding window only has a prior factor apart
+        from the between factor, which connects the prior node and the second pose node.
         Initial guess is automatically added to the prior node using the same values as the prior.
 
         Args:
             x: X coordinate. (m)
             y: Y coordinate. (m)
             theta: Heading (rad)
-            prior_noise: Noise model for prior.
+            prior_cov: Covariance for prior.
         """
-        if prior_noise is None:
-            # Use default prior noise
-            prior_noise = ms.DiagonalLoss.Sigmas(np.array([self.config['prior']['stddev_x'],
-                                                           self.config['prior']['stddev_y'],
-                                                           self.config['prior']['stddev_theta']]))
 
         prior_node_key = ms.key('x', self.prior_node_idx)
-        self.graph.add(ms.PriorFactor(prior_node_key,
-                                      ms.sophus.SE2(
-                                          ms.sophus.SO2(theta), np.array([x, y])),
-                                      prior_noise))
+
+        if self.config['prior']['max_mixture']:
+            self.graph.add(MMPriorFactor(prior_node_key,
+                                         ms.sophus.SE2(
+                                             ms.sophus.SO2(theta), np.array([x, y])),
+                                         self.config['prior'],
+                                         prior_cov))
+        else:
+            if prior_cov is None:
+                prior_noise_model = ms.DiagonalLoss.Sigmas(np.array([self.config['prior']['stddev_x'],
+                                                                   self.config['prior']['stddev_y'],
+                                                                   self.config['prior']['stddev_theta']]))
+            else:
+                prior_noise_model = ms.GaussianLoss.Covariance(prior_cov)
+            self.graph.add(ms.PriorFactor(prior_node_key,
+                                          ms.sophus.SE2(
+                                              ms.sophus.SO2(theta), np.array([x, y])),
+                                          prior_noise_model))
 
         # Add prior node's index into queue if it is the first node added
         if not self._idc_in_graph:
@@ -154,7 +164,7 @@ class SlidingWindowGraphManager(object):
         """Add CTRV based between factor.
 
         This method extends the graph by adding a new ctrv between factor to the last pose node.
-        This method should be the first operation at every time step to introduce a new node into 
+        This method should be the first operation at every time step to introduce a new node into
         the graph in most cases. An exception is the very first time step where a prior node should
         be added beforehand.
 
@@ -226,7 +236,7 @@ class SlidingWindowGraphManager(object):
             self.new_node_guessed = True
 
     def add_gnss_factor(self, point, add_init_guess=False):
-        """Add GNSS factor to the last pose node (excluding the prior node). 
+        """Add GNSS factor to the last pose node (excluding the prior node).
 
         Args:
             point: Numpy.ndarray of measured x-y coordinate.
@@ -332,9 +342,8 @@ class SlidingWindowGraphManager(object):
         """
         self._optimize_graph()
         self._solve_marginal_cov()
-        last_noise_model = ms.GaussianLoss.Covariance(self.last_optimized_cov)
         self._history_a_posteriori.append(
-            (self._idc_in_graph[-1], self.last_optimized_se2, last_noise_model))
+            (self._idc_in_graph[-1], self.last_optimized_se2, self.last_optimized_cov))
 
     def get_result(self, idx):
         """Get optimied SE2 pose result of the node with the specified index."""
@@ -368,7 +377,7 @@ class SlidingWindowGraphManager(object):
                 self._remove_unary_factors_from_first_node()
 
                 # Add prior factor back to the graph
-                prior_idx, prior_pose, prior_noise_model = self._history_a_posteriori.popleft()
+                prior_idx, prior_pose, prior_cov = self._history_a_posteriori.popleft()
                 prior_trans = prior_pose.translation()
                 prior_x, prior_y = prior_trans[0], prior_trans[1]
                 prior_theta = prior_pose.so2().theta()
@@ -377,7 +386,7 @@ class SlidingWindowGraphManager(object):
                     raise RuntimeError(
                         'First node index does not match the one of stored prior!')
                 self.add_prior_factor(
-                    prior_x, prior_y, prior_theta, prior_noise_model)
+                    prior_x, prior_y, prior_theta, prior_cov)
 
     def _optimize_graph(self):
         """Optimize the factor graph."""
@@ -419,7 +428,7 @@ class SlidingWindowGraphManager(object):
         """Truncate the first node in the current graph.
 
         Used when the graph size exceeds the specified window size. All factors
-        related to the first node are simply deleted. It is done by creating a new 
+        related to the first node are simply deleted. It is done by creating a new
         FactorGraph without factors connected to the first pose node.
         """
         # Remove initial for the prior node
@@ -450,8 +459,8 @@ class SlidingWindowGraphManager(object):
         """Remove unary factors related to the first node.
 
         If the a posteriori of the current first node is recorded in a previous step, where it
-        was the last node, and used as a priori in this step, all factors already taken into 
-        account to obtain the a posteriori must be removed. Otherwise, the same information will 
+        was the last node, and used as a priori in this step, all factors already taken into
+        account to obtain the a posteriori must be removed. Otherwise, the same information will
         contirbutes twice and leads to over-confident estimation.
 
         Since the current implementation supports only in order factor adding, factors to be removed
