@@ -8,10 +8,17 @@ from minisam import Factor, GaussianLoss
 from .utils import multivariate_normal_pdf
 
 
+class SwitchFlag(object):
+    """Flag to indicate if prior factor experiences a mode switch"""
+
+    def __init__(self, flag=False):
+        self.flag = flag
+
+
 class MMPriorFactor(Factor):
     """Max-mixture prior factor."""
 
-    def __init__(self, key, prior_pose, prior_config, prior_cov=None):
+    def __init__(self, key, prior_pose, switch_flag, prior_config, prior_cov=None):
         """Constructor.
 
         This factor uses a narrow (normal) mode and a wide mode internally.
@@ -22,10 +29,12 @@ class MMPriorFactor(Factor):
         Args:
             key: Key to the pose node.
             prior_pose (sophus.SE2): Pose object of prior.
+            switch_flag (SwitchFlag): Flag to indicate if prior factor experiences a mode switch.
             prior_config (dict): Configurations.
             prior_cov (np.ndarray): Covariance matrix of prior.
         """
         self.prior_pose = prior_pose
+        self.switch_flag = switch_flag
         self.config = prior_config
         self.wide_std_scale = self.config['wide_std_scale']
         self._wide_mode = False
@@ -56,6 +65,7 @@ class MMPriorFactor(Factor):
     def copy(self):
         return MMPriorFactor(self.keys()[0],
                              self.prior_pose,
+                             self.switch_flag,
                              self.config,
                              self.prior_cov)
 
@@ -82,9 +92,12 @@ class MMPriorFactor(Factor):
             error.squeeze(), self.prior_cov*self.wide_std_scale**2)
 
         # If choose wide mode, scale down error; i.e. scale up info matrix
+        # Due to numerical errors, likelihood can become exactly 0.0.
+        # Do not switch to the wide mode in this case.
         if prob_wide > prob_narrow and prob_narrow > 0.0:
             error /= self.wide_std_scale
             self._wide_mode = True
+            self.switch_flag.flag = True
         else:
             self._wide_mode = False
 

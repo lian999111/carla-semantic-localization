@@ -7,7 +7,7 @@ import numpy as np
 import minisam as ms
 import minisam.sophus as sophus
 
-from .prior import MMPriorFactor
+from .prior import MMPriorFactor, SwitchFlag
 from model.ctrv import compute_F
 from .odom import create_ctrv_between_factor
 from .gnss import GNSSFactor
@@ -47,6 +47,10 @@ class SlidingWindowGraphManager(object):
         LaneBoundaryFactor.initialize(expected_lane_extractor, px)
         PoleFactor.initialize(self.px, self.pcf)
         RSStopFactor.initialize(expected_rs_stop_extractor, px)
+
+        # Flag to be burried into MMPriorFactor.
+        # It indicates if MMPriorFactor experiences a mode switching.
+        self.prior_switch_flag = SwitchFlag(False)
 
         # Instead of performing map pole queries in pole factors, graph manager
         # queries map poles in advance and only feeds map poles in the neighborhood
@@ -128,23 +132,24 @@ class SlidingWindowGraphManager(object):
         """
 
         prior_node_key = ms.key('x', self.prior_node_idx)
+        prior_pose = ms.sophus.SE2(ms.sophus.SO2(theta), np.array([x, y]))
 
         if self.config['prior']['max_mixture']:
+            self.prior_switch_flag.flag = False
             self.graph.add(MMPriorFactor(prior_node_key,
-                                         ms.sophus.SE2(
-                                             ms.sophus.SO2(theta), np.array([x, y])),
+                                         prior_pose,
+                                         self.prior_switch_flag,
                                          self.config['prior'],
                                          prior_cov))
         else:
             if prior_cov is None:
                 prior_noise_model = ms.DiagonalLoss.Sigmas(np.array([self.config['prior']['stddev_x'],
-                                                                   self.config['prior']['stddev_y'],
-                                                                   self.config['prior']['stddev_theta']]))
+                                                                     self.config['prior']['stddev_y'],
+                                                                     self.config['prior']['stddev_theta']]))
             else:
                 prior_noise_model = ms.GaussianLoss.Covariance(prior_cov)
             self.graph.add(ms.PriorFactor(prior_node_key,
-                                          ms.sophus.SE2(
-                                              ms.sophus.SO2(theta), np.array([x, y])),
+                                          prior_pose,
                                           prior_noise_model))
 
         # Add prior node's index into queue if it is the first node added
@@ -156,8 +161,7 @@ class SlidingWindowGraphManager(object):
             self.prior_node_idx += 1
 
         # Add initial guess
-        self.initials.add(prior_node_key,
-                          sophus.SE2(sophus.SO2(theta), np.array([x, y])))
+        self.initials.add(prior_node_key, prior_pose)
         self.new_node_guessed = True
 
     def add_ctrv_between_factor(self, vx, yaw_rate, delta_t, add_init_guess=True):
@@ -345,6 +349,25 @@ class SlidingWindowGraphManager(object):
         self._history_a_posteriori.append(
             (self._idc_in_graph[-1], self.last_optimized_se2, self.last_optimized_cov))
 
+        if self.config['prior']['clear_history']:
+            # Detect if switching happens in the max-mixture prior factor.
+            # If so, clear the history so wrong prior belief does not affect the the estimations.
+            if self.prior_switch_flag.flag:
+                self._clear_history()
+                
+                # Use the latest estimation as the prior immediately
+                prior_idx, prior_pose, prior_cov = self._history_a_posteriori.popleft()
+                prior_trans = prior_pose.translation()
+                prior_x, prior_y = prior_trans[0], prior_trans[1]
+                prior_theta = prior_pose.so2().theta()
+
+                # Set next prior node index to the latest prior index
+                # This will be used as the key to the node inside add_prior_factor()
+                self.prior_node_idx = prior_idx
+
+                self.add_prior_factor(
+                    prior_x, prior_y, prior_theta, prior_cov)
+
     def get_result(self, idx):
         """Get optimied SE2 pose result of the node with the specified index."""
         return copy_se2(self.optimized_results.at(ms.key('x', idx)))
@@ -489,3 +512,10 @@ class SlidingWindowGraphManager(object):
 
         # No need to remove the left most node index from queue since the node
         # still exists and is connected with at least to a between factor
+
+    def _clear_history(self):
+        """Clear the history in the graph."""
+        while self.get_graph_size() > 0:
+            self._truncate_first_node()
+        while len(self._history_a_posteriori) > 1:
+            self._history_a_posteriori.popleft()
