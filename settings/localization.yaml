@@ -6,10 +6,12 @@ graph:
   use_prev_posteriori: True
 
 prior:
-  # True to turn on switching ability of prior factor (Solves the caterpillar effect) 
+  # True to use max-mixture version of prior factor (Solves the caterpillar effect) 
   max_mixture: True
   # Scale to scale up standard deviation for wide mode.
-  wide_std_scale: 5
+  wide_std_scale: 10
+  # True to clear history in the graph when a switching happens in the max-mixture prior factor
+  clear_history: True
 
   stddev_x: 10.0 # Standard deviation in the noise model for x.
   stddev_y: 10.0 # Standard deviation in the noise model for y.
@@ -17,8 +19,8 @@ prior:
 
 # Parameters for GPS factor
 gnss:
-  stddev_x: 5.0 # Standard deviation in the noise model for x.
-  stddev_y: 5.0 # Standard deviation in the noise model for y.
+  stddev_x: 10.0 # Standard deviation in the noise model for x.
+  stddev_y: 10.0 # Standard deviation in the noise model for y.
 
 # Parameter for ctrv odometry factor
 ctrv:
