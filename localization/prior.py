@@ -82,7 +82,7 @@ class MMPriorFactor(Factor):
             error.squeeze(), self.prior_cov*self.wide_std_scale**2)
 
         # If choose wide mode, scale down error; i.e. scale up info matrix
-        if prob_wide > prob_narrow:
+        if prob_wide > prob_narrow and prob_narrow > 0.0:
             error /= self.wide_std_scale
             self._wide_mode = True
         else:
