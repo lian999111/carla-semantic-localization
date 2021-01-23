@@ -59,9 +59,9 @@ sliding_window:
   # Parameters for GPS factor
   gnss:
     # Standard deviation in the noise model for x (m).
-    stddev_x: 10.0
+    stddev_x: 8.0
     # Standard deviation in the noise model for y (m).
-    stddev_y: 10.0 
+    stddev_y: 8.0 
 
   # Parameters for lane boundary factors
   lane:
@@ -93,9 +93,9 @@ sliding_window:
     semantic: True
 
     # Standard deviation in the measurement noise model for radius (m).
-    stddev_r: 10
+    stddev_r: 15
     # Standard deviation in the measurement noise model for phi (rad). 
-    stddev_phi: 0.05 
+    stddev_phi: 0.05
 
     # Probability of null hypothesis (false positive).
     prob_null: 0.1
