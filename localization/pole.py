@@ -162,13 +162,9 @@ class PoleFactor(Factor):
         if not exp_pole_types:
             self._null_hypo = True
         else:
-            squared_mahala_dists = []
             errors = [null_error]
             gated_xy_list = [null_expected_xy_cam]
             std_scales = [1]
-            # errors = []
-            # gated_xy_list = []
-            # std_scales = []
             asso_probs = []
             meas_likelihoods = []
             for (exp_x, exp_y), exp_type in zip(pole_homo_coords_cam[0:2, :].T, exp_pole_types):
@@ -199,7 +195,6 @@ class PoleFactor(Factor):
 
                 # if squared_mahala_dist < self.geo_gate and sem_likelihood > self.sem_gate:
                 if sem_likelihood > self.sem_gate:
-                    squared_mahala_dists.append(squared_mahala_dist)
                     errors.append(error)
                     std_scales.append(std_scale)
                     gated_xy_list.append([exp_x, exp_y])
