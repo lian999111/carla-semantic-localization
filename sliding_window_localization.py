@@ -216,7 +216,7 @@ def main():
     # ExpectedLaneExtractor uses a LaneGTExtractor internally to do the queries.
     # Note: The extracted lane boundaries are wrt the query point.
     lane_gt_extractor = LaneGTExtractor(carla_world,
-                                        localization_config['lane']['lane_gt_extractor'],
+                                        localization_config['gt_extract']['lane_gt_extractor'],
                                         debug=False)
     expected_lane_extractor = ExpectedLaneExtractor(lane_gt_extractor)
 
@@ -228,13 +228,13 @@ def main():
     # ExpectedRSStopExtractor uses a RSStopGTExtractor internally to do the queries.
     # Note: The extracted lane boundaries are wrt the query point.
     rs_stop_gt_extractor = RSStopGTExtractor(traffic_signs,
-                                             localization_config['rs_stop']['rs_stop_gt_extractor'])
+                                             localization_config['gt_extract']['rs_stop_gt_extractor'])
     expected_rs_stop_extractor = ExpectedRSStopExtractor(rs_stop_gt_extractor)
 
     # Create a sliding window graph manager
     sw_graph = SlidingWindowGraphManager(dist_raxle_to_fbumper,
                                          dist_cam_to_fbumper,
-                                         localization_config,
+                                         localization_config['sliding_window'],
                                          expected_lane_extractor,
                                          expected_pole_extractor,
                                          expected_rs_stop_extractor,
@@ -250,7 +250,11 @@ def main():
 
     # List for storing pose of each time step after optimization
     pose_estimations = []
-    gif_image_seq = []
+
+    if localization_config['record_gif']:
+        # List for storing figures
+        gif_image_seq = []
+
     for idx, timestamp in enumerate(timestamp_seq):
 
         if idx < pre_init_idx:
@@ -271,8 +275,8 @@ def main():
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(.0, 3.0)
-        noised_gnss_y = gnss_y + np.random.normal(.0, 3.0)
+        noised_gnss_x = gnss_x + np.random.normal(3.0, 5.0)
+        noised_gnss_y = gnss_y + np.random.normal(3.0, 5.0)
 
         raxle_loacation_gt = raxle_locations[idx]
         yaw_gt = raxle_orientations[idx][2]
@@ -299,26 +303,30 @@ def main():
                 vx, yaw_rate, delta_t, add_init_guess=True)
 
             # Add GNSS factor
-            sw_graph.add_gnss_factor(
-                np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
-
-            # Add rs stop factor
-            if rs_stop_detection is not None:
-                sw_graph.add_rs_stop_factor(rs_stop_detection, gnss_z)
+            if localization_config['use_gnss']:
+                sw_graph.add_gnss_factor(
+                    np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
 
             # Add lane boundary factors
-            if lane_detection.left_marking_detection is not None:
-                sw_graph.add_lane_factor(
-                    lane_detection.left_marking_detection, gnss_z)
-            if lane_detection.right_marking_detection is not None:
-                sw_graph.add_lane_factor(
-                    lane_detection.right_marking_detection, gnss_z)
+            if localization_config['use_lane']:
+                if lane_detection.left_marking_detection is not None:
+                    sw_graph.add_lane_factor(
+                        lane_detection.left_marking_detection, gnss_z)
+                if lane_detection.right_marking_detection is not None:
+                    sw_graph.add_lane_factor(
+                        lane_detection.right_marking_detection, gnss_z)
 
             # Add pole factors
-            if pole_detection is not None:
-                for detected_pole in pole_detection:
-                    if detected_pole.x < 50 and abs(detected_pole.y) < 25:
-                        sw_graph.add_pole_factor(detected_pole)
+            if localization_config['use_pole']:
+                if pole_detection is not None:
+                    for detected_pole in pole_detection:
+                        if detected_pole.x < 50 and abs(detected_pole.y) < 25:
+                            sw_graph.add_pole_factor(detected_pole)
+            
+            # Add rs stop factor
+            if localization_config['use_rs_stop']:
+                if rs_stop_detection is not None:
+                    sw_graph.add_rs_stop_factor(rs_stop_detection, gnss_z)
 
         # Solve the sliding window graph
         if idx >= init_idx:
@@ -363,7 +371,8 @@ def main():
                     ax, pose, cov, ellip_color='k', confidence=0.999))
 
             ### Visualize pose ground truth ###
-            pose_gt_dot.set_data(loc_x_gts[idx-init_idx], loc_y_gts[idx-init_idx])
+            pose_gt_dot.set_data(
+                loc_x_gts[idx-init_idx], loc_y_gts[idx-init_idx])
 
             ### Visualize GNSS ###
             gnss_dot.set_data(noised_gnss_x, noised_gnss_y)
@@ -462,9 +471,11 @@ def main():
             ax.set_title(idx)
             plt.pause(0.001)
 
-            image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
-            image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-            gif_image_seq.append(image)
+            if localization_config['record_gif']:
+                image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
+                image = image.reshape(
+                    fig.canvas.get_width_height()[::-1] + (3,))
+                gif_image_seq.append(image)
 
             # Remove artists for poses
             for triangle, ellipse in pose_plots:
@@ -474,7 +485,8 @@ def main():
             if idx >= end_idx:
                 break
 
-        # imageio.mimsave('./localization.gif', gif_image_seq, fps=10)
+    if localization_config['record_gif']:
+        imageio.mimsave('./localization.gif', gif_image_seq, fps=10)
 
     ############### Evaluation ###############
     #### Compute errors ####
