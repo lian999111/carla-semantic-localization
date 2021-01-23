@@ -40,7 +40,7 @@ sliding_window:
     # Scale to scale up standard deviation for wide mode.
     wide_std_scale: 10
     # True to clear history in the graph when a switching happens in the max-mixture prior factor
-    clear_history: False
+    clear_history: True
 
     # Standard deviation in the noise model for x (m).
     stddev_x: 10.0 
