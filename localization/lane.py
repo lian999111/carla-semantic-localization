@@ -77,7 +77,7 @@ class LaneBoundaryFactor(Factor):
 
         Args:
             key: Key to the pose node.
-            detected_marking: Detected rs stop wrt front bumper.
+            detected_marking (MELaneMarking): Detected lane marking.
             z: z coordinate for extracting ground truth lane boundaries at the correct height.
             pose_uncert: Covariance matrix of pose.
             lane_factor_config: Configuraiont for lane boundary factor.
