@@ -140,7 +140,7 @@ class MELaneMarking(object):
         Creates an MELaneMarking with a LaneMarking and other information.
 
         Input:
-            coeffs: List containing coefficients of the polynomial.
+            coeffs: List containing coefficients of the polynomial in descending order.
             lane_marking: An instance of LaneMarking.
             lane_id: ID of the lane the ego vehicle is on.
         Output:
