@@ -1,14 +1,12 @@
 """ Implementation of lane-related factors """
 
 import numpy as np
-from scipy.stats import chi2
+from scipy.stats import chi2, multivariate_normal
 from scipy.optimize import linear_sum_assignment as lsa
 from minisam import Factor, DiagonalLoss
 
 from carlasim.carla_tform import Transform
 from carlasim.utils import get_fbumper_location
-
-from .utils import multivariate_normal_pdf
 
 
 def compute_normal_form_line_coeffs(px, expected_c0, expected_c1):
@@ -226,7 +224,7 @@ class LaneBoundaryFactor(Factor):
 
         # Compute measurement likelihood weighted by null probability
         null_weighted_meas_likelihood = self.prob_null * \
-            multivariate_normal_pdf(null_error.squeeze(), cov=null_noise_cov)
+            multivariate_normal.pdf(null_error.squeeze(), cov=null_noise_cov)
 
         # In this implementation, scaling down error and jacobian is done to achieve
         # the same effect of tuning the information matrix online.
@@ -283,11 +281,11 @@ class LaneBoundaryFactor(Factor):
                     errors.append(error)
 
                     # Measurement likelihood (based on noise cov)
-                    meas_likelihood = multivariate_normal_pdf(
+                    meas_likelihood = multivariate_normal.pdf(
                         error.reshape(-1), cov=self.noise_cov)
 
                     # Geometric likelihood (based on innov)
-                    geo_likelihood = multivariate_normal_pdf(
+                    geo_likelihood = multivariate_normal.pdf(
                         error.reshape(-1), cov=innov)
 
                     # Due to numerical errors, likelihood can become exactly 0.0
@@ -574,7 +572,7 @@ class GNNLaneBoundaryFactor(Factor):
 
         # Compute measurement likelihood weighted by null probability
         null_weighted_meas_likelihood = self.prob_null * \
-            multivariate_normal_pdf(null_error.squeeze(), cov=null_noise_cov)
+            multivariate_normal.pdf(null_error.squeeze(), cov=null_noise_cov)
 
         # In this implementation, scaling down error and jacobian is done to achieve
         # the same effect of tuning the information matrix online.
@@ -636,11 +634,11 @@ class GNNLaneBoundaryFactor(Factor):
                     errors_left.append(error)
 
                     # Measurement likelihood (based on noise cov)
-                    meas_likelihood = multivariate_normal_pdf(
+                    meas_likelihood = multivariate_normal.pdf(
                         error.reshape(-1), cov=self.noise_cov)
 
                     # Geometric likelihood (based on innov)
-                    geo_likelihood = multivariate_normal_pdf(
+                    geo_likelihood = multivariate_normal.pdf(
                         error.reshape(-1), cov=innov)
 
                     # Due to numerical errors, likelihood can become exactly 0.0
@@ -717,11 +715,11 @@ class GNNLaneBoundaryFactor(Factor):
                     errors_right.append(error)
 
                     # Measurement likelihood (based on noise cov)
-                    meas_likelihood = multivariate_normal_pdf(
+                    meas_likelihood = multivariate_normal.pdf(
                         error.reshape(-1), cov=self.noise_cov)
 
                     # Geometric likelihood (based on innov)
-                    geo_likelihood = multivariate_normal_pdf(
+                    geo_likelihood = multivariate_normal.pdf(
                         error.reshape(-1), cov=innov)
 
                     # Due to numerical errors, likelihood can become exactly 0.0
