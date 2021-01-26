@@ -758,8 +758,8 @@ class GNNLaneBoundaryFactor(Factor):
 
             # GNN association
             # Take log to avoid numerical errors
-            asso_table = np.log(asso_table)
-            _, col_idc = lsa(asso_table, maximize=True)
+            log_asso_table = np.log(asso_table)
+            _, col_idc = lsa(log_asso_table, maximize=True)
 
             asso_idx_left = col_idc[0]
             asso_idx_right = col_idc[1]
