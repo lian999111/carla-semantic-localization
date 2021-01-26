@@ -7,3 +7,5 @@
 
 *.pyc
 *.pyo
+*.idx
+*.dat
