@@ -10,7 +10,6 @@ import glob
 import yaml
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
 import imageio
 import pygame
 
