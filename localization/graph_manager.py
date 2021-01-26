@@ -11,7 +11,7 @@ from .prior import MMPriorFactor, SwitchFlag
 from model.ctrv import compute_F
 from .odom import create_ctrv_between_factor
 from .gnss import GNSSFactor
-from .lane import LaneBoundaryFactor
+from .lane import LaneBoundaryFactor, GNNLaneBoundaryFactor
 from .pole import PoleFactor
 from .rs_stop import RSStopFactor
 from .utils import copy_se2
@@ -45,6 +45,7 @@ class SlidingWindowGraphManager(object):
 
         # Initialize factors
         LaneBoundaryFactor.initialize(expected_lane_extractor, px)
+        GNNLaneBoundaryFactor.initialize(expected_lane_extractor, px)
         PoleFactor.initialize(self.px, self.pcf)
         RSStopFactor.initialize(expected_rs_stop_extractor, px)
 
@@ -283,6 +284,22 @@ class SlidingWindowGraphManager(object):
 
         self.graph.add(LaneBoundaryFactor(node_key,
                                           detected_marking,
+                                          z,
+                                          self.pred_cov,
+                                          self.config['lane']))
+
+    def add_gnn_lane_factor(self, lane_marking_detection, z):
+        """
+        TODO: Add docstring
+        """
+        if not self.odom_added:
+            raise RuntimeError(
+                'Between (odom) factor should be added first at every time step.')
+
+        node_key = ms.key('x', self._idc_in_graph[-1])
+
+        self.graph.add(GNNLaneBoundaryFactor(node_key,
+                                          lane_marking_detection,
                                           z,
                                           self.pred_cov,
                                           self.config['lane']))

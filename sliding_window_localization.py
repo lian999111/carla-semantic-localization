@@ -309,12 +309,15 @@ def main():
 
             # Add lane boundary factors
             if localization_config['use_lane']:
-                if lane_detection.left_marking_detection is not None:
-                    sw_graph.add_lane_factor(
-                        lane_detection.left_marking_detection, gnss_z)
-                if lane_detection.right_marking_detection is not None:
-                    sw_graph.add_lane_factor(
-                        lane_detection.right_marking_detection, gnss_z)
+                if lane_detection.left_marking_detection and lane_detection.right_marking_detection:
+                    sw_graph.add_gnn_lane_factor(lane_detection, gnss_z)
+                else:
+                    if lane_detection.left_marking_detection is not None:
+                        sw_graph.add_lane_factor(
+                            lane_detection.left_marking_detection, gnss_z)
+                    if lane_detection.right_marking_detection is not None:
+                        sw_graph.add_lane_factor(
+                            lane_detection.right_marking_detection, gnss_z)
 
             # Add pole factors
             if localization_config['use_pole']:
@@ -322,7 +325,7 @@ def main():
                     for detected_pole in pole_detection:
                         if detected_pole.x < 50 and abs(detected_pole.y) < 25:
                             sw_graph.add_pole_factor(detected_pole)
-            
+
             # Add rs stop factor
             if localization_config['use_rs_stop']:
                 if rs_stop_detection is not None:
