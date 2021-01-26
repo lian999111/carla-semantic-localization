@@ -468,7 +468,8 @@ class GNNLaneBoundaryFactor(Factor):
         self.chosen_expected_coeffs_left = None
         self.chosen_expected_coeffs_right = None
         # float: Scale for the chosen Gaussian mode based on its association weight
-        self._scale = 1.0
+        self._scale_left = 1.0
+        self._scale_right = 1.0
         # bool: True if null hypothesis is chosen
         self._null_hypo_left = False
         self._null_hypo_right = False
@@ -659,16 +660,16 @@ class GNNLaneBoundaryFactor(Factor):
 
             # Compute weights based on total probability theorem
             if asso_probs.sum():
-                weights = (1-self.prob_null) * \
+                weights_left = (1-self.prob_null) * \
                     (asso_probs/np.sum(asso_probs))
             else:
-                weights = np.zeros(asso_probs.shape)
+                weights_left = np.zeros(asso_probs.shape)
 
             # Weight measurement likelihoods
-            weighted_meas_likelihood = weights*meas_likelihoods
+            weighted_meas_likelihood = weights_left*meas_likelihoods
 
             # Add weight and weighted likelihood of null hypothesis
-            weights = np.insert(weights, 0, [self.prob_null, 0])
+            weights_left = np.insert(weights_left, 0, [self.prob_null, 0])
             weighted_meas_likelihood = np.insert(
                 weighted_meas_likelihood, 0, [null_weighted_meas_likelihood, 0])
 
@@ -740,16 +741,16 @@ class GNNLaneBoundaryFactor(Factor):
 
             # Compute weights based on total probability theorem
             if asso_probs.sum():
-                weights = (1-self.prob_null) * \
+                weights_right = (1-self.prob_null) * \
                     (asso_probs/np.sum(asso_probs))
             else:
-                weights = np.zeros(asso_probs.shape)
+                weights_right = np.zeros(asso_probs.shape)
 
             # Weight measurement likelihoods
-            weighted_meas_likelihood = weights*meas_likelihoods
+            weighted_meas_likelihood = weights_right*meas_likelihoods
 
             # Add weight and weighted likelihood of null hypothesis
-            weights = np.insert(weights, 0, [0., self.prob_null])
+            weights_right = np.insert(weights_right, 0, [0., self.prob_null])
             weighted_meas_likelihood = np.insert(
                 weighted_meas_likelihood, 0, [0., null_weighted_meas_likelihood, ])
 
@@ -765,25 +766,32 @@ class GNNLaneBoundaryFactor(Factor):
 
             # Left assocation
             if asso_idx_left == 0:
+                # Null hypothesis
                 self._null_hypo_left = True
-                chosen_error_left = null_error
-                self.chosen_expected_coeffs_left = null_expected_c0c1_left
             else:
                 self._null_hypo_left = False
                 chosen_error_left = errors_left[asso_idx_left-2]
                 self.chosen_expected_coeffs_left = expected_coeffs_list[asso_idx_left-2]
+                self._scale_left = weights_left[asso_idx_left]
             
             # Right assocation
             if asso_idx_right == 1:
+                # Null hypothesis
                 self._null_hypo_right = True
-                chosen_error_right = null_error
-                self.chosen_expected_coeffs_right = null_expected_c0c1_left
             else:
                 self._null_hypo_right = False
                 chosen_error_right = errors_right[asso_idx_right-2]
                 self.chosen_expected_coeffs_right = expected_coeffs_list[asso_idx_right-2]
+                self._scale_right = weights_right[asso_idx_right]
 
-            chosen_error = np.concatenate((chosen_error_left, chosen_error_right))
+        if self._null_hypo_left:
+            chosen_error_left = null_error
+            self.chosen_expected_coeffs_left = null_expected_c0c1_left
+        if self._null_hypo_right:
+            chosen_error_right = null_error
+            self.chosen_expected_coeffs_right = null_expected_c0c1_left
+
+        chosen_error = np.concatenate((chosen_error_left, chosen_error_right))
 
         return chosen_error
 
@@ -799,7 +807,7 @@ class GNNLaneBoundaryFactor(Factor):
             jacob_left = compute_H(self.px, expected_c0, expected_c1)
             # Scale down jacobian matrix based on weight
             # This is to achieve the same effect of scaling infomation matrix during optimzation
-            jacob_left *= self._scale
+            jacob_left *= self._scale_left
 
         if self._null_hypo_right:
             # In this implementation, scaling down error and jacobian is done to achieve
@@ -812,7 +820,7 @@ class GNNLaneBoundaryFactor(Factor):
             jacob_right = compute_H(self.px, expected_c0, expected_c1)
             # Scale down jacobian matrix based on weight
             # This is to achieve the same effect of scaling infomation matrix during optimzation
-            jacob_right *= self._scale
+            jacob_right *= self._scale_right
 
         jacob = np.concatenate((jacob_left, jacob_right))
 
