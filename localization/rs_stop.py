@@ -71,7 +71,7 @@ class RSStopFactor(Factor):
         pose = variables.at(self.keys()[0])
 
         # Append 0 as z since this factor is in 2D space
-        location = np.append(pose.translation(), 0)
+        location = np.append(pose.translation(), self.z)
         orientation = np.array([0, 0, pose.so2().theta()])
 
         fbumper_location = get_fbumper_location(location,
