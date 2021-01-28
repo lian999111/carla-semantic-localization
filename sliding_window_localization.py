@@ -118,9 +118,9 @@ def main():
     carla_world = client.load_world(carla_config['world']['map'])
 
     settings = carla_world.get_settings()
-    settings.synchronous_mode = False
+    settings.synchronous_mode = True
     settings.fixed_delta_seconds = 0.0
-    settings.no_rendering_mode = False
+    settings.no_rendering_mode = True
     carla_world.apply_settings(settings)
 
     ############### Load map image ###############
@@ -274,8 +274,8 @@ def main():
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
         gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(3.0, 5.0)
-        noised_gnss_y = gnss_y + np.random.normal(3.0, 5.0)
+        noised_gnss_x = gnss_x + np.random.normal(3.5, 3.0)
+        noised_gnss_y = gnss_y + np.random.normal(0.0, 3.0)
 
         raxle_loacation_gt = raxle_locations[idx]
         yaw_gt = raxle_orientations[idx][2]
@@ -308,33 +308,16 @@ def main():
 
             # Add lane boundary factors
             if localization_config['use_lane']:
-                if idx - init_idx == 1:
-                    # Use independent lane marking factors for the first time.
-                    # It works better to find the correct lane marking assocations in the beginning.
-                    # But it does not work well when localization has converged.
-                    if lane_detection.left_marking_detection is not None:
-                        sw_graph.add_lane_factor(
-                            lane_detection.left_marking_detection, gnss_z)
-                    if lane_detection.right_marking_detection is not None:
-                        sw_graph.add_lane_factor(
-                            lane_detection.right_marking_detection, gnss_z)
-                elif lane_detection.left_marking_detection and lane_detection.right_marking_detection:
-                    # Use global nearest neighbor association after the first time.
-                    # This avoids 2 detections being associated to the same map lane marking.
-                    # Thus if one side is mis-classified, it will be most likely treated as clutter.
-                    # The other side can still hold the estimation at the proper location.
-                    # However, it is not good at finding correct associations in the initialization phase
-                    # because the successful association of one side often cause the other unassociated side
-                    # to be treated as clutter.
-                    sw_graph.add_gnn_lane_factor(lane_detection, gnss_z)
-                else:
-                    # If there is only one side detected, use the independent version
-                    if lane_detection.left_marking_detection is not None:
-                        sw_graph.add_lane_factor(
-                            lane_detection.left_marking_detection, gnss_z)
-                    if lane_detection.right_marking_detection is not None:
-                        sw_graph.add_lane_factor(
-                            lane_detection.right_marking_detection, gnss_z)
+                # Add lane boundary factors independently
+                if lane_detection.left_marking_detection is not None:
+                    sw_graph.add_lane_factor(
+                        lane_detection.left_marking_detection, gnss_z)
+                if lane_detection.right_marking_detection is not None:
+                    sw_graph.add_lane_factor(
+                        lane_detection.right_marking_detection, gnss_z)
+                
+                # Note: If the GNN version is to be used, use:
+                # sw_graph.add_gnn_lane_factor(lane_detection, gnss_z)
 
             # Add pole factors
             if localization_config['use_pole']:
