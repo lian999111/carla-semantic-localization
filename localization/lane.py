@@ -59,7 +59,7 @@ def compute_H(px, expected_c0, expected_c1):
 
 
 class LaneBoundaryFactor(Factor):
-    """ Lane boundary factor. """
+    """ Max-mixture PDA Lane boundary factor. """
     # float: Geometric gate
     geo_gate = chi2.ppf(0.99999999, df=2)
     # float: Semantic gate
@@ -393,7 +393,14 @@ class LaneBoundaryFactor(Factor):
 
 
 class GNNLaneBoundaryFactor(Factor):
-    """ Lane boundary factor. """
+    """ GNN Lane boundary factor.
+
+    This factor considers 2 lane boundary detections at the same time.
+    GNN association is performed at every optimization iteration, so this factor
+    is still a max-mixture factor in some sense. The max operation is just replaced
+    by the linear sum assignment operation, which can be seen as an variant of max
+    operation for multiple distributions.
+    """
     # float: Geometric gate
     geo_gate = chi2.ppf(0.99999999, df=2)
     # float: Semantic gate
@@ -426,7 +433,7 @@ class GNNLaneBoundaryFactor(Factor):
         self.pose_uncert = pose_uncert
         self.config = lane_factor_config
         self.noise_cov = np.diag([lane_factor_config['stddev_c0']**2,
-                                    lane_factor_config['stddev_c1']**2])
+                                  lane_factor_config['stddev_c1']**2])
 
         # bool: True to turn on semantic association
         self.semantic = self.config['semantic']
@@ -482,10 +489,10 @@ class GNNLaneBoundaryFactor(Factor):
 
     def copy(self):
         return GNNLaneBoundaryFactor(self.keys()[0],
-                                  self.lane_marking_detection,
-                                  self.z,
-                                  self.pose_uncert,
-                                  self.config)
+                                     self.lane_marking_detection,
+                                     self.z,
+                                     self.pose_uncert,
+                                     self.config)
 
     def error(self, variables):
         ########## Expectation ##########
@@ -747,7 +754,12 @@ class GNNLaneBoundaryFactor(Factor):
             asso_table[1, :] = weighted_meas_likelihood
 
             # GNN association
-            # Take log to avoid numerical errors
+            # This is performed at every optimization step, so this factor is essentially
+            # a max-mixture factor. It's just now the max operation is replaced by the
+            # linear sum assignment operation.
+
+            # Take log so the association result maximizes the product of likelihoods
+            # of the associations of the both sides
             log_asso_table = np.log(asso_table)
             _, col_idc = lsa(log_asso_table, maximize=True)
 
@@ -763,7 +775,7 @@ class GNNLaneBoundaryFactor(Factor):
                 chosen_error_left = errors_left[asso_idx_left-2]
                 self.chosen_expected_coeffs_left = expected_coeffs_list[asso_idx_left-2]
                 self._scale_left = weights_left[asso_idx_left]
-            
+
             # Right assocation
             if asso_idx_right == 1:
                 # Null hypothesis
@@ -779,7 +791,7 @@ class GNNLaneBoundaryFactor(Factor):
             self.chosen_expected_coeffs_left = null_expected_c0c1_left
         if self._null_hypo_right:
             chosen_error_right = null_error
-            self.chosen_expected_coeffs_right = null_expected_c0c1_left
+            self.chosen_expected_coeffs_right = null_expected_c0c1_right
 
         chosen_error = np.concatenate((chosen_error_left, chosen_error_right))
 
