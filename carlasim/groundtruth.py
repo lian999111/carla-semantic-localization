@@ -354,7 +354,7 @@ class LaneGTExtractor(object):
                 pt1 = candidate_2D[last_neg_idx, :]
                 pt2 = candidate_2D[first_pos_idx, :]
 
-                # TODO: address when pt1 or pt2 don't exist
+                # TODO: Is it possible that pt1 or pt2 does not exist?
 
                 # If the 2 points across the y-axis are too far, there are no lane marking defined in between
                 # then skip this candidate
