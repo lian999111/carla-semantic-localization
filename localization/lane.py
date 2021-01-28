@@ -392,6 +392,8 @@ class LaneBoundaryFactor(Factor):
         cls.px = px
 
 
+# TODO: This factor is not used in my thesis due to the time constraint.
+#       Worth investigating in the future. Maybe consider making it a max-mixture JPDA factor.
 class GNNLaneBoundaryFactor(Factor):
     """ GNN Lane boundary factor.
 
