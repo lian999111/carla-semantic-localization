@@ -163,7 +163,7 @@ def main():
     with open(info_full_path, 'r') as f:
         map_info = yaml.safe_load(f)
 
-    ############### Prepare figure ###############
+    ############### Prepare figure for animation ###############
     fig, ax = plt.subplots()
 
     # Retrieve pose ground truth
