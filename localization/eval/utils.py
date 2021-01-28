@@ -177,6 +177,8 @@ def gen_colored_error_plot(title, errors, upper_bound,
         general_pole_coords (np.ndarray): Ground truth coordinates of general poles.
         local_map_img (np.ndarray): Local map image.
         extent (list): Extent of the local map image for imshow().
+    Returns:
+        Result figure ans axes object.
     """
     # Prepare path segments
     x_estimations = [pose.translation()[0] for pose in pose_estimations]
@@ -221,6 +223,8 @@ def gen_colored_error_plot(title, errors, upper_bound,
                         0.1/fig_width,
                         ax.get_position().height])
     fig.colorbar(line, cax=cax)
+    
+    return fig, ax
 
 
 def adjust_figure(fig, aspect, size=7):

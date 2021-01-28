@@ -315,7 +315,7 @@ def main():
                 if lane_detection.right_marking_detection is not None:
                     sw_graph.add_lane_factor(
                         lane_detection.right_marking_detection, gnss_z)
-                
+
                 # Note: If the GNN version is to be used, use:
                 # sw_graph.add_gnn_lane_factor(lane_detection, gnss_z)
 
@@ -507,22 +507,25 @@ def main():
         loc_gt_seq, pose_estimations, map_image, map_info)
 
     ## Longitudinal error ##
-    evtools.gen_colored_error_plot('Longitudinal Error (m)', abs_lon_errs, 3.0,
-                                   loc_gt_seq, pose_estimations,
-                                   sign_pole_coords, general_pole_coords,
-                                   local_map_image, extent)
+    lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot('Longitudinal Error (m)',
+                                                             abs_lon_errs, 3.0,
+                                                             loc_gt_seq, pose_estimations,
+                                                             sign_pole_coords, general_pole_coords,
+                                                             local_map_image, extent)
 
     ## Lateral error ##
-    evtools.gen_colored_error_plot('Lateral Error (m)', abs_lat_errs, 1.0,
-                                   loc_gt_seq, pose_estimations,
-                                   sign_pole_coords, general_pole_coords,
-                                   local_map_image, extent)
+    lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot('Lateral Error (m)',
+                                                             abs_lat_errs, 1.0,
+                                                             loc_gt_seq, pose_estimations,
+                                                             sign_pole_coords, general_pole_coords,
+                                                             local_map_image, extent)
 
     ## Yaw error ##
-    evtools.gen_colored_error_plot('Yaw Error (rad)', abs_yaw_errs, 0.5,
-                                   loc_gt_seq, pose_estimations,
-                                   sign_pole_coords, general_pole_coords,
-                                   local_map_image, extent)
+    yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('Yaw Error (rad)',
+                                                             abs_yaw_errs, 0.5,
+                                                             loc_gt_seq, pose_estimations,
+                                                             sign_pole_coords, general_pole_coords,
+                                                             local_map_image, extent)
 
     plt.show()
 
