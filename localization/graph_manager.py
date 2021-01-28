@@ -273,8 +273,11 @@ class SlidingWindowGraphManager(object):
             self.new_node_guessed = True
 
     def add_lane_factor(self, detected_marking, z):
-        """
-        TODO: Add docstring
+        """Add max-mixture PDA lane factor to the graph.
+
+        Args:
+            detected_marking (MELaneMarking): Detected lane marking.
+            z (float): Z-coordinate of the vehilce. This is to query the map at the correct level.
         """
         if not self.odom_added:
             raise RuntimeError(
@@ -289,8 +292,11 @@ class SlidingWindowGraphManager(object):
                                           self.config['lane']))
 
     def add_gnn_lane_factor(self, lane_marking_detection, z):
-        """
-        TODO: Add docstring
+        """Add GNN lane factor to the graph.
+
+        Args:
+            lane_marking_detection (MELaneDetection): Lane marking detection object.
+            z (float): Z-coordinate of the vehilce. This is to query the map at the correct level.
         """
         if not self.odom_added:
             raise RuntimeError(
@@ -305,8 +311,10 @@ class SlidingWindowGraphManager(object):
                                           self.config['lane']))
 
     def add_pole_factor(self, detected_pole):
-        """
-        TODO: Add docstring
+        """Add pole factor to the graph.
+
+        Args:
+            detected_pole (Pole): Pole object.
         """
         if not self.odom_added:
             raise RuntimeError(
@@ -341,8 +349,11 @@ class SlidingWindowGraphManager(object):
                                   self.config['pole']))
 
     def add_rs_stop_factor(self, detected_rs_stop_dist, z):
-        """
-        TODO: Add docstring
+        """Add road surfacc stop sign factor.
+
+        Args:
+            detected_rs_stop_dist (float): Distance to the detected rs stop sign.
+            z (float): Z-coordinate of the vehilce. This is to query the map at the correct level. 
         """
         if not self.odom_added:
             raise RuntimeError(
