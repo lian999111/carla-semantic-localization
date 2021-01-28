@@ -150,7 +150,7 @@ def main():
         # It is just borrowed (with a little modifications) here to create and store map image.
         MapImage(carla_world,
                  carla_world.get_map(),
-                 pixels_per_meter=20,
+                 pixels_per_meter=12,
                  show_triggers=False,
                  show_connections=False,
                  show_spawn_points=False)
@@ -519,6 +519,7 @@ def main():
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent)
+    lat_err_fig.savefig('lat_err.svg', format='svg', bbox_inches='tight')
 
     ## Yaw error ##
     yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('Yaw Error (rad)',
