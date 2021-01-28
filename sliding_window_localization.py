@@ -119,7 +119,7 @@ def main():
 
     settings = carla_world.get_settings()
     settings.synchronous_mode = True
-    settings.fixed_delta_seconds = 0.0
+    settings.fixed_delta_seconds = 0.1
     settings.no_rendering_mode = True
     carla_world.apply_settings(settings)
 
