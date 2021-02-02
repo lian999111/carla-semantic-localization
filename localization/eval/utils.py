@@ -192,13 +192,21 @@ def gen_colored_error_plot(title, errors, upper_bound,
     ax.set_ylabel('y (m)')
     # Ground truth path
     loc_gts = np.asarray(loc_gt_seq)
-    ax.plot(loc_gts[:, 0], loc_gts[:, 1], '-o',
-            color='limegreen', ms=1, zorder=0)
+    ax.scatter(loc_gts[:, 0], loc_gts[:, 1],
+               s=1, marker='.',
+               color='limegreen', edgecolors=None, linewidths=0,
+               zorder=0)
+
     # Ground truth poles
-    ax.plot(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
-            'o', color='crimson', ms=3, zorder=1)
-    ax.plot(general_pole_coords[:, 0], general_pole_coords[:, 1],
-            'o', color='midnightblue', ms=3, zorder=1)
+    ax.scatter(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
+               s=0.5, marker='o',
+               color='crimson', edgecolors=None, linewidths=0,
+               zorder=1)
+    ax.scatter(general_pole_coords[:, 0], general_pole_coords[:, 1],
+               s=0.5, marker='o',
+               color='midnightblue', edgecolors=None, linewidths=0,
+               zorder=1)
+
     # Resultant path with color
     norm = plt.Normalize(0, upper_bound)
     lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
