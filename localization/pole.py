@@ -30,9 +30,9 @@ def compute_H(prc, exp_x, exp_y):
     H[0, 1] = - exp_y / exp_r
     H[0, 2] = - exp_y*prc / exp_r
 
-    H[1, 0] = exp_y / (exp_x**2 + exp_y**2)
-    H[1, 1] = exp_x / (exp_x**2 + exp_y**2)
-    H[1, 2] = -prc*exp_x / (exp_x**2 + exp_y**2) - 1
+    H[1, 0] = exp_y / exp_r**2
+    H[1, 1] = exp_x / exp_r**2
+    H[1, 2] = -prc*exp_x / exp_r**2 - 1
 
     return H
 
