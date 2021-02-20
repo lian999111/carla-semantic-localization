@@ -108,21 +108,22 @@ class TrafficSign(object):
     The internal data follows the right-handed z-up coordinate system.
     """
 
-    def __init__(self, traffic_sign_actor, traffic_sign_type):
+    def __init__(self, traffic_sign_landmark, traffic_sign_type):
         """
         Constructor.
 
         Input:
-            traffic_sign_actor: Carla.Actor obj of the traffic sign.
+            traffic_sign_landmark: Carla.Landmark obj of the traffic sign.
             traffic_sign_type: TrafficSignType obj.
         """
-        carla_location = traffic_sign_actor.get_location()
-        carla_rotation = traffic_sign_actor.get_transform().rotation
+        carla_location = traffic_sign_landmark.transform.location
+        carla_rotation = traffic_sign_landmark.transform.rotation
         self.x = carla_location.x
         self.y = - carla_location.y   # convert to right-handed frame
         self.z = carla_location.z
         self.type = traffic_sign_type
-        self.yaw = carla_rotation.yaw * np.pi / 180     # to rad
+        # Convert from z-down to z-up frame
+        self.yaw = - carla_rotation.yaw * np.pi / 180     # to rad
 
 
 def get_fbumper_location(raxle_location, raxle_orientation, dist_raxle_to_fbumper):

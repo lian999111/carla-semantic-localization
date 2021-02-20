@@ -16,4 +16,4 @@ clustering:
 
 classification:
   # The max distance between a TrafficSign and a pole that are to be associated.
-  max_dist: 3  # (m)
+  max_dist: 0.5  # (m)

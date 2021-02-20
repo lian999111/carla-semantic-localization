@@ -91,77 +91,81 @@ class GroundTruthExtractor(object):
         """
         Get a list of of TrafficSign objects from the given Carla.World object.
         """
-        actor_list = carla_world.get_actors()
         carla_map = carla_world.get_map()
+        # Get all landmarks
+        # Note: landmarks as new features in Carla have more accurate positions
+        # than their counterpart actors!
+        all_landmarks = carla_map.get_all_landmarks()
         traffic_signs = []
 
-        # Stop signs
-        for actor in actor_list.filter('traffic.stop'):
-            location = actor.get_location()
-            closest_waypt = carla_map.get_waypoint(location)
+        for landmark in all_landmarks:
+            location = landmark.transform.location
 
-            # If the stop sign is within 1 meter from the closest waypoint, it is most likely on the road surface
-            if location.distance(closest_waypt.transform.location) < 1:
+            # Stop sign
+            if landmark.type == '206':
+                closest_waypt = carla_map.get_waypoint(location)
+
+                # If the stop sign is within 1.2 meter from the closest waypoint, 
+                # it is most likely on the road surface.
+                # Use the road surface stop sign as a stop line
+                if location.distance(closest_waypt.transform.location) < 1.2:
+                    traffic_signs.append(TrafficSign(
+                        landmark, TrafficSignType.RSStop))
+                    if debug:
+                        carla_world.debug.draw_arrow(
+                            location, location + carla.Location(z=50))
+
+                        # Draw orientation
+                        carla_tform = landmark.transform
+                        arrow_tip = carla.Location(x=5)
+                        carla_tform.transform(arrow_tip)
+                        carla_world.debug.draw_arrow(
+                            location, arrow_tip)
+                else:
+                    traffic_signs.append(TrafficSign(landmark, TrafficSignType.Stop))
+                    if debug:
+                        carla_world.debug.draw_arrow(
+                            location, location + carla.Location(z=50), color=carla.Color(0, 255, 0))
+            
+            # Yield sign
+            elif landmark.type == '205':
+                closest_waypt = carla_map.get_waypoint(location)
+                # If the landmark is within 1 meter from the closest waypoint, 
+                # it could be on the road surface without a rendered pole.
+                # In this case, simply ignore the landmark.
+                if location.distance(closest_waypt.transform.location) < 1:
+                    continue
+
+                traffic_signs.append(TrafficSign(landmark, TrafficSignType.Yield))
+                if debug:
+                    carla_world.debug.draw_arrow(
+                        location, location + carla.Location(z=50), color=carla.Color(0, 0, 255))
+
+            # Speed limit
+            elif landmark.type == '274':
+                closest_waypt = carla_map.get_waypoint(location)
+                # If the landmark is within 1 meter from the closest waypoint, 
+                # it could be on the road surface without a rendered pole.
+                # In this case, simply ignore the landmark.
+                if location.distance(closest_waypt.transform.location) < 1:
+                    continue
+
                 traffic_signs.append(TrafficSign(
-                    actor, TrafficSignType.RSStop))
+                    landmark, TrafficSignType.SpeedLimit))
                 if debug:
                     carla_world.debug.draw_arrow(
-                        location, location + carla.Location(z=50))
+                        location, location + carla.Location(z=50), color=carla.Color(255, 0, 255))
 
-                    # Draw orientation
-                    carla_tform = actor.get_transform()
-                    arrow_tip = carla.Location(x=5)
-                    carla_tform.transform(arrow_tip)
+            elif landmark.type == '1000001':
+                traffic_signs.append(TrafficSign(
+                    landmark, TrafficSignType.TrafficLight))
+
+                if debug:
                     carla_world.debug.draw_arrow(
-                        location, arrow_tip)
+                        location, location + carla.Location(z=50), color=carla.Color(255, 255, 0))
+            
             else:
-                traffic_signs.append(TrafficSign(actor, TrafficSignType.Stop))
-                if debug:
-                    carla_world.debug.draw_arrow(
-                        location, location + carla.Location(z=50), color=carla.Color(0, 255, 0))
-
-        # Yield signs
-        for actor in actor_list.filter('traffic.yield'):
-            location = actor.get_location()
-            closest_waypt = carla_map.get_waypoint(location)
-            # If the sign is within 1 meter from the closest waypoint, it is most likely on the road surface without a pole.
-            # In this case, simply ignore the actor.
-            # Although some traffic sign actors with an actual pole are found to be strangely placed in a lane in Town04 and
-            # will be ignored incorrectly, they should be rare and acceptable.
-            if location.distance(closest_waypt.transform.location) < 1:
-                continue
-
-            traffic_signs.append(TrafficSign(actor, TrafficSignType.Yield))
-            if debug:
-                carla_world.debug.draw_arrow(
-                    location, location + carla.Location(z=50), color=carla.Color(0, 0, 255))
-
-        # Speed limit signs
-        for actor in actor_list.filter('traffic.speed_limit.*'):
-            location = actor.get_location()
-            closest_waypt = carla_map.get_waypoint(location)
-            # If the sign is within 1 meter from the closest waypoint, it is most likely on the road surface without a pole.
-            # In this case, simply ignore the actor.
-            # Although some traffic sign actors with an actual pole are found to be strangely placed in a lane in Town04 and
-            # will be ignored incorrectly, they should be rare and acceptable.
-            if location.distance(closest_waypt.transform.location) < 1:
-                continue
-
-            traffic_signs.append(TrafficSign(
-                actor, TrafficSignType.SpeedLimit))
-            if debug:
-                carla_world.debug.draw_arrow(
-                    location, location + carla.Location(z=50), color=carla.Color(255, 0, 255))
-
-        # Traffic lights
-        for actor in actor_list.filter('traffic.traffic_light'):
-            traffic_signs.append(TrafficSign(
-                actor, TrafficSignType.TrafficLight))
-
-            location = actor.get_location()
-            if debug:
-                carla_world.debug.draw_arrow(
-                    location, location + carla.Location(z=50), color=carla.Color(255, 255, 0))
+                print('Landmark with type string {} ignored.'.format(landmark.type))
 
         return traffic_signs
 

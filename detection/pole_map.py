@@ -57,15 +57,28 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
 
         nearest_idc = kd_poles.query_ball_point(
             [traffic_sign.x, traffic_sign.y], classification_config['max_dist'])
-        if len(nearest_idc) == 1:
+        if len(nearest_idc) == 0:
+            continue
+        elif len(nearest_idc) == 1:
             pole_map[nearest_idc[0]].type = traffic_sign.type
-
             if __debug__:
                 plt.plot(pole_map[nearest_idc[0]].x,
                          pole_map[nearest_idc[0]].y, color='gold', marker='x', ms=5)
-        else:
-            continue
+        elif len(nearest_idc) > 1:
+            nearest_idx = None
+            nearest_dist = classification_config['max_dist']
 
+            for idx in nearest_idc:
+                curr_dist = np.linalg.norm(np.array([traffic_sign.x - pole_map[idx].x,
+                                              traffic_sign.y - pole_map[idx].y]))
+                if curr_dist < nearest_dist:
+                    nearest_idx = idx
+
+            pole_map[nearest_idx].type = traffic_sign.type
+            if __debug__:
+                plt.plot(pole_map[nearest_idx].x,
+                         pole_map[nearest_idx].y, color='gold', marker='x', ms=5)
+            
     if __debug__:
         plt.legend()
         plt.show()
