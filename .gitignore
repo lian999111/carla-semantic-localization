@@ -9,3 +9,6 @@
 *.pyo
 *.idx
 *.dat
+
+/thesis/images/**/*.pdf
+/thesis/images/**/*.pdf_tex
