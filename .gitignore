@@ -1,5 +1,7 @@
 .vscode
 
+/smmpda.egg-info/
+
 /playground
 /opendrive
 /recordings
