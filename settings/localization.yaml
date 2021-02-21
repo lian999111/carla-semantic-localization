@@ -59,9 +59,9 @@ sliding_window:
   # Parameters for GPS factor
   gnss:
     # Standard deviation in the noise model for x (m).
-    stddev_x: 8.0
+    stddev_x: 10.0
     # Standard deviation in the noise model for y (m).
-    stddev_y: 8.0 
+    stddev_y: 10.0 
 
   # Parameters for lane boundary factors
   lane:
@@ -82,7 +82,7 @@ sliding_window:
     prob_null: 0.1
     # Scale to scale up standard deviation for null hypothesis.
     # Or scale down information matrix when it is divided by the squared value.
-    null_std_scale: 1000000000000
+    null_std_scale: 1000000
 
   # Parameters for pole factors
   pole:
