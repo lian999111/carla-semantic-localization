@@ -67,7 +67,7 @@ def find_pole_bases(pole_image, min_width, max_width, min_height, use_bbox_cente
     Output:
         pole_bases_uv: Image coordiantes (u-v) of detected pole bases. None if no bases detected.
     """
-    # Use half height of image is upper_lim not given
+    # Use half height of image if upper_lim not given
     if not upper_lim:
         upper_lim = pole_image.shape[0] // 2
 
