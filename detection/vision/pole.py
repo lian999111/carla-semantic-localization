@@ -53,7 +53,7 @@ class PoleDetector(object):
         # Maximum bound box width (to ignore those too wide)
         self._max_width = pole_detect_params['max_width']
 
-    def update_poles(self, pole_image, use_bbox_center=True, upper_lim=None, z=0):
+    def update_poles(self, pole_image, use_bbox_center, upper_lim=None, z=0):
         """
         Update measurement of poles.
 
@@ -96,7 +96,7 @@ class PoleDetector(object):
         # In front bumper's frame
         return im2world_known_x(self.H, self.x0, self.pole_bases_uv, x_world)
 
-    def find_pole_bases(self, pole_image, use_bbox_center=True, upper_lim=None):
+    def find_pole_bases(self, pole_image, use_bbox_center, upper_lim=None):
         """
         Find bases of poles in the given image.
 
