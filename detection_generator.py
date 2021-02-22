@@ -176,7 +176,7 @@ def main():
 
         # Find the pole bases again using the lowest pixel
         # This is to get really accurate measurements for proximity-based labelling later
-        pole_detector.update_poles(pole_image, z=0, use_bbox_center=False, upper_lim=305)
+        pole_detector.find_pole_bases(pole_image, use_bbox_center=False, upper_lim=305)
         # Accurate x-y-z coordinates using ground truth depth image
         accurate_detected_pole_xyz = pole_detector.get_pole_xyz_from_depth(
             depth_image, dist_cam_to_fbumper)
@@ -299,7 +299,7 @@ def main():
 
         ############ Accurate poles for building pole map ############
         # The bases in image are stored internally in the detector
-        pole_detector_for_pole_map.find_pole_bases(pole_image)
+        pole_detector_for_pole_map.find_pole_bases(pole_image, use_bbox_center=False)
         accurate_pole_xyz = pole_detector_for_pole_map.get_pole_xyz_from_depth(
             depth_image, dist_cam_to_fbumper)
         if accurate_pole_xyz is not None:
