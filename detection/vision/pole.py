@@ -10,7 +10,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 from detection.vision.camproj import im2world_known_z, im2world_known_x
-from detection.vision.utils import find_pole_bases, decode_depth
+from detection.vision.utils import find_pole_bases, decode_depth, convert_semantic_color
 
 
 class PoleDetector(object):
@@ -184,7 +184,7 @@ def single(folder_name, image_idx):
 
     pole_bases_uv = pole_detector.pole_bases_uv
 
-    ss_image_copy = ss_image.copy()
+    ss_image_copy = convert_semantic_color(ss_image.copy())
     _, ax = plt.subplots(1, 2)
 
     if pole_bases_uv is not None:
