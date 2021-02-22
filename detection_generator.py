@@ -171,7 +171,12 @@ def main():
 
         ############ Pole detection (wrt front bumper) ############
         # x-y coordinates assuming z = 0
-        poles_xy_z0 = pole_detector.update_poles(pole_image, z=0, upper_lim=305)
+        # Coordinates are based on the bottom center of bboxes
+        poles_xy_z0 = pole_detector.update_poles(pole_image, z=0, use_bbox_center=True, upper_lim=305)
+
+        # Find the pole bases again using the lowest pixel
+        # This is to get really accurate measurements for proximity-based labelling later
+        pole_detector.update_poles(pole_image, z=0, use_bbox_center=False, upper_lim=305)
         # Accurate x-y-z coordinates using ground truth depth image
         accurate_detected_pole_xyz = pole_detector.get_pole_xyz_from_depth(
             depth_image, dist_cam_to_fbumper)
