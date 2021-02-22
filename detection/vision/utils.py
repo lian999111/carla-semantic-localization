@@ -46,14 +46,14 @@ def decode_depth(depth_buffer):
     return depth_image
 
 
-def find_pole_bases(pole_image, min_width, max_width, min_height, use_bbox_center=True, upper_lim=None):
+def find_pole_bases(pole_image, min_width, max_width, min_height, use_bbox_center, upper_lim=None):
     """
     Find bases of poles in the given image.
 
-    This function first finds connected pole pixels. Then the bottom center of their 
-    bound boxes are extracted. Assuming flat ground, a pole stemming from the ground 
-    is bound to appear under the upper_lim. Thus, only image below the upper_lim is searched 
-    to avoid cluttering caused by poles that are too far. 
+    This function first finds connected pole pixels. Then the bottom center of their
+    bound boxes are extracted. Assuming flat ground, a pole stemming from the ground
+    is bound to appear under the upper_lim. Thus, only image below the upper_lim is searched
+    to avoid cluttering caused by poles that are too far.
 
     Input: 
         pole_image: OpenCV image with supported data type (e.g. np.uint8). The image should have non-zero values only

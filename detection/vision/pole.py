@@ -53,7 +53,7 @@ class PoleDetector(object):
         # Maximum bound box width (to ignore those too wide)
         self._max_width = pole_detect_params['max_width']
 
-    def update_poles(self, pole_image, upper_lim=None, z=0):
+    def update_poles(self, pole_image, use_bbox_center=True, upper_lim=None, z=0):
         """
         Update measurement of poles.
 
@@ -63,13 +63,15 @@ class PoleDetector(object):
         Input: 
             pole_image: OpenCV image with supported data type (e.g. np.uint8). The image should have non-zero values only
                         at pole pixels, which is easy to obtain from a semantic image.
+            use_bbox_center: Bool whether to use the bottom center of the bounding box as a pole's base.
+                         If False, the pixel with the largest v coordinate (lowest in image) is used.
             upper_lim:  Position of the upper_lim in the image (wrt the top of image). If not given, half point of image is used.
                         Note that larger upper_lim value means lower in image since it's the v coordinate.
             z: Assumed z coordinates perpendicular to ground of corresponding points
         Output:
             2-by-N Numpy.array containing x-y coordinates of pole bases wrt the front bumper.
         """
-        self.find_pole_bases(pole_image, upper_lim)
+        self.find_pole_bases(pole_image, use_bbox_center, upper_lim)
         self._get_pole_xy_fbumper(z)
         return self.pole_bases_xy
 
@@ -94,7 +96,7 @@ class PoleDetector(object):
         # In front bumper's frame
         return im2world_known_x(self.H, self.x0, self.pole_bases_uv, x_world)
 
-    def find_pole_bases(self, pole_image, upper_lim=None):
+    def find_pole_bases(self, pole_image, use_bbox_center=True, upper_lim=None):
         """
         Find bases of poles in the given image.
 
@@ -106,12 +108,14 @@ class PoleDetector(object):
         Input: 
             pole_image: OpenCV image with supported data type (e.g. np.uint8). The image should have non-zero values only
                         at pole pixels, which is easy to obtained from a semantic image.
+            use_bbox_center: Bool whether to use the bottom center of the bounding box as a pole's base.
+                         If False, the pixel with the largest v coordinate (lowest in image) is used.
             upper_lim: Position of the upper_lim in the image (wrt the top of image). If not given, half point of image is used.
         Output:
             pole_bases_uv: Image coordiantes (u-v) of detected pole bases.
         """
         self.pole_bases_uv = find_pole_bases(
-            pole_image, self._min_width, self._max_width, self._min_height, use_bbox_center=False, upper_lim=upper_lim)
+            pole_image, self._min_width, self._max_width, self._min_height, use_bbox_center, upper_lim=upper_lim)
         return self.pole_bases_uv
 
     def _get_pole_xy_fbumper(self, z=0):
@@ -177,9 +181,9 @@ def single(folder_name, image_idx):
     depth_image = decode_depth(depth_buffer)
 
     pole_detector = PoleDetector(K, R, x0, vision_params['pole'])
-    pole_detector.update_poles(pole_image, upper_lim=310, z=0)
+    pole_detector.update_poles(pole_image, upper_lim=305, z=0)
     poles_xy_z0 = pole_detector.pole_bases_xy
-    pole_detector.update_poles(pole_image, upper_lim=310, z=0.1)
+    pole_detector.update_poles(pole_image, upper_lim=305, z=0.1)
     poles_xy_z1 = pole_detector.pole_bases_xy
 
     pole_bases_uv = pole_detector.pole_bases_uv
@@ -206,7 +210,9 @@ def single(folder_name, image_idx):
         ax[1].set_xlim((30, -30))
         ax[1].set_ylim((-5, 60))
 
-        plt.legend()
+        
+    ax[0].imshow(ss_image_copy)
+    plt.legend()
     plt.show()
 
 
@@ -271,6 +277,8 @@ def loop(folder_name):
         pole_detector.update_poles(pole_image, z=0.1)
         poles_xy_z1 = pole_detector.pole_bases_xy
 
+        # Use the real base pixel instead of the bbox's bottom center
+        pole_detector.update_poles(pole_image, z=0, use_bbox_center=False)
         pole_bases_uv = pole_detector.pole_bases_uv
 
         if pole_bases_uv is not None:
@@ -299,5 +307,5 @@ def loop(folder_name):
 
 
 if __name__ == "__main__":
-    # single('town03_rb', 51)
-    loop('town03_rb')
+    # single('urban1', 750)
+    loop('urban1')
