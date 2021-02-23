@@ -8,6 +8,7 @@ import sys
 import glob
 from pathlib import Path
 import time
+from shutil import copyfile
 
 import yaml
 import numpy as np
@@ -603,13 +604,23 @@ def main():
         with open(result_data_pth, 'wb') as f:
             pickle.dump(localization_results, f)
 
+        # Copy pose_noise.yaml for later reference
+        post_noise_file_path = os.path.join(full_save_dir, 'post_noise.yaml')
+        copyfile(args.noise_config.name, post_noise_file_path)
+        # Copy localization.yaml for later reference
+        post_noise_file_path = os.path.join(full_save_dir, 'localization.yaml')
+        copyfile(args.localization_config.name, post_noise_file_path)
+        
+
+
+
     # Absolute errors
     abs_lon_errs = np.abs(np.asarray(lon_errs))
     abs_lat_errs = np.abs(np.asarray(lat_errs))
     abs_yaw_errs = np.abs(np.asarray(yaw_errs))
 
-    #### Visualize errors ####
     plt.close('all')
+    #### Visualize errors ####
     # Prepare local map as background
     local_map_image, extent = evtools.get_local_map_image(
         loc_gt_seq, pose_estimations, map_image, map_info)
