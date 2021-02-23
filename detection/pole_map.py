@@ -6,6 +6,17 @@ from scipy.spatial import KDTree
 
 from detection.utils import Pole
 
+# import matplotlib
+# matplotlib.use("pgf")
+# matplotlib.rcParams.update({
+#     "pgf.texsystem": "pdflatex",
+#     'font.family': 'serif',
+#     'text.usetex': True,
+#     'pgf.rcfonts': False,
+# })
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif', size=12)
+
 
 def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
     """
@@ -33,6 +44,14 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
     labels = pole_clustering.labels_
     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
 
+    if __debug__:
+        pole_landmark_x = []
+        pole_landmark_y = []
+        traffic_sign_x = []
+        traffic_sign_y = []
+        labeled_x = []
+        labeled_y = []
+
     # Calculate the mean of each cluster as the location of the pole
     for label in range(n_clusters):
         mean_location = np.mean(poles_xy[:, labels == label], axis=1)
@@ -40,9 +59,11 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
         pole_map.append(Pole(mean_location[0], mean_location[1]))
 
         if __debug__:
-            plt.plot(mean_location[0], mean_location[1], 's')
-            plt.plot(poles_xy[0, labels == label],
-                     poles_xy[1, labels == label], '.', ms=0.5)
+            pole_landmark_x.append(mean_location[0])
+            pole_landmark_y.append(mean_location[1])
+
+            # ax.plot(poles_xy[0, labels == label],
+            #         poles_xy[1, labels == label], '.', ms=0.5)
 
     # Assign types to poles based on proximity
     classification_config = pole_map_config['classification']
@@ -52,35 +73,62 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
 
     for traffic_sign in traffic_signs:
         if __debug__:
-            # Plot all traffic signs
-            plt.plot(traffic_sign.x, traffic_sign.y, 'bs', ms=2)
+            traffic_sign_x.append(traffic_sign.x)
+            traffic_sign_y.append(traffic_sign.y)
 
         nearest_idc = kd_poles.query_ball_point(
             [traffic_sign.x, traffic_sign.y], classification_config['max_dist'])
+
         if len(nearest_idc) == 0:
             continue
+
         elif len(nearest_idc) == 1:
             pole_map[nearest_idc[0]].type = traffic_sign.type
             if __debug__:
-                plt.plot(pole_map[nearest_idc[0]].x,
-                         pole_map[nearest_idc[0]].y, color='gold', marker='x', ms=5)
+                labeled_x.append(pole_map[nearest_idc[0]].x)
+                labeled_y.append(pole_map[nearest_idc[0]].y)
+
         elif len(nearest_idc) > 1:
             nearest_idx = None
             nearest_dist = classification_config['max_dist']
 
             for idx in nearest_idc:
                 curr_dist = np.linalg.norm(np.array([traffic_sign.x - pole_map[idx].x,
-                                              traffic_sign.y - pole_map[idx].y]))
+                                                     traffic_sign.y - pole_map[idx].y]))
                 if curr_dist < nearest_dist:
                     nearest_idx = idx
 
             pole_map[nearest_idx].type = traffic_sign.type
+
             if __debug__:
-                plt.plot(pole_map[nearest_idx].x,
-                         pole_map[nearest_idx].y, color='gold', marker='x', ms=5)
-            
+                labeled_x.append(pole_map[nearest_idx].x)
+                labeled_y.append(pole_map[nearest_idx].y)
+
     if __debug__:
-        plt.legend()
+        fig, ax = plt.subplots(1, 1)
+        pole_landmarks_plot = ax.plot(pole_landmark_x, pole_landmark_y,
+                                      'g.', ms=6, label='pole landmark',
+                                      rasterized=True)[0]
+        landmark_objs_plot = ax.plot(traffic_sign_x, traffic_sign_y,
+                                     'bx', ms=6, label='landmark obj',
+                                     rasterized=True)[0]
+        labeled_poles_plot = ax.plot(labeled_x, labeled_y,
+                                     'r.', ms=6, label='labeled pole',
+                                     rasterized=True)[0]
+
+        pole_landmark_xdata = pole_landmarks_plot.get_xdata()
+        pole_landmark_ydata = pole_landmarks_plot.get_ydata()
+        max_x = max(pole_landmark_xdata)
+        min_x = min(pole_landmark_xdata)
+        max_y = max(pole_landmark_ydata)
+        min_y = min(pole_landmark_ydata)
+        ax.set_xlim(min_x-10, max_x+10)
+        ax.set_ylim(min_y-10, max_y+10)
+        ax.set_xlabel('x [m]')
+        ax.set_ylabel('y [m]')
+        plt.legend(framealpha=1.0)
+        # ax.yaxis.set_tick_params(pad=15)
+        # fig.savefig('pole_map.png', dpi=300)
         plt.show()
 
     return pole_map
