@@ -1,7 +1,13 @@
 ## Defines parameters for localization
 
-# True to record .gif
-record_gif: False
+# Indices to clip the recording
+# GNSS data between in pre_init_interval are averaged as init guess
+# e.g. 
+#   pre_init_interval: 10 and init_idx: 20 means GNSS in the interval 
+#   [pre_init_interval, init_idx) will be averaged. Note init_idx is excluded.
+pre_init_interval: 10
+init_idx: 20
+end_idx: 880
 
 # Toggles for factors
 use_gnss: On

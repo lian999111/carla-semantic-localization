@@ -125,10 +125,11 @@ def main():
 
     # Indices to clip the recording
     # GNSS data between pre_init_idx and init_idx will be averaged to get the initial guess.
-    # Data between init_idx and end_idx will be used for localization.
-    pre_init_idx = 10
-    init_idx = 20
-    end_idx = 2000
+    # Data between init_idx and end_idx are used for actaul localization.
+    pre_init_idx = localization_config['init_idx'] - \
+        localization_config['pre_init_interval']
+    init_idx = localization_config['init_idx']
+    end_idx = localization_config['end_idx']
 
     ############### Connect to Carla server ###############
     client = carla.Client('localhost', 2000)
