@@ -202,10 +202,10 @@ def main():
         # the recorded marking properties are used as the classification result.
         # It should be noted that due to the lane detection algorithm implementation details, when the ego vehicle makes a lane
         # change, the detected lane markings will switch to the next lane before the front bumper's center actually enters the next lane.
-        # That is, there will be some time points when the lane detection returns the next lane already while the recorded ground truth
-        # remains in the current lane since it is based on the front bumper's actual location. In this case, detections will be created
-        # with "Other" color and "Unknown" type. This is also the case when there is a false positive detection as the coefficients are
-        # not consistent with the ground truth.
+        # So a detection is also compared to ground truth types on the other side.
+        # When there is a false positive detection, whose coefficients are not consistent with the ground truth,
+        # the Unknown type will be used as default.
+        # Perturbations are applied afterwards to mess the type a bit to simulate noise.
 
         # Coeffs from detector are in descending order, while those from ground truth are in ascending order
         if left_coeffs is None:
@@ -244,10 +244,11 @@ def main():
 
         else:
             # False positive
-            # Randomly choose a type
-            random_type = random.choice(list(MELaneMarkingType))
+            # Use unknown type as default for false detection
             left_detection = MELaneMarking(
-                left_coeffs, LaneMarkingColor.Other, random_type)
+                left_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown)
+            # Perturb lane marking type so it could be a type other than unknown
+            left_detection.perturb_type(lane_detection_sim_config['fc_prob_false_positive'])
 
         if right_coeffs is None:
             # No detection
@@ -284,10 +285,11 @@ def main():
 
         else:
             # False positive
-            # Randomly choose a type
-            random_type = random.choice(list(MELaneMarkingType))
+            # Use unknown type as default for false detection
             right_detection = MELaneMarking(
-                right_coeffs, LaneMarkingColor.Other, random_type)
+                right_coeffs, LaneMarkingColor.Other, MELaneMarkingType.Unknown)
+            # Perturb lane marking type so it could be a type other than unknown
+            right_detection.perturb_type(lane_detection_sim_config['fc_prob_false_positive'])
 
         lane_marking_detection_seq.append(
             MELaneDetection(left_detection, right_detection))

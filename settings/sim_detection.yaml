@@ -3,13 +3,14 @@
 # Pole detection
 pole:
   max_dist: 0.5   # (m) Max distance between a pole detection and its nearest pole landmark for labelling
-  fc_prob: 0.0   # [0.0 - 1.0] Probability of false classification
+  fc_prob: 0.0    # [0.0 - 1.0] Probability of false classification
 
 # Lane detection
 lane:
   c0_thres: 0.5       # (m) Threshold of c0 within which a detected lane marking is associated to a ground truth lane marking 
   c1_thres: 0.4       # Threshold of c1 within which a detected lane marking is associated to a ground truth lane marking
-  fc_prob: 0.0   # [0.0 - 1.0] Probability of false classification
+  fc_prob: 0.0        # [0.0 - 1.0] Probability of false classification
+  fc_prob_false_positive: 0.0       # [0.0 - 1.0] Probability of a false positive detection to have a type other than unknown
 
 # Road surface stop sign detection
 # RSStopDetectionSimulator uses a underlying RSStopGTExtractor to get the ground truth of road surface stop signs (rs stop sign),
