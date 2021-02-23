@@ -341,8 +341,10 @@ def main():
                     accurate_detection[0:2])
                 if nearest_dist < pole_detection_sim_config['max_dist']:
                     detections[pole_idx].type = pole_map[nearest_idx].type
-                    detections[pole_idx].perturb_type(
-                        pole_detection_sim_config['fc_prob'])
+        
+            # Perturb pole detections at this time step
+            for detection in detections:
+                detection.perturb_type(pole_detection_sim_config['fc_prob'])
 
     ############ Save data ############
     # Copy configuration files for future reference
