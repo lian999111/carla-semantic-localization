@@ -6,10 +6,13 @@ import pickle
 import math
 import sys
 import glob
+from pathlib import Path
+import time
 
 import yaml
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 import imageio
 import pygame
 
@@ -28,6 +31,17 @@ try:
 except IndexError:
     pass
 import carla
+
+# plt.rc('text', usetex=True)
+# plt.rc('font', family='serif', size=12)
+
+# matplotlib.use("pgf")
+# matplotlib.rcParams.update({
+#     "pgf.texsystem": "pdflatex",
+#     'font.family': 'serif',
+#     'text.usetex': True,
+#     'pgf.rcfonts': False,
+# })
 
 
 def dir_path(path):
@@ -49,6 +63,9 @@ def main():
     argparser.add_argument('localization_config',
                            type=argparse.FileType('r'),
                            help='yaml file for localization configuration')
+    argparser.add_argument('-n', '--noise', dest='noise_config',
+                           type=argparse.FileType('r'),
+                           help='yaml file for post-added noise')
     argparser.add_argument('-s', '--save', dest='save_dir',
                            help='save results in SACE_DIR under the recording folder')
     args = argparser.parse_args()
@@ -77,6 +94,11 @@ def main():
     # Read configurations for localization
     with args.localization_config as f:
         localization_config = yaml.safe_load(f)
+
+    # Read pose-added measurement noise configurations if given
+    if args.noise_config:
+        with args.noise_config as f:
+            post_noise_config = yaml.safe_load(f)
 
     ############### Retrieve required data ###############
     # Ground truth
@@ -158,8 +180,10 @@ def main():
                  show_spawn_points=False)
         pygame.quit()
 
+    # Load cached map image
     map_image = plt.imread(full_path)
 
+    # Load map info of how to show a pose on the map image
     info_filename = carla_config['world']['map'] + '_info.yaml'
     info_full_path = str(os.path.join(dirname, info_filename))
     with open(info_full_path, 'r') as f:
@@ -204,9 +228,10 @@ def main():
                              color='crimson', fillstyle='none', ms=3, zorder=3)[0]
     general_pole_plot = ax.plot([], [], '-o', linewidth=0.2,
                                 color='midnightblue', fillstyle='none', ms=3, zorder=3)[0]
+    ax.set_title('0')
+    ax.set_xlabel('x [m]')
+    ax.set_ylabel('y [m]')
 
-    ax.set_xlabel('x (m)')
-    ax.set_ylabel('y (m)')
     plt.show(block=False)
 
     ############### Sliding window graph ###############
@@ -242,8 +267,9 @@ def main():
                                          first_node_idx=init_idx)
 
     ############### Loop through recorded data ###############
-    # Fix the seed for noise added afterwards
-    np.random.seed(0)
+    # Fix the seed for post-added noise
+    if args.noise_config:
+        np.random.seed(post_noise_config['seed'])
 
     # Lists for pre init phase
     init_gnss_x = []
@@ -251,6 +277,8 @@ def main():
 
     # List for storing pose of each time step after optimization
     pose_estimations = []
+    # List for storing cpu time of solving the graph at each cycle
+    cpu_times = []
 
     if args.save_dir:
         # List for storing figures
@@ -262,38 +290,80 @@ def main():
             continue
 
         delta_t = timestamp - timestamp_seq[idx-1]
-        vx = vx_seq[idx] + np.random.normal(0, 0.2)
-        yaw_rate = gyro_z_seq[idx] + np.random.normal(0, 0.1)
 
-        left_marking_coeffs_gt = np.asarray(left_marking_coeffs_seq[idx])
-        right_marking_coeffs_gt = np.asarray(right_marking_coeffs_seq[idx])
-
-        # Detection
+        # Retrieve odom
+        vx = vx_seq[idx]
+        yaw_rate = gyro_z_seq[idx]
+        # Retrieve GNSS
+        gnss_x = gnss_x_seq[idx]
+        gnss_y = gnss_y_seq[idx]
+        gnss_z = gnss_z_seq[idx]
+        # Retrieve measurements
         lane_detection = lane_detection_seq[idx]
         pole_detection = pole_detection_seq[idx]
         rs_stop_detection = rs_stop_detection_seq[idx]
 
-        gnss_x = gnss_x_seq[idx]
-        gnss_y = gnss_y_seq[idx]
-        gnss_z = gnss_z_seq[idx]
-        noised_gnss_x = gnss_x + np.random.normal(3.5, 3.0)
-        noised_gnss_y = gnss_y + np.random.normal(0.0, 3.0)
+        # Add noise if noise configurations are given
+        if args.noise_config:
+            # Odom
+            v_bias = post_noise_config['odom']['v_bias']
+            v_stddev = post_noise_config['odom']['v_stddev']
+            yaw_rate_bias = post_noise_config['odom']['yaw_rate_bias']
+            yaw_rate_stddev = post_noise_config['odom']['yaw_rate_stddev']
 
-        raxle_loacation_gt = raxle_locations[idx]
-        yaw_gt = raxle_orientations[idx][2]
-        noised_yaw_gt = yaw_gt + np.random.normal(0.0, 0.1)
+            vx += np.random.normal(v_bias, v_stddev)
+            yaw_rate += np.random.normal(yaw_rate_bias, yaw_rate_stddev)
+
+            # GNSS
+            x_bias = post_noise_config['gnss']['x_bias']
+            x_stddev = post_noise_config['gnss']['x_stddev']
+            y_bias = post_noise_config['gnss']['y_bias']
+            y_stddev = post_noise_config['gnss']['y_stddev']
+            z_bias = post_noise_config['gnss']['z_bias']
+            z_stddev = post_noise_config['gnss']['z_stddev']
+
+            gnss_x += np.random.normal(x_bias, x_stddev)
+            gnss_y += np.random.normal(y_bias, y_stddev)
+            gnss_z += np.random.normal(z_bias, z_stddev)
+
+            # Lane
+            fc_prob = post_noise_config['lane']['fc_prob']
+            if lane_detection.left_marking_detection is not None:
+                lane_detection.left_marking_detection.perturb_type(fc_prob)
+            if lane_detection.right_marking_detection is not None:
+                lane_detection.right_marking_detection.perturb_type(fc_prob)
+
+            # Pole
+            fc_prob = post_noise_config['pole']['fc_prob']
+            if pole_detection is not None:
+                for detection in pole_detection:
+                    detection.perturb_type(fc_prob)
+
+            # RS stop
+            if rs_stop_detection is not None:
+                dist_scale = post_noise_config['rs_stop']['scale']
+                dist_bias = post_noise_config['rs_stop']['dist_bias']
+                dist_stddev = post_noise_config['rs_stop']['dist_stddev']
+                rs_stop_detection *= dist_scale
+                rs_stop_detection += np.random.normal(dist_bias, dist_stddev)
 
         # Pre init phase
         # Add GNSS data to list to be averaged.
         if idx < init_idx:
-            init_gnss_x.append(noised_gnss_x)
-            init_gnss_y.append(noised_gnss_y)
+            init_gnss_x.append(gnss_x)
+            init_gnss_y.append(gnss_y)
 
         # End of pre init phase
         # Use averaged x and y from GNSS as prior.
         if idx == init_idx:
+            # Averge gnss to initialize position
             avg_gnss_x = sum(init_gnss_x)/len(init_gnss_x)
             avg_gnss_y = sum(init_gnss_y)/len(init_gnss_y)
+
+            # Use perturbed yaw to initialize heading
+            yaw_gt = raxle_orientations[idx][2]
+            noised_yaw_gt = yaw_gt + np.random.normal(0.0, 0.1)
+
             sw_graph.add_prior_factor(
                 avg_gnss_x, avg_gnss_y, noised_yaw_gt)
 
@@ -306,7 +376,7 @@ def main():
             # Add GNSS factor
             if localization_config['use_gnss']:
                 sw_graph.add_gnss_factor(
-                    np.array([noised_gnss_x, noised_gnss_y]), add_init_guess=False)
+                    np.array([gnss_x, gnss_y]), add_init_guess=False)
 
             # Add lane boundary factors
             if localization_config['use_lane']:
@@ -338,8 +408,11 @@ def main():
             # Truncate the graph if necessary
             sw_graph.try_move_sliding_window_forward()
 
-            # Optimize graph
+            # Optimize graph and record the cpu time of solving
+            start = time.process_time()
             sw_graph.solve_one_step()
+            cpu_time = time.process_time()-start
+            cpu_times.append(cpu_time)
 
             # Record the lastest pose after optimization
             last_se2_pose = sw_graph.last_optimized_se2
@@ -383,7 +456,7 @@ def main():
                 loc_x_gts[idx-init_idx], loc_y_gts[idx-init_idx])
 
             ### Visualize GNSS ###
-            gnss_dot.set_data(noised_gnss_x, noised_gnss_y)
+            gnss_dot.set_data(gnss_x, gnss_y)
 
             ### Visualize Lane boundary detection ###
             last_se2 = sw_graph.last_optimized_se2
@@ -515,6 +588,7 @@ def main():
         localization_results['loc_gt_seq'] = loc_gt_seq
         localization_results['ori_gt_seq'] = ori_gt_seq
         localization_results['pose_estimations'] = pose_estimations
+        localization_results['cpu_times'] = cpu_times
         localization_results['lon_errs'] = lon_errs
         localization_results['lat_errs'] = lat_errs
         localization_results['yaw_errs'] = yaw_errs
@@ -529,31 +603,37 @@ def main():
     abs_yaw_errs = np.abs(np.asarray(yaw_errs))
 
     #### Visualize errors ####
+    plt.close('all')
     # Prepare local map as background
     local_map_image, extent = evtools.get_local_map_image(
         loc_gt_seq, pose_estimations, map_image, map_info)
 
     ## Longitudinal error ##
-    lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot('Longitudinal Error (m)',
-                                                             abs_lon_errs, 3.0,
-                                                             loc_gt_seq, pose_estimations,
-                                                             sign_pole_coords, general_pole_coords,
-                                                             local_map_image, extent)
+    lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot_highway('Longitudinal Error (m)',
+                                                                     abs_lon_errs, 3.0,
+                                                                     loc_gt_seq, pose_estimations,
+                                                                     sign_pole_coords, general_pole_coords,
+                                                                     local_map_image, extent)
+    # lon_err_fig.savefig('lon_err.pgf', dpi=1000, bbox_inches='tight')
 
-    ## Lateral error ##
-    lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot('Lateral Error (m)',
-                                                             abs_lat_errs, 1.0,
-                                                             loc_gt_seq, pose_estimations,
-                                                             sign_pole_coords, general_pole_coords,
-                                                             local_map_image, extent)
-    lat_err_fig.savefig('lat_err.svg', format='svg', bbox_inches='tight')
+    # import tikzplotlib
+    # tikzplotlib.clean_figure()
+    # tikzplotlib.save("mytikz.tex")
+
+    lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot_highway('Lateral Error (m)',
+                                                                     abs_lat_errs, 1.0,
+                                                                     loc_gt_seq, pose_estimations,
+                                                                     sign_pole_coords, general_pole_coords,
+                                                                     local_map_image, extent)
+    # lat_err_fig.savefig('lat_err.pgf', dpi=1000, bbox_inches='tight')
 
     ## Yaw error ##
-    yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('Yaw Error (rad)',
-                                                             abs_yaw_errs, 0.5,
-                                                             loc_gt_seq, pose_estimations,
-                                                             sign_pole_coords, general_pole_coords,
-                                                             local_map_image, extent)
+    yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot_highway('Yaw Error (rad)',
+                                                                     abs_yaw_errs, 0.5,
+                                                                     loc_gt_seq, pose_estimations,
+                                                                     sign_pole_coords, general_pole_coords,
+                                                                     local_map_image, extent)
+    # yaw_err_fig.savefig('yaw_err.pgf', dpi=1000, bbox_inches='tight')
 
     plt.show()
 

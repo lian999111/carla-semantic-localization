@@ -1,0 +1,42 @@
+## Defines parameters for post-added measurement noise after Carla simulation
+
+# Seed for numpy.random. Use null to let numpy decide a random seed.
+seed: 1
+
+odom:
+  # Velocity Gaussian noise (m/s)
+  v_bias: 0.0
+  v_stddev: 0.2
+  # Yaw rate Gaussian noise (m/s)
+  yaw_rate_bias: 0.0
+  yaw_rate_stddev: 0.1
+
+# GNSS measurements are converted to Cartesian coordiantes already
+gnss:
+  # X (m)
+  x_bias: 0.0
+  x_stddev: 3.0
+  # Y (m)
+  y_bias: 0.0
+  y_stddev: 3.0
+  # Z (m)
+  z_bias: 0.0
+  z_stddev: 0.0
+
+pole:
+  # False classification probability [0-1.0]
+  fc_prob: 0.05
+
+lane:
+# False classification probability [0-1.0]
+  fc_prob: 0.05
+
+rs_stop:
+  # Scale longitudinal distance to simulate error
+  scale: 1.0
+  # Longitudinal distance Gaussian noise (m)
+  dist_bias: 0.0
+  dist_stddev: 0.7
+
+
+
