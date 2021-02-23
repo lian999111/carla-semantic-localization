@@ -109,12 +109,6 @@ def main():
     # Traffic sign ground truth
     traffic_signs = gt_data['static']['traffic_sign']
 
-    # Lane marking ground truth
-    left_marking_coeffs_seq = gt_data['seq']['lane']['left_marking_coeffs']
-    left_marking_seq = gt_data['seq']['lane']['left_marking']
-    right_marking_coeffs_seq = gt_data['seq']['lane']['right_marking_coeffs']
-    right_marking_seq = gt_data['seq']['lane']['right_marking']
-
     # Sensor data
     timestamp_seq = sensor_data['gnss']['timestamp']
     gnss_x_seq = sensor_data['gnss']['x']
