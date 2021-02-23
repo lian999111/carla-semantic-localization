@@ -128,7 +128,7 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
         ax.set_ylabel('y [m]')
         plt.legend(framealpha=1.0)
         # ax.yaxis.set_tick_params(pad=15)
-        # fig.savefig('pole_map.png', dpi=300)
+        # fig.savefig('visualization/pole_map_example.png', dpi=300)
         plt.show()
 
     return pole_map
