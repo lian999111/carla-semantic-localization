@@ -27,7 +27,7 @@ def compute_errors(pose_estis, loc_gt_seq, ori_gt_seq):
     """Compute longitudinal, lateral, and yaw errors.
 
     Args:
-        pose_estis (list of sophus.SE2): List of pose esitmations.
+        pose_estis (list): List of pose esitmations in the form of [x, y, theta].
         loc_gt_seq (list): List of ground truth locations.
         ori_gt_seq (list): List of ground truth orientations.
     Returns:
@@ -50,14 +50,14 @@ def compute_errors(pose_estis, loc_gt_seq, ori_gt_seq):
                               [0, 0, 1]])
         tform_w2e = np.linalg.inv(tform_e2w)
 
-        trvec_world = np.append(pose_esit.translation(), 1)
+        trvec_world = np.array([pose_esit[0], pose_esit[1], 1])
         trvec_ego = tform_w2e @ trvec_world
 
         longitudinal_errors.append(trvec_ego[0])
         lateral_errors.append(trvec_ego[1])
 
         # Rotational error
-        yaw = pose_esit.so2().theta()
+        yaw = pose_esit[2]
         yaw_error = yaw - yaw_gt
         # Since yaw angle is in a cyclic space, when the amount of error is larger than 180 degrees,
         # we need to correct it.
@@ -129,7 +129,7 @@ def get_local_map_image(loc_gt_seq, pose_estimations, map_image, map_info, margi
 
     Args:
         loc_gt_seq (list): List of ground truth locations.
-        pose_estimations (list of sophus.SE2): List of pose esitmations.
+        pose_estimations (list): List of pose esitmations in the form of [x, y, theta].
         map_image (np.ndarray): Map image.
         map_info (dict): Metainfo of the map image.
         margin (int): Margin to be included around the trajectory.
@@ -138,8 +138,8 @@ def get_local_map_image(loc_gt_seq, pose_estimations, map_image, map_info, margi
         extent: Extent of the local map image for imshow().
     """
     loc_gts = np.asarray(loc_gt_seq)
-    x_estimations = [pose.translation()[0] for pose in pose_estimations]
-    y_estimations = [pose.translation()[1] for pose in pose_estimations]
+    x_estimations = [pose[0] for pose in pose_estimations]
+    y_estimations = [pose[1] for pose in pose_estimations]
     x_min = min(loc_gts[:, 0].min(), min(x_estimations)) - margin
     x_max = max(loc_gts[:, 0].max(), max(x_estimations)) + margin
     y_min = min(loc_gts[:, 1].min(), min(y_estimations)) - margin
@@ -163,7 +163,7 @@ def get_local_map_image(loc_gt_seq, pose_estimations, map_image, map_info, margi
     return local_map_image, extent
 
 
-def gen_colored_error_plot(title, errors, upper_bound,
+def gen_colored_error_plot(title, abs_errors, upper_bound,
                            loc_gt_seq, pose_estimations,
                            sign_pole_coords, general_pole_coords,
                            local_map_img, extent):
@@ -171,10 +171,10 @@ def gen_colored_error_plot(title, errors, upper_bound,
 
     Args:
         title (string): Title of the plot.
-        errors (array-like): A sequence of errors.
+        abs_errors (array-like): A sequence of absolute errors.
         upper_bound (float): Error value corresponding to the maximum in the color map.
         loc_gt_seq (list): List of ground truth locations.
-        pose_estimations (list): List of pose estimations.
+        pose_estimations (list): List of pose esitmations in the form of [x, y, theta].
         sign_pole_coords (np.ndarray): Ground truth coordinates of traffic sign poles.
         general_pole_coords (np.ndarray): Ground truth coordinates of general poles.
         local_map_img (np.ndarray): Local map image.
@@ -183,8 +183,8 @@ def gen_colored_error_plot(title, errors, upper_bound,
         Result figure ans axes object.
     """
     # Prepare path segments
-    x_estimations = [pose.translation()[0] for pose in pose_estimations]
-    y_estimations = [pose.translation()[1] for pose in pose_estimations]
+    x_estimations = [pose[0] for pose in pose_estimations]
+    y_estimations = [pose[1] for pose in pose_estimations]
     points = np.array([x_estimations, y_estimations]).T.reshape(-1, 1, 2)
     segments = np.concatenate((points[:-1], points[1:]), axis=1)
 
@@ -213,7 +213,7 @@ def gen_colored_error_plot(title, errors, upper_bound,
     norm = plt.Normalize(0, upper_bound)
     lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
     # Set the values used for colormapping
-    lc.set_array(errors)
+    lc.set_array(abs_errors)
     lc.set_linewidth(3)
     line = ax.add_collection(lc)
 
@@ -237,7 +237,7 @@ def gen_colored_error_plot(title, errors, upper_bound,
     return fig, ax
 
 
-def gen_colored_error_plot_highway(title, errors, upper_bound,
+def gen_colored_error_plot_highway(title, abs_errors, upper_bound,
                                    loc_gt_seq, pose_estimations,
                                    sign_pole_coords, general_pole_coords,
                                    local_map_img, extent):
@@ -245,10 +245,10 @@ def gen_colored_error_plot_highway(title, errors, upper_bound,
 
     Args:
         title (string): Title of the plot.
-        errors (array-like): A sequence of errors.
+        abs_errors (array-like): A sequence of absolute errors.
         upper_bound (float): Error value corresponding to the maximum in the color map.
         loc_gt_seq (list): List of ground truth locations.
-        pose_estimations (list): List of pose estimations.
+        pose_estimations (list): List of pose esitmations in the form of [x, y, theta].
         sign_pole_coords (np.ndarray): Ground truth coordinates of traffic sign poles.
         general_pole_coords (np.ndarray): Ground truth coordinates of general poles.
         local_map_img (np.ndarray): Local map image.
@@ -266,8 +266,8 @@ def gen_colored_error_plot_highway(title, errors, upper_bound,
     inset_mark_lw = 1 * size/7
 
     # Prepare path segments
-    x_estimations = [pose.translation()[0] for pose in pose_estimations]
-    y_estimations = [pose.translation()[1] for pose in pose_estimations]
+    x_estimations = [pose[0] for pose in pose_estimations]
+    y_estimations = [pose[1] for pose in pose_estimations]
     points = np.array([x_estimations, y_estimations]).T.reshape(-1, 1, 2)
     segments = np.concatenate((points[:-1], points[1:]), axis=1)
 
@@ -295,7 +295,7 @@ def gen_colored_error_plot_highway(title, errors, upper_bound,
     norm = plt.Normalize(0, upper_bound)
     lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
     # Set the values used for colormapping
-    lc.set_array(errors)
+    lc.set_array(abs_errors)
     lc.set_linewidth(path_lw)
     line = ax.add_collection(lc)
 
@@ -345,7 +345,7 @@ def gen_colored_error_plot_highway(title, errors, upper_bound,
                  alpha=0.6)
 
     lc_zoom = LineCollection(segments, cmap='gnuplot2', norm=norm)
-    lc_zoom.set_array(errors)
+    lc_zoom.set_array(abs_errors)
     lc_zoom.set_linewidth(zoom_path_lw)
     axins.add_collection(lc_zoom)
     axins.get_xaxis().set_visible(False)
@@ -387,7 +387,7 @@ def gen_colored_error_plot_highway(title, errors, upper_bound,
                  alpha=0.6)
 
     lc_zoom = LineCollection(segments, cmap='gnuplot2', norm=norm)
-    lc_zoom.set_array(errors)
+    lc_zoom.set_array(abs_errors)
     lc_zoom.set_linewidth(zoom_path_lw)
     axins.add_collection(lc_zoom)
     axins.get_xaxis().set_visible(False)
@@ -429,7 +429,7 @@ def gen_colored_error_plot_highway(title, errors, upper_bound,
                  alpha=0.6)
 
     lc_zoom = LineCollection(segments, cmap='gnuplot2', norm=norm)
-    lc_zoom.set_array(errors)
+    lc_zoom.set_array(abs_errors)
     lc_zoom.set_linewidth(zoom_path_lw)
     axins.add_collection(lc_zoom)
 

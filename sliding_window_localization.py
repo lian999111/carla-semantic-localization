@@ -49,6 +49,8 @@ def main():
     argparser.add_argument('localization_config',
                            type=argparse.FileType('r'),
                            help='yaml file for localization configuration')
+    argparser.add_argument('-s', '--save', dest='save_dir',
+                           help='save results in SACE_DIR under the recording folder')
     args = argparser.parse_args()
 
     # Load data in the recording folder
@@ -250,7 +252,7 @@ def main():
     # List for storing pose of each time step after optimization
     pose_estimations = []
 
-    if localization_config['record_gif']:
+    if args.save_dir:
         # List for storing figures
         gif_image_seq = []
 
@@ -340,7 +342,11 @@ def main():
             sw_graph.solve_one_step()
 
             # Record the lastest pose after optimization
-            last_pose = sw_graph.last_optimized_se2
+            last_se2_pose = sw_graph.last_optimized_se2
+            # Make pose a list of [x, y, theta]
+            last_pose = [last_se2_pose.translation()[0],
+                         last_se2_pose.translation()[1],
+                         last_se2_pose.so2().theta()]
             pose_estimations.append(last_pose)
 
             ##### Visualize current step #####
@@ -349,19 +355,18 @@ def main():
 
             ### background map ###
             # Get image coordinate of the latest pose on the map image
-            last_loc = last_pose.translation()
             image_coord = evtools.world_to_pixel(carla.Location(
-                last_loc[0], -last_loc[1]), map_info)
+                last_pose[0], -last_pose[1]), map_info)
 
             # Crop the map image for display
             local_map_image = map_image[image_coord[1]-half_width_px:image_coord[1]+half_width_px,
                                         image_coord[0]-half_width_px:image_coord[0]+half_width_px]
 
-            # Past the cropped map image to the correct place
-            left = last_loc[0] - half_width
-            right = last_loc[0] + half_width
-            bottom = last_loc[1] - half_width
-            top = last_loc[1] + half_width
+            # Paste the cropped map image to the correct place
+            left = last_pose[0] - half_width
+            right = last_pose[0] + half_width
+            bottom = last_pose[1] - half_width
+            top = last_pose[1] + half_width
             map_im.set_data(local_map_image)
             map_im.set_extent([left, right, bottom, top])
 
@@ -474,7 +479,7 @@ def main():
             ax.set_title(idx)
             plt.pause(0.001)
 
-            if localization_config['record_gif']:
+            if args.save_dir:
                 image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
                 image = image.reshape(
                     fig.canvas.get_width_height()[::-1] + (3,))
@@ -488,13 +493,35 @@ def main():
             if idx >= end_idx:
                 break
 
-    if localization_config['record_gif']:
-        imageio.mimsave('./localization.gif', gif_image_seq, fps=10)
+    # Save .gif if a folder is specified
+    if args.save_dir:
+        # Get full dir under the recording dir and create it if not exist
+        full_save_dir = os.path.join(args.recording_dir,
+                                     'result',
+                                     args.save_dir)
+        Path(full_save_dir).mkdir(parents=True, exist_ok=True)
+        # Save gif
+        gif_path = os.path.join(full_save_dir, 'localization.gif')
+        imageio.mimsave(gif_path, gif_image_seq, fps=10)
 
     ############### Evaluation ###############
     #### Compute errors ####
     lon_errs, lat_errs, yaw_errs = evtools.compute_errors(pose_estimations,
                                                           loc_gt_seq, ori_gt_seq)
+
+    # Save results if a folder is specified
+    if args.save_dir:
+        localization_results = {}
+        localization_results['loc_gt_seq'] = loc_gt_seq
+        localization_results['ori_gt_seq'] = ori_gt_seq
+        localization_results['pose_estimations'] = pose_estimations
+        localization_results['lon_errs'] = lon_errs
+        localization_results['lat_errs'] = lat_errs
+        localization_results['yaw_errs'] = yaw_errs
+
+        result_data_pth = os.path.join(full_save_dir, 'results.pkl')
+        with open(result_data_pth, 'wb') as f:
+            pickle.dump(localization_results, f)
 
     # Absolute errors
     abs_lon_errs = np.abs(np.asarray(lon_errs))
