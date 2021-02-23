@@ -577,7 +577,7 @@ def main():
     if args.save_dir:
         # Get full dir under the recording dir and create it if not exist
         full_save_dir = os.path.join(args.recording_dir,
-                                     'result',
+                                     'results',
                                      args.save_dir)
         Path(full_save_dir).mkdir(parents=True, exist_ok=True)
         # Save gif
