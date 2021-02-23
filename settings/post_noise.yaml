@@ -1,6 +1,6 @@
 ## Defines parameters for post-added measurement noise after Carla simulation
 
-# Seed for numpy.random. Use null to let numpy decide a random seed.
+# Seed for numpy.random. Use null to let numpy decide.
 seed: 1
 
 odom:
