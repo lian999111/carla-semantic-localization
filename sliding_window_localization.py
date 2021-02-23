@@ -18,6 +18,7 @@ import pygame
 
 from carlasim.groundtruth import LaneGTExtractor, RSStopGTExtractor
 from carlasim.utils import TrafficSignType
+from detection.utils import MELaneMarkingType
 from localization.graph_manager import SlidingWindowGraphManager
 from localization.utils import ExpectedLaneExtractor, ExpectedPoleExtractor, ExpectedRSStopExtractor
 from localization.eval.map_image import MapImage
@@ -322,11 +323,21 @@ def main():
             gnss_z += np.random.normal(z_bias, z_stddev)
 
             # Lane
+            # False positives use a separate false classification probability
             fc_prob = post_noise_config['lane']['fc_prob']
+            fc_prob_false_positive = post_noise_config['lane']['fc_prob_false_positive']
+            # Left
             if lane_detection.left_marking_detection is not None:
-                lane_detection.left_marking_detection.perturb_type(fc_prob)
+                if lane_detection.left_marking_detection.type != MELaneMarkingType.Unknown:
+                    lane_detection.left_marking_detection.perturb_type(fc_prob)
+                else:
+                    lane_detection.left_marking_detection.perturb_type(fc_prob_false_positive)
+            # Right
             if lane_detection.right_marking_detection is not None:
-                lane_detection.right_marking_detection.perturb_type(fc_prob)
+                if lane_detection.right_marking_detection.type != MELaneMarkingType.Unknown:
+                    lane_detection.right_marking_detection.perturb_type(fc_prob)
+                else:
+                    lane_detection.right_marking_detection.perturb_type(fc_prob_false_positive)
 
             # Pole
             fc_prob = post_noise_config['pole']['fc_prob']

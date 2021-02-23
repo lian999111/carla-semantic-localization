@@ -24,12 +24,14 @@ gnss:
   z_stddev: 0.0
 
 pole:
-  # False classification probability [0-1.0]
+  # False classification probability [0.0-1.0]
   fc_prob: 0.05
 
 lane:
-# False classification probability [0-1.0]
+# False classification probability [0.0-1.0]
   fc_prob: 0.05
+  # Probability of a false positive detection to have a type other than unknown [0.0-1.0]
+  fc_prob_false_positive: 0.5
 
 rs_stop:
   # Scale longitudinal distance to simulate error
