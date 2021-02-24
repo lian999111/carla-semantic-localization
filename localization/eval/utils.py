@@ -323,6 +323,7 @@ def gen_colored_error_plot_highway(title, abs_errors, upper_bound,
     axins = zoomed_inset_axes(ax, 2, loc=loc,
                               bbox_to_anchor=bbox_to_anchor,
                               bbox_transform=ax.transAxes)
+    axins.set_zorder(2)
 
     axins.plot(loc_gts[:, 0], loc_gts[:, 1],
                '-', linewidth=zoom_path_lw,
@@ -356,7 +357,7 @@ def gen_colored_error_plot_highway(title, abs_errors, upper_bound,
     # connecting lines between the bbox and the inset axes area
     mark_inset(ax, axins, loc1=1, loc2=4,
                fc='none', ec='k', linewidth=inset_mark_lw,
-               zorder=0)
+               zorder=1)
 
     # Seond zoom-in
     x_min, x_max, y_min, y_max = 320, 400, 300, 380
@@ -396,9 +397,9 @@ def gen_colored_error_plot_highway(title, abs_errors, upper_bound,
         axins.spines[axis].set_linewidth(inset_mark_lw)
     # draw a bbox of the region of the inset axes in the parent axes and
     # connecting lines between the bbox and the inset axes area
-    mark_inset(ax, axins, loc1=2, loc2=4,
+    ret = mark_inset(ax, axins, loc1=2, loc2=4,
                fc='none', ec='k', linewidth=inset_mark_lw,
-               zorder=0)
+               zorder=1)
 
     # Third zoom-in
     x_min, x_max, y_min, y_max = 100, 180, 370, 400
@@ -441,7 +442,7 @@ def gen_colored_error_plot_highway(title, abs_errors, upper_bound,
     # connecting lines between the bbox and the inset axes area
     mark_inset(ax, axins, loc1=1, loc2=2,
                fc='none', ec='k', linewidth=inset_mark_lw,
-               zorder=0)
+               zorder=1)
 
     return fig, ax
 
