@@ -121,12 +121,15 @@ class RSStopFactor(Factor):
                 # Measurement likelihood (based on noise cov)
                 meas_likelihood = univariate_normal_pdf(error.squeeze(),
                                                         var=self.noise_var)
-                meas_likelihoods.append(meas_likelihood)
-
                 # Geometric likelihood (based on innov)
                 geo_likelihood = univariate_normal_pdf(error.squeeze(),
                                                        var=innov)
-                asso_probs.append(geo_likelihood)
+                # Due to numerical errors, likelihood can become exactly 0.0
+                # in some very rare cases.
+                # When it happens, simply ignore it.
+                if meas_likelihood > 0.0 and geo_likelihood > 0.0:
+                    meas_likelihoods.append(meas_likelihood)
+                    asso_probs.append(geo_likelihood)
 
             asso_probs = np.asarray(asso_probs)
             meas_likelihoods = np.asarray(meas_likelihoods)
