@@ -9,6 +9,7 @@ import glob
 from pathlib import Path
 import time
 from shutil import copyfile
+import random
 
 import yaml
 import numpy as np
@@ -267,6 +268,8 @@ def main():
     # Fix the seed for post-added noise
     if args.noise_config:
         np.random.seed(post_noise_config['seed'])
+        # Perturbation of detecion types is based on random package
+        random.seed(post_noise_config['seed'])
 
     # Lists for pre init phase
     init_gnss_x = []
