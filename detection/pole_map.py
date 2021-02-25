@@ -142,6 +142,5 @@ def plot_pole_map(pole_map, traffic_signs):
     ax.set_xlabel('x [m]')
     ax.set_ylabel('y [m]')
     ax.legend(framealpha=1.0)
-    ax.tick_params(axis='y', which='major', pad=15)
-    fig.savefig('pole_map_example.svg')
+    # fig.savefig('pole_map_example.svg')
     plt.show()
