@@ -1,0 +1,121 @@
+## Defines parameters for localization
+
+# Indices to clip the recording
+# GNSS data between in pre_init_interval are averaged as init guess
+# e.g. 
+#   pre_init_interval: 10 and init_idx: 20 means GNSS in the interval 
+#   [pre_init_interval, init_idx) will be averaged. Note init_idx is excluded.
+pre_init_interval: 10
+init_idx: 20
+end_idx: 1000
+
+# Toggles for factors
+use_gnss: On
+use_lane: On
+use_pole: On
+use_rs_stop: On
+
+# Ground truth extractors designed for Carla simulation are also used to
+# extract exptected landmarks like lane boundaries and rs stop signs here.
+gt_extract:
+  # For lane boundary ground truth extractor
+  lane_gt_extractor:
+    # Search radius for lane markings (m).
+    radius: 10 
+
+  # For road surface stop sign ground truth extractor
+  rs_stop_gt_extractor:
+    # Search radius for road surface stop sign actors (m).
+    radius: 50
+    # Max lateral offset within which the sign can be extracted (m).
+    max_lateral_offset: 3.5
+    # Max heading difference within which the sign can be extracted (rad).
+    max_yaw_diff: 0.52
+
+# Configurations for sliding window localization
+sliding_window:
+  graph:
+    win_size: 2 # Size of sliding window. e.g. 10 means the graph contains the just last 10 poses.
+    # True to use previous a posteriori of the last node as a priori when it becomes the first node as the sliding window moves.
+    use_prev_posteriori: True
+  
+  # Parameters for prior factor
+  prior:
+    # True to use max-mixture version of prior factor (Solves the caterpillar effect)
+    max_mixture: True
+    # Scale to scale up standard deviation for wide mode.
+    wide_std_scale: 10
+    # True to clear history in the graph when a switching happens in the max-mixture prior factor
+    clear_history: True
+
+    # Standard deviation in the noise model for x (m).
+    stddev_x: 10.0 
+    # Standard deviation in the noise model for y (m).
+    stddev_y: 10.0
+    # Standard deviation in the noise model for heading (rad).
+    stddev_theta: 10.0
+
+  # Parameter for ctrv odometry factor
+  ctrv:
+    # Standard deviation in the noise model for vx (m/s).
+    stddev_vx: 0.2
+    # Standard deviation in the noise model for yaw rate (rad/s).
+    stddev_yaw_rate: 0.1 
+
+  # Parameters for GPS factor
+  gnss:
+    # Standard deviation in the noise model for x (m).
+    stddev_x: 8.0
+    # Standard deviation in the noise model for y (m).
+    stddev_y: 8.0 
+
+  # Parameters for lane boundary factors
+  lane:
+    # True to turn on semantic association
+    semantic: True
+    # True to store the first query for expected lane detection and use it for all the rest of optimization steps.
+    # False to query for expected lane detection at every optimization step.
+    static: False
+    # True to ignore lane boundary detection when in or approaching junction area.
+    ignore_junction: False
+    
+    # Standard deviation in the measurement noise model for c0 (m).
+    stddev_c0: 0.5
+    # Standard deviation in the measurement noise model for c1 (no unit).
+    stddev_c1: 0.5
+
+    # Probability of null hypothesis (false positive).
+    prob_null: 0.1
+    # Scale to scale up standard deviation for null hypothesis.
+    # Or scale down information matrix when it is divided by the squared value.
+    null_std_scale: 1000000
+
+  # Parameters for pole factors
+  pole:
+    # Map poles within this radius from the detected pole will be queried (m).
+    query_radius: 30 
+
+    # True to turn on semantic association
+    semantic: True
+
+    # Standard deviation in the measurement noise model for radius (m).
+    stddev_r: 15
+    # Standard deviation in the measurement noise model for phi (rad). 
+    stddev_phi: 0.05
+
+    # Probability of null hypothesis (false positive).
+    prob_null: 0.1
+    # Scale to scale up standard deviation for null hypothesis.
+    # Or scale down information matrix when it is divided by the squared value.
+    null_std_scale: 10
+
+  # Parameters for road surface stop sign factors
+  rs_stop:
+    # Standard deviation in the measurement noise model for distance to rs stop sign (m).
+    stddev_dist: 0.7 
+
+    # Probability of null hypothesis (false positive).
+    prob_null: 0.1
+    # Scale to scale up standard deviation for null hypothesis.
+    # Or scale down information matrix when it is divided by the squared value.
+    null_std_scale: 10000000000

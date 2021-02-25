@@ -1,0 +1,117 @@
+## List a tests and their configuration file names
+# These config .yaml files are placed under the folder "tests"
+
+# Different scenarios are grouped
+
+# Scenarios to test semantic info's effect
+test_semantic:
+  s2:
+    noise_configs:
+      - "n_neg_x_gnss_bias.yaml"
+      - "n_pos_x_gnss_bias.yaml"
+    sw_configs:
+      - "sw_semantic_off.yaml"
+      - "sw_semantic_on.yaml"
+  s3:
+    noise_configs:
+      - "n_neg_x_gnss_bias.yaml"
+      - "n_pos_x_gnss_bias.yaml"
+    sw_configs:
+      - "sw_semantic_off.yaml"
+      - "sw_semantic_on.yaml"
+  urban:
+    noise_configs:
+      - "n_noisy_gnss_1.yaml"
+      - "n_noisy_gnss_2.yaml"
+      - "n_noisy_gnss_3.yaml"
+      - "n_noisy_gnss_4.yaml"
+      - "n_noisy_gnss_5.yaml"
+    sw_configs:
+      - "sw_semantic_off.yaml"
+      - "sw_semantic_on.yaml"
+
+# Scenarios to test truncation vs mmp factor vs marginalization
+test_marginalization:
+  s2:
+    noise_configs:
+      - "n_pos_x_gnss_bias.yaml"
+    sw_configs:
+      - "sw_truncation.yaml"
+      - "sw_marginalization.yaml"
+      - "sw_mmp.yaml"
+
+# Scenarios to test combinations of factor types
+test_configs_of_factors:
+  highway:
+    # Differents level
+    noise_configs:
+      - "n_wo_gnss_bias.yaml"
+      - "n_w_gnss_bias.yaml"
+    # Different sliding window localization configs
+    sw_configs:
+      - "sw_gnss_only.yaml"
+      - "sw_gnss_lane.yaml"
+
+  urban:
+    noise_configs:
+      - "n_wo_gnss_bias.yaml"
+      - "n_w_gnss_bias.yaml"
+    sw_configs:
+      - "sw_gnss_lane.yaml"
+      - "sw_gnss_lane_pole.yaml"
+      - "sw_gnss_lane_pole_stop.yaml"
+
+# Scenarios to test window size
+test_win_sizes:
+  s2:
+    noise_configs:
+      - "n_pos_x_gnss_bias.yaml"
+    sw_configs:
+      - "sw_win_2.yaml"
+      - "sw_win_10.yaml"
+      - "sw_win_20.yaml"
+  s3:
+    noise_configs:
+      - "n_neg_x_gnss_bias.yaml"
+    sw_configs:
+      - "sw_win_2.yaml"
+      - "sw_win_10.yaml"
+      - "sw_win_20.yaml"
+  highway:
+    noise_configs:
+      - "n_wo_gnss_bias.yaml"
+      - "n_w_gnss_bias.yaml"
+    sw_configs:
+      - "sw_win_2.yaml"
+      - "sw_win_10.yaml"
+      - "sw_win_20.yaml"
+  urban:
+    noise_configs:
+      - "n_w_gnss_bias.yaml"
+      - "n_wo_gnss_bias.yaml"
+    sw_configs:
+      - "sw_win_2.yaml"
+      - "sw_win_10.yaml"
+      - "sw_win_20.yaml"
+
+# Scenarios to test null hypothesis
+test_null_hypo:
+  highway:
+    noise_configs:
+      - "n_high_fc.yaml"
+    sw_configs:
+      - "sw_no_null.yaml"
+      - "sw_small_null_prob.yaml"
+      - "sw_high_null_prob.yaml"
+  urban:
+    noise_configs:
+      - "n_high_fc.yaml"
+    sw_configs:
+      - "sw_no_null.yaml"
+      - "sw_small_null_prob.yaml"
+      - "sw_high_null_prob.yaml"
+    
+
+
+
+    
