@@ -5,6 +5,7 @@ from sklearn.cluster import DBSCAN
 from scipy.spatial import KDTree
 
 from detection.utils import Pole
+from carlasim.utils import TrafficSignType
 
 # import matplotlib
 # matplotlib.use("pgf")
@@ -72,10 +73,6 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
     kd_poles = KDTree(np.asarray([pole_x, pole_y]).T)
 
     for traffic_sign in traffic_signs:
-        if __debug__:
-            traffic_sign_x.append(traffic_sign.x)
-            traffic_sign_y.append(traffic_sign.y)
-
         nearest_idc = kd_poles.query_ball_point(
             [traffic_sign.x, traffic_sign.y], classification_config['max_dist'])
 
@@ -84,9 +81,6 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
 
         elif len(nearest_idc) == 1:
             pole_map[nearest_idc[0]].type = traffic_sign.type
-            if __debug__:
-                labeled_x.append(pole_map[nearest_idc[0]].x)
-                labeled_y.append(pole_map[nearest_idc[0]].y)
 
         elif len(nearest_idc) > 1:
             nearest_idx = None
@@ -100,35 +94,54 @@ def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
 
             pole_map[nearest_idx].type = traffic_sign.type
 
-            if __debug__:
-                labeled_x.append(pole_map[nearest_idx].x)
-                labeled_y.append(pole_map[nearest_idx].y)
-
     if __debug__:
-        fig, ax = plt.subplots(1, 1)
-        pole_landmarks_plot = ax.plot(pole_landmark_x, pole_landmark_y,
-                                      'g.', ms=6, label='pole landmark',
-                                      rasterized=True)[0]
-        landmark_objs_plot = ax.plot(traffic_sign_x, traffic_sign_y,
-                                     'bx', ms=6, label='landmark obj',
-                                     rasterized=True)[0]
-        labeled_poles_plot = ax.plot(labeled_x, labeled_y,
-                                     'r.', ms=6, label='labeled pole',
-                                     rasterized=True)[0]
-
-        pole_landmark_xdata = pole_landmarks_plot.get_xdata()
-        pole_landmark_ydata = pole_landmarks_plot.get_ydata()
-        max_x = max(pole_landmark_xdata)
-        min_x = min(pole_landmark_xdata)
-        max_y = max(pole_landmark_ydata)
-        min_y = min(pole_landmark_ydata)
-        ax.set_xlim(min_x-10, max_x+10)
-        ax.set_ylim(min_y-10, max_y+10)
-        ax.set_xlabel('x [m]')
-        ax.set_ylabel('y [m]')
-        plt.legend(framealpha=1.0)
-        # ax.yaxis.set_tick_params(pad=15)
-        # fig.savefig('visualization/pole_map_example.png', dpi=300)
-        plt.show()
+        plot_pole_map(pole_map, traffic_signs)
 
     return pole_map
+
+
+def plot_pole_map(pole_map, traffic_signs):
+    """Plot pole map along with traffic signs from Carla.
+
+    Input:
+        pole_map (list): List of Pole objects representing the map.
+        traffic_signs: List of TrafficSigns.
+    """
+    traffic_sign_x = []
+    traffic_sign_y = []
+    unknown_type_x = []
+    unknown_type_y = []
+    labeled_x = []
+    labeled_y = []
+
+    for traffic_sign in traffic_signs:
+        traffic_sign_x.append(traffic_sign.x)
+        traffic_sign_y.append(traffic_sign.y)
+
+    for pole in pole_map:
+        if pole.type == TrafficSignType.Unknown:
+            unknown_type_x.append(pole.x)
+            unknown_type_y.append(pole.y)
+        else:
+            labeled_x.append(pole.x)
+            labeled_y.append(pole.y)
+
+    fig, ax = plt.subplots(1, 1)
+    unknown_poles_plot = ax.plot(unknown_type_x, unknown_type_y,
+                                 'g.', ms=6, label='pole landmark')[0]
+    landmark_objs_plot = ax.plot(traffic_sign_x, traffic_sign_y,
+                                 'bx', ms=6, label='landmark obj')[0]
+    labeled_poles_plot = ax.plot(labeled_x, labeled_y,
+                                 'r.', ms=6, label='labeled pole')[0]
+    max_x = max(unknown_type_x)
+    min_x = min(unknown_type_x)
+    max_y = max(traffic_sign_y)
+    min_y = min(traffic_sign_y)
+    ax.set_xlim(min_x-10, max_x+10)
+    ax.set_ylim(min_y-10, max_y+10)
+    ax.set_xlabel('x [m]')
+    ax.set_ylabel('y [m]')
+    ax.legend(framealpha=1.0)
+    ax.tick_params(axis='y', which='major', pad=15)
+    fig.savefig('pole_map_example.svg')
+    plt.show()
