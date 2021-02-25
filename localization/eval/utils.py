@@ -166,7 +166,7 @@ def get_local_map_image(loc_gt_seq, pose_estimations, map_image, map_info, margi
 def gen_colored_error_plot(title, abs_errors, upper_bound,
                            loc_gt_seq, pose_estimations,
                            sign_pole_coords, general_pole_coords,
-                           local_map_img, extent):
+                           local_map_img, extent, size=7, zoom_in=False):
     """Generate colored error plot.
 
     Args:
@@ -179,84 +179,12 @@ def gen_colored_error_plot(title, abs_errors, upper_bound,
         general_pole_coords (np.ndarray): Ground truth coordinates of general poles.
         local_map_img (np.ndarray): Local map image.
         extent (list): Extent of the local map image for imshow().
+        size (float): Maximum size (inch).
+        zoom_in (bool): Add zoom-in elements for the highway scenario.
+                        This is a dedicated feature for the particular scenarios.
     Returns:
         Result figure ans axes object.
     """
-    # Prepare path segments
-    x_estimations = [pose[0] for pose in pose_estimations]
-    y_estimations = [pose[1] for pose in pose_estimations]
-    points = np.array([x_estimations, y_estimations]).T.reshape(-1, 1, 2)
-    segments = np.concatenate((points[:-1], points[1:]), axis=1)
-
-    fig, ax = plt.subplots()
-    ax.set_title(title)
-    ax.set_xlabel('x (m)')
-    ax.set_ylabel('y (m)')
-    # Ground truth path
-    loc_gts = np.asarray(loc_gt_seq)
-    ax.scatter(loc_gts[:, 0], loc_gts[:, 1],
-               s=1, marker='.',
-               color='limegreen', edgecolors=None, linewidths=0,
-               zorder=0)
-
-    # Ground truth poles
-    ax.scatter(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
-               s=0.5, marker='o',
-               color='crimson', edgecolors=None, linewidths=0,
-               zorder=1)
-    ax.scatter(general_pole_coords[:, 0], general_pole_coords[:, 1],
-               s=0.5, marker='o',
-               color='midnightblue', edgecolors=None, linewidths=0,
-               zorder=1)
-
-    # Resultant path with color
-    norm = plt.Normalize(0, upper_bound)
-    lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
-    # Set the values used for colormapping
-    lc.set_array(abs_errors)
-    lc.set_linewidth(3)
-    line = ax.add_collection(lc)
-
-    # Background map image
-    # Height-to-width aspect ratio
-    aspect = float(local_map_img.shape[0])/local_map_img.shape[1]
-    ax.imshow(local_map_img,
-              extent=extent,
-              alpha=0.5)
-    adjust_figure(fig, aspect)
-
-    # Add color bar
-    # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
-    fig_width = fig.get_size_inches()[0]
-    cax = fig.add_axes([ax.get_position().x1+0.05/fig_width,
-                        ax.get_position().y0,
-                        0.1/fig_width,
-                        ax.get_position().height])
-    fig.colorbar(line, cax=cax)
-
-    return fig, ax
-
-
-def gen_colored_error_plot_highway(title, abs_errors, upper_bound,
-                                   loc_gt_seq, pose_estimations,
-                                   sign_pole_coords, general_pole_coords,
-                                   local_map_img, extent):
-    """Generate colored error plot.
-
-    Args:
-        title (string): Title of the plot.
-        abs_errors (array-like): A sequence of absolute errors.
-        upper_bound (float): Error value corresponding to the maximum in the color map.
-        loc_gt_seq (list): List of ground truth locations.
-        pose_estimations (list): List of pose esitmations in the form of [x, y, theta].
-        sign_pole_coords (np.ndarray): Ground truth coordinates of traffic sign poles.
-        general_pole_coords (np.ndarray): Ground truth coordinates of general poles.
-        local_map_img (np.ndarray): Local map image.
-        extent (list): Extent of the local map image for imshow().
-    Returns:
-        Result figure ans axes object.
-    """
-    size = 7
     marker_scale = 10 * (size/7)**2
     path_lw = 2 * size/7
 
@@ -272,24 +200,25 @@ def gen_colored_error_plot_highway(title, abs_errors, upper_bound,
     segments = np.concatenate((points[:-1], points[1:]), axis=1)
 
     fig, ax = plt.subplots()
-    ax.set_title(title)
-    ax.set_xlabel('x (m)')
-    ax.set_ylabel('y (m)')
+    # ax.set_title(title)
+    ax.set_xlabel('x [m]')
+    ax.set_ylabel('y [m]')
     # Ground truth path
     loc_gts = np.asarray(loc_gt_seq)
     ax.plot(loc_gts[:, 0], loc_gts[:, 1],
             '-', linewidth=path_lw,
-            color='green', zorder=1)
+            color='green', zorder=1,
+            label='GT path')
 
     # Ground truth poles
     ax.scatter(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
                s=marker_scale, marker='o',
                color='crimson', edgecolors=None, linewidths=0,
-               zorder=1)
+               zorder=1, label='traffic sign')
     ax.scatter(general_pole_coords[:, 0], general_pole_coords[:, 1],
                s=marker_scale, marker='o',
                color='midnightblue', edgecolors=None, linewidths=0,
-               zorder=1)
+               zorder=1, label='unknown pole type')
 
     # Resultant path with color
     norm = plt.Normalize(0, upper_bound)
@@ -314,135 +243,139 @@ def gen_colored_error_plot_highway(title, abs_errors, upper_bound,
                         ax.get_position().y0,
                         0.1/fig_width,
                         ax.get_position().height])
-    fig.colorbar(line, cax=cax)
+    cbar = fig.colorbar(line, cax=cax)
+    cbar.ax.set_ylabel(title)
 
-    # First zoom-in
-    x_min, x_max, y_min, y_max = 400, 415, 80, 160
-    loc = 3
-    bbox_to_anchor = [0.75, 0.02]
-    axins = zoomed_inset_axes(ax, 2, loc=loc,
-                              bbox_to_anchor=bbox_to_anchor,
-                              bbox_transform=ax.transAxes)
-    axins.set_zorder(2)
+    ax.legend(framealpha=1.0, edgecolor='none', prop={'size': 4})
 
-    axins.plot(loc_gts[:, 0], loc_gts[:, 1],
-               '-', linewidth=zoom_path_lw,
-               color='green', zorder=1)
-    axins.scatter(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
-                  s=zoom_marker_scale, marker='o',
-                  color='crimson', edgecolors=None, linewidths=0,
-                  zorder=1)
-    axins.scatter(general_pole_coords[:, 0], general_pole_coords[:, 1],
-                  s=zoom_marker_scale, marker='o',
-                  color='midnightblue', edgecolors=None, linewidths=0,
-                  zorder=1)
+    if zoom_in:
+        # First zoom-in
+        x_min, x_max, y_min, y_max = 400, 415, 80, 160
+        loc = 3
+        bbox_to_anchor = [0.75, 0.02]
+        axins = zoomed_inset_axes(ax, 2, loc=loc,
+                                  bbox_to_anchor=bbox_to_anchor,
+                                  bbox_transform=ax.transAxes)
+        axins.set_zorder(2)
 
-    local_map_h = local_map_img.shape[0]
-    left, right = int((x_min-extent[0])*12), int((x_max-extent[0])*12)
-    top = local_map_h - int((y_max-extent[2])*12)
-    bottom = local_map_h - int((y_min-extent[2])*12)
-    axins.imshow(local_map_img[top:bottom, left:right],
-                 extent=[x_min, x_max, y_min, y_max],
-                 alpha=0.6)
+        axins.plot(loc_gts[:, 0], loc_gts[:, 1],
+                   '-', linewidth=zoom_path_lw,
+                   color='green', zorder=1)
+        axins.scatter(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
+                      s=zoom_marker_scale, marker='o',
+                      color='crimson', edgecolors=None, linewidths=0,
+                      zorder=1)
+        axins.scatter(general_pole_coords[:, 0], general_pole_coords[:, 1],
+                      s=zoom_marker_scale, marker='o',
+                      color='midnightblue', edgecolors=None, linewidths=0,
+                      zorder=1)
 
-    lc_zoom = LineCollection(segments, cmap='gnuplot2', norm=norm)
-    lc_zoom.set_array(abs_errors)
-    lc_zoom.set_linewidth(zoom_path_lw)
-    axins.add_collection(lc_zoom)
-    axins.get_xaxis().set_visible(False)
-    axins.get_yaxis().set_visible(False)
-    for axis in ['top', 'bottom', 'left', 'right']:
-        axins.spines[axis].set_linewidth(inset_mark_lw)
-    # draw a bbox of the region of the inset axes in the parent axes and
-    # connecting lines between the bbox and the inset axes area
-    mark_inset(ax, axins, loc1=1, loc2=4,
-               fc='none', ec='k', linewidth=inset_mark_lw,
-               zorder=1)
+        local_map_h = local_map_img.shape[0]
+        left, right = int((x_min-extent[0])*12), int((x_max-extent[0])*12)
+        top = local_map_h - int((y_max-extent[2])*12)
+        bottom = local_map_h - int((y_min-extent[2])*12)
+        axins.imshow(local_map_img[top:bottom, left:right],
+                     extent=[x_min, x_max, y_min, y_max],
+                     alpha=0.6)
 
-    # Seond zoom-in
-    x_min, x_max, y_min, y_max = 320, 400, 300, 380
-    loc = 3
-    bbox_to_anchor = [0.3, 0.2]
-    axins = zoomed_inset_axes(ax, 2, loc=loc,
-                              bbox_to_anchor=bbox_to_anchor,
-                              bbox_transform=ax.transAxes)
+        lc_zoom = LineCollection(segments, cmap='gnuplot2', norm=norm)
+        lc_zoom.set_array(abs_errors)
+        lc_zoom.set_linewidth(zoom_path_lw)
+        axins.add_collection(lc_zoom)
+        axins.get_xaxis().set_visible(False)
+        axins.get_yaxis().set_visible(False)
+        for axis in ['top', 'bottom', 'left', 'right']:
+            axins.spines[axis].set_linewidth(inset_mark_lw)
+        # draw a bbox of the region of the inset axes in the parent axes and
+        # connecting lines between the bbox and the inset axes area
+        mark_inset(ax, axins, loc1=1, loc2=4,
+                   fc='none', ec='k', linewidth=inset_mark_lw,
+                   zorder=1)
 
-    axins.plot(loc_gts[:, 0], loc_gts[:, 1],
-               '-', linewidth=zoom_path_lw,
-               color='green', zorder=1)
-    axins.scatter(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
-                  s=zoom_marker_scale, marker='o',
-                  color='crimson', edgecolors=None, linewidths=0,
-                  zorder=1)
-    axins.scatter(general_pole_coords[:, 0], general_pole_coords[:, 1],
-                  s=zoom_marker_scale, marker='o',
-                  color='midnightblue', edgecolors=None, linewidths=0,
-                  zorder=1)
+        # Seond zoom-in
+        x_min, x_max, y_min, y_max = 320, 400, 300, 380
+        loc = 3
+        bbox_to_anchor = [0.3, 0.2]
+        axins = zoomed_inset_axes(ax, 2, loc=loc,
+                                  bbox_to_anchor=bbox_to_anchor,
+                                  bbox_transform=ax.transAxes)
 
-    local_map_h = local_map_img.shape[0]
-    left, right = int((x_min-extent[0])*12), int((x_max-extent[0])*12)
-    top = local_map_h - int((y_max-extent[2])*12)
-    bottom = local_map_h - int((y_min-extent[2])*12)
-    axins.imshow(local_map_img[top:bottom, left:right],
-                 extent=[x_min, x_max, y_min, y_max],
-                 alpha=0.6)
+        axins.plot(loc_gts[:, 0], loc_gts[:, 1],
+                   '-', linewidth=zoom_path_lw,
+                   color='green', zorder=1)
+        axins.scatter(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
+                      s=zoom_marker_scale, marker='o',
+                      color='crimson', edgecolors=None, linewidths=0,
+                      zorder=1)
+        axins.scatter(general_pole_coords[:, 0], general_pole_coords[:, 1],
+                      s=zoom_marker_scale, marker='o',
+                      color='midnightblue', edgecolors=None, linewidths=0,
+                      zorder=1)
 
-    lc_zoom = LineCollection(segments, cmap='gnuplot2', norm=norm)
-    lc_zoom.set_array(abs_errors)
-    lc_zoom.set_linewidth(zoom_path_lw)
-    axins.add_collection(lc_zoom)
-    axins.get_xaxis().set_visible(False)
-    axins.get_yaxis().set_visible(False)
-    for axis in ['top', 'bottom', 'left', 'right']:
-        axins.spines[axis].set_linewidth(inset_mark_lw)
-    # draw a bbox of the region of the inset axes in the parent axes and
-    # connecting lines between the bbox and the inset axes area
-    ret = mark_inset(ax, axins, loc1=2, loc2=4,
-               fc='none', ec='k', linewidth=inset_mark_lw,
-               zorder=1)
+        local_map_h = local_map_img.shape[0]
+        left, right = int((x_min-extent[0])*12), int((x_max-extent[0])*12)
+        top = local_map_h - int((y_max-extent[2])*12)
+        bottom = local_map_h - int((y_min-extent[2])*12)
+        axins.imshow(local_map_img[top:bottom, left:right],
+                     extent=[x_min, x_max, y_min, y_max],
+                     alpha=0.6)
 
-    # Third zoom-in
-    x_min, x_max, y_min, y_max = 100, 180, 370, 400
-    loc = 3
-    bbox_to_anchor = [0.15, 0.65]
-    axins = zoomed_inset_axes(ax, 2, loc=loc,
-                              bbox_to_anchor=bbox_to_anchor,
-                              bbox_transform=ax.transAxes)
-    local_map_h = local_map_img.shape[0]
-    left, right = int((x_min-extent[0])*12), int((x_max-extent[0])*12)
-    top = local_map_h - int((y_max-extent[2])*12)
-    bottom = local_map_h - int((y_min-extent[2])*12)
+        lc_zoom = LineCollection(segments, cmap='gnuplot2', norm=norm)
+        lc_zoom.set_array(abs_errors)
+        lc_zoom.set_linewidth(zoom_path_lw)
+        axins.add_collection(lc_zoom)
+        axins.get_xaxis().set_visible(False)
+        axins.get_yaxis().set_visible(False)
+        for axis in ['top', 'bottom', 'left', 'right']:
+            axins.spines[axis].set_linewidth(inset_mark_lw)
+        # draw a bbox of the region of the inset axes in the parent axes and
+        # connecting lines between the bbox and the inset axes area
+        ret = mark_inset(ax, axins, loc1=2, loc2=4,
+                         fc='none', ec='k', linewidth=inset_mark_lw,
+                         zorder=1)
 
-    axins.plot(loc_gts[:, 0], loc_gts[:, 1],
-               '-', linewidth=zoom_path_lw,
-               color='green', zorder=1)
-    axins.scatter(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
-                  s=zoom_marker_scale, marker='o',
-                  color='crimson', edgecolors=None, linewidths=0,
-                  zorder=1)
-    axins.scatter(general_pole_coords[:, 0], general_pole_coords[:, 1],
-                  s=zoom_marker_scale, marker='o',
-                  color='midnightblue', edgecolors=None, linewidths=0,
-                  zorder=1)
+        # Third zoom-in
+        x_min, x_max, y_min, y_max = 100, 180, 370, 400
+        loc = 3
+        bbox_to_anchor = [0.15, 0.65]
+        axins = zoomed_inset_axes(ax, 2, loc=loc,
+                                  bbox_to_anchor=bbox_to_anchor,
+                                  bbox_transform=ax.transAxes)
+        local_map_h = local_map_img.shape[0]
+        left, right = int((x_min-extent[0])*12), int((x_max-extent[0])*12)
+        top = local_map_h - int((y_max-extent[2])*12)
+        bottom = local_map_h - int((y_min-extent[2])*12)
 
-    axins.imshow(local_map_img[top:bottom, left:right],
-                 extent=[x_min, x_max, y_min, y_max],
-                 alpha=0.6)
+        axins.plot(loc_gts[:, 0], loc_gts[:, 1],
+                   '-', linewidth=zoom_path_lw,
+                   color='green', zorder=1)
+        axins.scatter(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
+                      s=zoom_marker_scale, marker='o',
+                      color='crimson', edgecolors=None, linewidths=0,
+                      zorder=1)
+        axins.scatter(general_pole_coords[:, 0], general_pole_coords[:, 1],
+                      s=zoom_marker_scale, marker='o',
+                      color='midnightblue', edgecolors=None, linewidths=0,
+                      zorder=1)
 
-    lc_zoom = LineCollection(segments, cmap='gnuplot2', norm=norm)
-    lc_zoom.set_array(abs_errors)
-    lc_zoom.set_linewidth(zoom_path_lw)
-    axins.add_collection(lc_zoom)
+        axins.imshow(local_map_img[top:bottom, left:right],
+                     extent=[x_min, x_max, y_min, y_max],
+                     alpha=0.6)
 
-    axins.get_xaxis().set_visible(False)
-    axins.get_yaxis().set_visible(False)
-    for axis in ['top', 'bottom', 'left', 'right']:
-        axins.spines[axis].set_linewidth(inset_mark_lw)
-    # draw a bbox of the region of the inset axes in the parent axes and
-    # connecting lines between the bbox and the inset axes area
-    mark_inset(ax, axins, loc1=1, loc2=2,
-               fc='none', ec='k', linewidth=inset_mark_lw,
-               zorder=1)
+        lc_zoom = LineCollection(segments, cmap='gnuplot2', norm=norm)
+        lc_zoom.set_array(abs_errors)
+        lc_zoom.set_linewidth(zoom_path_lw)
+        axins.add_collection(lc_zoom)
+
+        axins.get_xaxis().set_visible(False)
+        axins.get_yaxis().set_visible(False)
+        for axis in ['top', 'bottom', 'left', 'right']:
+            axins.spines[axis].set_linewidth(inset_mark_lw)
+        # draw a bbox of the region of the inset axes in the parent axes and
+        # connecting lines between the bbox and the inset axes area
+        mark_inset(ax, axins, loc1=1, loc2=2,
+                   fc='none', ec='k', linewidth=inset_mark_lw,
+                   zorder=1)
 
     return fig, ax
 
