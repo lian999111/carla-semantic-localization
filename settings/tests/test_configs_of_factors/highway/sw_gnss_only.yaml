@@ -44,7 +44,7 @@ sliding_window:
     # True to use max-mixture version of prior factor (Solves the caterpillar effect)
     max_mixture: True
     # Scale to scale up standard deviation for wide mode.
-    wide_std_scale: 10
+    wide_std_scale: 3
     # True to clear history in the graph when a switching happens in the max-mixture prior factor
     clear_history: True
 
