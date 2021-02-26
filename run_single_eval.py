@@ -87,6 +87,15 @@ info_full_path = str(os.path.join(dirname, info_filename))
 with open(info_full_path, 'r') as f:
     map_info = yaml.safe_load(f)
 
+
+# %% ############### Get test path info ###############
+print('Length of data: {}'.format(len(loc_gt_seq)))
+distance = 0.0
+for p1, p2 in zip(loc_gt_seq[:-1], loc_gt_seq[1:]):
+    distance += np.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2)
+print('Distance of path: {}'.format(distance))
+
+
 # %% ############### Result visualization ###############
 # Prepare local map as background
 local_map_image, extent = evtools.get_local_map_image(
