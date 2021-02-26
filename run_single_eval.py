@@ -139,6 +139,11 @@ else:
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent, FIG_SIZE)
 
+if FIG_NAME:
+    lon_err_fig.savefig(FIG_NAME+'_lon_err.svg', dpi=600, bbox_inches='tight')
+    lat_err_fig.savefig(FIG_NAME+'_lat_err.svg', dpi=600, bbox_inches='tight')
+    yaw_err_fig.savefig(FIG_NAME+'_yaw_err.svg', dpi=600, bbox_inches='tight')
+
 cpu_time_fig, cpu_time_ax = plt.subplots(1, 1)
 cpu_time_ax.boxplot(cpu_times)
 cpu_time_ax.set_ylabel('cpu time [sec]')
