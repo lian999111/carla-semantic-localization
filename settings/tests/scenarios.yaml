@@ -87,8 +87,8 @@ test_win_sizes:
       - "sw_win_20.yaml"
   urban:
     noise_configs:
-      - "n_w_gnss_bias.yaml"
       - "n_wo_gnss_bias.yaml"
+      - "n_w_gnss_bias.yaml"
     sw_configs:
       - "sw_win_2.yaml"
       - "sw_win_10.yaml"
