@@ -131,6 +131,8 @@ for noise_config_file_name in noise_config_file_names:
         abs_yaw_err_dict[sw_config][noise_config] = yaw_abs_errs
 
         print('{}, {}:'.format(noise_config, sw_config))
+        print(' CPU time mean: {}'.format(np.mean(results['cpu_times'])))
+        print(' CPU time median: {}'.format(np.median(results['cpu_times'])))
         print('  Lon mean abs error: {}'.format(lon_abs_errs.mean()))
         print('  Lon median abs error: {}'.format(np.median(lon_abs_errs)))
         print('  Lat mean abs error: {}'.format(lat_abs_errs.mean()))
