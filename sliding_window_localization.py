@@ -626,7 +626,7 @@ def main():
     #### Visualize errors ####
     # Prepare local map as background
     local_map_image, extent = evtools.get_local_map_image(
-        loc_gt_seq, pose_estimations, map_image, map_info)
+        loc_gt_seq, map_image, map_info, pose_estimations=pose_estimations)
 
     ## Longitudinal error ##
     lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot_highway('Longitudinal Error (m)',

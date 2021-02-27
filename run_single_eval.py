@@ -92,7 +92,7 @@ print('Distance of path: {}'.format(distance))
 # %% ############### Result visualization ###############
 # Prepare local map as background
 local_map_image, extent = evtools.get_local_map_image(
-    loc_gt_seq, pose_estimations, map_image, map_info)
+    loc_gt_seq, map_image, map_info, pose_estimations=pose_estimations)
 
 if RECORDING_NAME == 'highway':
     ## Longitudinal error ##
