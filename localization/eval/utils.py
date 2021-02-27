@@ -137,13 +137,15 @@ def get_local_map_image(loc_gt_seq, pose_estimations, map_image, map_info, margi
         local_map_image: Local map image.
         extent: Extent of the local map image for imshow().
     """
+    # Find the extent of the map
+    # 10 meters are added to the top for legend's space
     loc_gts = np.asarray(loc_gt_seq)
     x_estimations = [pose[0] for pose in pose_estimations]
     y_estimations = [pose[1] for pose in pose_estimations]
     x_min = min(loc_gts[:, 0].min(), min(x_estimations)) - margin
     x_max = max(loc_gts[:, 0].max(), max(x_estimations)) + margin
     y_min = min(loc_gts[:, 1].min(), min(y_estimations)) - margin
-    y_max = max(loc_gts[:, 1].max(), max(y_estimations)) + margin
+    y_max = max(loc_gts[:, 1].max(), max(y_estimations)) + margin +10
     extent = [x_min, x_max, y_min, y_max]
 
     x_center = (x_max + x_min)/2
@@ -163,41 +165,22 @@ def get_local_map_image(loc_gt_seq, pose_estimations, map_image, map_info, margi
     return local_map_image, extent
 
 
-def gen_colored_error_plot(title, abs_errors, upper_bound,
-                           loc_gt_seq, pose_estimations,
-                           sign_pole_coords, general_pole_coords,
-                           local_map_img, extent, size=7, zoom_in=False):
-    """Generate colored error plot.
+def gen_gt_path_plot(loc_gt_seq, sign_pole_coords, general_pole_coords,
+                     local_map_img, extent, size=7):
+    """Generate ground truth path plot.
 
     Args:
-        title (string): Title of the plot.
-        abs_errors (array-like): A sequence of absolute errors.
-        upper_bound (float): Error value corresponding to the maximum in the color map.
         loc_gt_seq (list): List of ground truth locations.
-        pose_estimations (list): List of pose esitmations in the form of [x, y, theta].
         sign_pole_coords (np.ndarray): Ground truth coordinates of traffic sign poles.
         general_pole_coords (np.ndarray): Ground truth coordinates of general poles.
         local_map_img (np.ndarray): Local map image.
         extent (list): Extent of the local map image for imshow().
         size (float): Maximum size (inch).
-        zoom_in (bool): Add zoom-in elements for the highway scenario.
-                        This is a dedicated feature for the particular scenarios.
     Returns:
-        Result figure ans axes object.
+        Result figure and axes object.
     """
     marker_scale = 10 * (size/7)**2
     path_lw = 2 * size/7
-
-    zoom_scale = 2
-    zoom_marker_scale = marker_scale * zoom_scale
-    zoom_path_lw = path_lw * zoom_scale
-    inset_mark_lw = 1 * size/7
-
-    # Prepare path segments
-    x_estimations = [pose[0] for pose in pose_estimations]
-    y_estimations = [pose[1] for pose in pose_estimations]
-    points = np.array([x_estimations, y_estimations]).T.reshape(-1, 1, 2)
-    segments = np.concatenate((points[:-1], points[1:]), axis=1)
 
     fig, ax = plt.subplots()
     # ax.set_title(title)
@@ -220,14 +203,6 @@ def gen_colored_error_plot(title, abs_errors, upper_bound,
                color='midnightblue', edgecolors=None, linewidths=0,
                zorder=1, label='unknown pole type')
 
-    # Resultant path with color
-    norm = plt.Normalize(0, upper_bound)
-    lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
-    # Set the values used for colormapping
-    lc.set_array(abs_errors)
-    lc.set_linewidth(path_lw)
-    line = ax.add_collection(lc)
-
     # Background map image
     # Height-to-width aspect ratio
     aspect = float(local_map_img.shape[0])/local_map_img.shape[1]
@@ -236,8 +211,57 @@ def gen_colored_error_plot(title, abs_errors, upper_bound,
               alpha=0.5)
     adjust_figure(fig, aspect, size=size)
 
+    ax.legend(framealpha=1.0, edgecolor='none', fontsize=size+1)
+
+    return fig, ax
+
+
+def gen_colored_error_plot(title, abs_errors, upper_bound,
+                           loc_gt_seq, pose_estimations,
+                           sign_pole_coords, general_pole_coords,
+                           local_map_img, extent, size=7, zoom_in=False):
+    """Generate colored error plot.
+
+    Args:
+        title (string): Title of the plot.
+        abs_errors (array-like): A sequence of absolute errors.
+        upper_bound (float): Error value corresponding to the maximum in the color map.
+        loc_gt_seq (list): List of ground truth locations.
+        pose_estimations (list): List of pose esitmations in the form of [x, y, theta].
+        sign_pole_coords (np.ndarray): Ground truth coordinates of traffic sign poles.
+        general_pole_coords (np.ndarray): Ground truth coordinates of general poles.
+        local_map_img (np.ndarray): Local map image.
+        extent (list): Extent of the local map image for imshow().
+        size (float): Maximum size (inch).
+        zoom_in (bool): Add zoom-in elements for the highway scenario.
+                        This is a dedicated feature for the particular scenarios.
+    Returns:
+        Result figure and axes object.
+    """
+    marker_scale = 10 * (size/7)**2
+    path_lw = 2 * size/7
+
+    # Generate ground truth path plot
+    fig, ax = gen_gt_path_plot(loc_gt_seq, sign_pole_coords, general_pole_coords,
+                               local_map_img, extent, size)
+
+    # Prepare path segments
+    x_estimations = [pose[0] for pose in pose_estimations]
+    y_estimations = [pose[1] for pose in pose_estimations]
+    points = np.array([x_estimations, y_estimations]).T.reshape(-1, 1, 2)
+    segments = np.concatenate((points[:-1], points[1:]), axis=1)
+
+    # Resultant path with color
+    norm = plt.Normalize(0, upper_bound)
+    lc = LineCollection(segments, cmap='gnuplot2', norm=norm)
+    # Set the values used for colormapping
+    lc.set_array(abs_errors)
+    lc.set_linewidth(path_lw)
+    line = ax.add_collection(lc)
+
     # Add color bar
-    # Create an axes for colorbar. The position of the axes is calculated based on the position of ax.
+    # Create an axes for colorbar. 
+    # The position of the axes is calculated based on the position of ax.
     fig_width = fig.get_size_inches()[0]
     cax = fig.add_axes([ax.get_position().x1+0.05/fig_width,
                         ax.get_position().y0,
@@ -246,9 +270,16 @@ def gen_colored_error_plot(title, abs_errors, upper_bound,
     cbar = fig.colorbar(line, cax=cax)
     cbar.ax.set_ylabel(title)
 
-    ax.legend(framealpha=1.0, edgecolor='none', prop={'size': 4})
+    ax.legend(framealpha=1.0, edgecolor='none', fontsize=size+1)
 
     if zoom_in:
+        zoom_scale = 2
+        zoom_marker_scale = marker_scale * zoom_scale
+        zoom_path_lw = path_lw * zoom_scale
+        inset_mark_lw = 1 * size/7
+
+        loc_gts = np.asarray(loc_gt_seq)
+
         # First zoom-in
         x_min, x_max, y_min, y_max = 400, 415, 80, 160
         loc = 3
