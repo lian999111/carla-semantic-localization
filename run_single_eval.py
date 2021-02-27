@@ -12,25 +12,18 @@ from carlasim.utils import TrafficSignType
 import localization.eval.utils as evtools
 
 
-# %% ############### Set matplotlib's format ###############
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif', size=8)
-
-# matplotlib.use("pgf")
-# matplotlib.rcParams.update({
-#     "pgf.texsystem": "pdflatex",
-#     'font.family': 'serif',
-#     'text.usetex': True,
-#     'pgf.rcfonts': False,
-# })
-
 # %%  ############### Set parameters ###############
 RECORDING_NAME = 'urban'
-TEST_NAME = 'test_null_hypo'
-NOISE_LEVEL = 'n_high_fc'
-SW_CONFIG = 'sw_no_null'
-
+TEST_NAME = 'test_configs_of_factors'
+NOISE_LEVEL = 'n_w_gnss_bias'
+SW_CONFIG = 'sw_gnss_lane'
 FIG_SIZE = 5
+
+FIG_NAME = None
+
+# %% ############### Set matplotlib's format ###############
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif', size=FIG_SIZE+3)
 
 # %% ############### Create directories ###############
 recording_dir = os.path.join('recordings', RECORDING_NAME)
@@ -108,7 +101,6 @@ if RECORDING_NAME == 'highway':
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent, FIG_SIZE, zoom_in=True)
-    # lon_err_fig.savefig('lon_err.svg', dpi=600, bbox_inches='tight')
 
     ## Lateral error ##
     lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot('lateral error [m]',
@@ -116,7 +108,6 @@ if RECORDING_NAME == 'highway':
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent, FIG_SIZE, zoom_in=True)
-    # lat_err_fig.savefig('lat_err.svg', dpi=600, bbox_inches='tight')
 
     ## Yaw error ##
     yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('yaw error [m]',
@@ -131,7 +122,6 @@ else:
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent, FIG_SIZE)
-    lon_err_fig.savefig('lon_err.svg', dpi=600, bbox_inches='tight')
 
     ## Lateral error ##
     lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot('lateral error [m]',
@@ -139,7 +129,6 @@ else:
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent, FIG_SIZE)
-    lat_err_fig.savefig('lat_err.svg', dpi=600, bbox_inches='tight')
 
     ## Yaw error ##
     yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('yaw error [rad]',
