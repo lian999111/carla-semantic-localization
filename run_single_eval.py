@@ -23,7 +23,7 @@ FIG_NAME = None
 
 # %% ############### Set matplotlib's format ###############
 plt.rc('text', usetex=True)
-plt.rc('font', family='serif', size=FIG_SIZE+3)
+plt.rc('font', family='serif', size=FIG_SIZE+5)
 
 # %% ############### Create directories ###############
 recording_dir = os.path.join('recordings', RECORDING_NAME)
