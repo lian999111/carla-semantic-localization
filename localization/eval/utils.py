@@ -172,7 +172,7 @@ def get_local_map_image(loc_gt_seq, map_image, map_info, margin=25, pose_estimat
 
 
 def gen_gt_path_plot(loc_gt_seq, sign_pole_coords, general_pole_coords,
-                     local_map_img, extent, size=7, zoom_in=False):
+                     local_map_img, extent, size=7, add_legend=False, zoom_in=False):
     """Generate ground truth path plot.
 
     Args:
@@ -188,6 +188,15 @@ def gen_gt_path_plot(loc_gt_seq, sign_pole_coords, general_pole_coords,
     marker_scale = 10 * (size/7)**2
     path_lw = 2 * size/7
 
+    # Set legend label
+    gt_path_label = None
+    traffic_sign_label = None
+    unknown_pole_label = None
+    if add_legend:
+        gt_path_label = 'GT path'
+        traffic_sign_label = 'traffic sign'
+        unknown_pole_label = 'unknown'
+
     fig, ax = plt.subplots()
     # ax.set_title(title)
     ax.set_xlabel(r'$x_\text{w}$ [m]')
@@ -197,17 +206,18 @@ def gen_gt_path_plot(loc_gt_seq, sign_pole_coords, general_pole_coords,
     ax.plot(loc_gts[:, 0], loc_gts[:, 1],
             '-', linewidth=path_lw,
             color='green', zorder=1,
-            label='GT path')
+            label=gt_path_label)
 
     # Ground truth poles
+
     ax.scatter(sign_pole_coords[:, 0], sign_pole_coords[:, 1],
                s=marker_scale, marker='o',
                color='crimson', edgecolors=None, linewidths=0,
-               zorder=1, label='traffic sign')
+               zorder=1, label=traffic_sign_label)
     ax.scatter(general_pole_coords[:, 0], general_pole_coords[:, 1],
                s=marker_scale, marker='o',
                color='midnightblue', edgecolors=None, linewidths=0,
-               zorder=1, label='unknown pole type')
+               zorder=1, label=unknown_pole_label)
 
     # Background map image
     # Height-to-width aspect ratio
@@ -216,8 +226,6 @@ def gen_gt_path_plot(loc_gt_seq, sign_pole_coords, general_pole_coords,
               extent=extent,
               alpha=0.5)
     adjust_figure(fig, aspect, size=size)
-
-    ax.legend(framealpha=1.0, edgecolor='none', fontsize=size+2)
 
     if zoom_in:
         zoom_scale = 2
@@ -395,8 +403,6 @@ def gen_colored_error_plot(title, abs_errors, upper_bound,
                         ax.get_position().height])
     cbar = fig.colorbar(line, cax=cax)
     cbar.ax.set_ylabel(title)
-
-    ax.legend(framealpha=1.0, edgecolor='none', fontsize=size+2)
 
     if zoom_in:
         zoom_scale = 2
