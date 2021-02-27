@@ -21,11 +21,7 @@ test_semantic:
       - "sw_semantic_on.yaml"
   urban:
     noise_configs:
-      - "n_noisy_gnss_1.yaml"
-      - "n_noisy_gnss_2.yaml"
-      - "n_noisy_gnss_3.yaml"
-      - "n_noisy_gnss_4.yaml"
-      - "n_noisy_gnss_5.yaml"
+      - "n_pos_y_gnss_bias.yaml"
     sw_configs:
       - "sw_semantic_off.yaml"
       - "sw_semantic_on.yaml"
