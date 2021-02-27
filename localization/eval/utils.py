@@ -150,8 +150,8 @@ def get_local_map_image(loc_gt_seq, map_image, map_info, margin=25, pose_estimat
         y_estimations = [pose[1] for pose in pose_estimations]
         x_min = min(loc_gts[:, 0].min(), min(x_estimations)) - margin
         x_max = max(loc_gts[:, 0].max(), max(x_estimations)) + margin
-        y_min = min(loc_gts[:, 1].min(), min(y_estimations)) - margin + 10
-        y_max = max(loc_gts[:, 1].max(), max(y_estimations)) + margin + 10
+        y_min = min(loc_gts[:, 1].min(), min(y_estimations)) - margin
+        y_max = max(loc_gts[:, 1].max(), max(y_estimations)) + margin
 
     extent = [x_min, x_max, y_min, y_max]
     x_center = (x_max + x_min)/2
