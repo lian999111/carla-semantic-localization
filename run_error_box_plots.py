@@ -48,9 +48,9 @@ def set_box_color(bp, color):
 
 
 # %%  ############### Set directories manually ###############
-RECORDING_NAME = 'urban'
-TEST_NAME = 'test_configs_of_factors'
-NOISE_CONFIG_LABELS = ['w/o GNSS bias', 'w/ GNSS bias']
+RECORDING_NAME = 's2'
+TEST_NAME = 'test_win_sizes'
+NOISE_CONFIG_LABELS = ['Positive GNSS x bias']
 SW_CONFIG_LABELS = ['gnss+lane', 'gnss+lane+pole', 'gnss+lane+pole+stop']
 
 recording_dir = os.path.join('recordings', RECORDING_NAME)
@@ -145,15 +145,10 @@ for noise_config_file_name in noise_config_file_names:
 num_sw_configs = len(sw_config_file_names)
 num_noise_configs = len(noise_config_file_names)
 
-# sw_config_names = []
-# noise_config_names = []
+if len(NOISE_CONFIG_LABELS) != num_noise_configs:
+    raise RuntimeError('Number of noise config labels should be: {} \
+                       \nNoise config names are: {}'.format(num_noise_configs, noise_config_file_names))
 
-# for sw_config_file_name in sw_config_file_names:
-#     sw_config_name = os.path.splitext(sw_config_file_name)[0]
-#     sw_config_names.append(remove_prefix(sw_config_name, 'sw_'))
-# for noise_config_file_name in noise_config_file_names:
-#     noise_config_name = os.path.splitext(noise_config_file_name)[0]
-#     noise_config_names.append(remove_prefix(noise_config_name, 'n_'))
 
 flier = dict(markeredgecolor='gray', marker='+')
 colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
@@ -170,17 +165,20 @@ for idx, (lon_errs, lat_errs, yaw_errs) in enumerate(zip(abs_lon_err_dict.values
     positions += idx
 
     # Box plot of a sw config under different noise configs
-    bp = axs[0].boxplot(list_of_lon_errs, positions=positions, flierprops=flier)
+    bp = axs[0].boxplot(
+        list_of_lon_errs, positions=positions, flierprops=flier)
     set_box_color(bp, colors[idx])
     axs[0].plot([], c=colors[idx], label=SW_CONFIG_LABELS[idx])
 
     # Box plot of a sw config under different noise configs
-    bp = axs[1].boxplot(list_of_lat_errs, positions=positions, flierprops=flier)
+    bp = axs[1].boxplot(
+        list_of_lat_errs, positions=positions, flierprops=flier)
     set_box_color(bp, colors[idx])
     axs[1].plot([], c=colors[idx], label=SW_CONFIG_LABELS[idx])
 
     # Box plot of a sw config under different noise configs
-    bp = axs[2].boxplot(list_of_yaw_errs, positions=positions, flierprops=flier)
+    bp = axs[2].boxplot(
+        list_of_yaw_errs, positions=positions, flierprops=flier)
     set_box_color(bp, colors[idx])
     axs[2].plot([], c=colors[idx], label=SW_CONFIG_LABELS[idx])
 
