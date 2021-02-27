@@ -217,7 +217,7 @@ def gen_gt_path_plot(loc_gt_seq, sign_pole_coords, general_pole_coords,
               alpha=0.5)
     adjust_figure(fig, aspect, size=size)
 
-    ax.legend(framealpha=1.0, edgecolor='none', fontsize=size+5)
+    ax.legend(framealpha=1.0, edgecolor='none', fontsize=size+2)
 
     if zoom_in:
         zoom_scale = 2
@@ -396,7 +396,7 @@ def gen_colored_error_plot(title, abs_errors, upper_bound,
     cbar = fig.colorbar(line, cax=cax)
     cbar.ax.set_ylabel(title)
 
-    ax.legend(framealpha=1.0, edgecolor='none', fontsize=size+5)
+    ax.legend(framealpha=1.0, edgecolor='none', fontsize=size+2)
 
     if zoom_in:
         zoom_scale = 2
