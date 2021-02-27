@@ -124,30 +124,36 @@ def plot_se2_with_cov(ax, pose, cov, vehicle_size=0.5, ellip_color='k', vehicle_
     return triangle, ellipse
 
 
-def get_local_map_image(loc_gt_seq, pose_estimations, map_image, map_info, margin=25):
+def get_local_map_image(loc_gt_seq, map_image, map_info, margin=25, pose_estimations=None):
     """Get local map image given the trajectory.
 
     Args:
         loc_gt_seq (list): List of ground truth locations.
-        pose_estimations (list): List of pose esitmations in the form of [x, y, theta].
         map_image (np.ndarray): Map image.
         map_info (dict): Metainfo of the map image.
         margin (int): Margin to be included around the trajectory.
+        pose_estimations (list): List of pose esitmations in the form of [x, y, theta].
     Returns:
         local_map_image: Local map image.
         extent: Extent of the local map image for imshow().
     """
-    # Find the extent of the map
-    # 10 meters are added to the top for legend's space
     loc_gts = np.asarray(loc_gt_seq)
-    x_estimations = [pose[0] for pose in pose_estimations]
-    y_estimations = [pose[1] for pose in pose_estimations]
-    x_min = min(loc_gts[:, 0].min(), min(x_estimations)) - margin
-    x_max = max(loc_gts[:, 0].max(), max(x_estimations)) + margin
-    y_min = min(loc_gts[:, 1].min(), min(y_estimations)) - margin
-    y_max = max(loc_gts[:, 1].max(), max(y_estimations)) + margin +10
-    extent = [x_min, x_max, y_min, y_max]
+    # Find the extent of the map
+    # Shift 10 meters in y for legend's space
+    if pose_estimations is None:
+        x_min = loc_gts[:, 0].min() - margin
+        x_max = loc_gts[:, 0].max() + margin
+        y_min = loc_gts[:, 1].min() - margin +10
+        y_max = loc_gts[:, 1].max() + margin +10
+    else:
+        x_estimations = [pose[0] for pose in pose_estimations]
+        y_estimations = [pose[1] for pose in pose_estimations]
+        x_min = min(loc_gts[:, 0].min(), min(x_estimations)) - margin
+        x_max = max(loc_gts[:, 0].max(), max(x_estimations)) + margin
+        y_min = min(loc_gts[:, 1].min(), min(y_estimations)) - margin + 10
+        y_max = max(loc_gts[:, 1].max(), max(y_estimations)) + margin + 10
 
+    extent = [x_min, x_max, y_min, y_max]
     x_center = (x_max + x_min)/2
     y_center = (y_max + y_min)/2
     x_half_width = (x_max - x_min)/2
