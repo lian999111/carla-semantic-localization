@@ -13,7 +13,7 @@ import localization.eval.utils as evtools
 
 
 # %%  ############### Set parameters ###############
-RECORDING_NAME = 'highway'
+RECORDING_NAME = 'urban'
 FIG_SIZE = 5
 LEGEND_FONT_SIZE = FIG_SIZE+5
 
@@ -22,6 +22,8 @@ FIG_NAME = RECORDING_NAME
 # %% ############### Set matplotlib's format ###############
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif', size=FIG_SIZE+7)
+params = {'text.latex.preamble' : [r'\usepackage{siunitx}', r'\usepackage{amsmath}']}
+plt.rcParams.update(params)
 
 # %% ############### Create directories ###############
 recording_dir = os.path.join('recordings', RECORDING_NAME)

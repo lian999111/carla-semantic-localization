@@ -190,8 +190,8 @@ def gen_gt_path_plot(loc_gt_seq, sign_pole_coords, general_pole_coords,
 
     fig, ax = plt.subplots()
     # ax.set_title(title)
-    ax.set_xlabel('x [m]')
-    ax.set_ylabel('y [m]')
+    ax.set_xlabel(r'$x_\text{w}$ [m]')
+    ax.set_ylabel(r'$y_\text{w}$ [m]')
     # Ground truth path
     loc_gts = np.asarray(loc_gt_seq)
     ax.plot(loc_gts[:, 0], loc_gts[:, 1],

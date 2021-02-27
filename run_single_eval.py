@@ -14,16 +14,18 @@ import localization.eval.utils as evtools
 
 # %%  ############### Set parameters ###############
 RECORDING_NAME = 'highway'
-TEST_NAME = 'test_win_sizes'
-NOISE_LEVEL = 'n_w_gnss_bias'
-SW_CONFIG = 'sw_win_2'
+TEST_NAME = 'test_configs_of_factors'
+NOISE_LEVEL = 'n_wo_gnss_bias'
+SW_CONFIG = 'sw_gnss_lane'
 FIG_SIZE = 5
 
 FIG_NAME = None
 
 # %% ############### Set matplotlib's format ###############
 plt.rc('text', usetex=True)
-plt.rc('font', family='serif', size=FIG_SIZE+5)
+plt.rc('font', family='serif', size=FIG_SIZE+7)
+params = {'text.latex.preamble' : [r'\usepackage{siunitx}', r'\usepackage{amsmath}']}
+plt.rcParams.update(params)
 
 # %% ############### Create directories ###############
 recording_dir = os.path.join('recordings', RECORDING_NAME)

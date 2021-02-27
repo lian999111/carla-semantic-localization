@@ -22,11 +22,13 @@ SW_SEMANTIC_OFF = 'sw_semantic_off'
 FIG_SIZE = 5
 LEGEND_FONT_SIZE = FIG_SIZE+5
 
-FIG_NAME = None
+FIG_NAME = 'urban'
 
 # %% ############### Set matplotlib's format ###############
 plt.rc('text', usetex=True)
-plt.rc('font', family='serif', size=FIG_SIZE+5)
+plt.rc('font', family='serif', size=FIG_SIZE+7)
+params = {'text.latex.preamble' : [r'\usepackage{siunitx}', r'\usepackage{amsmath}']}
+plt.rcParams.update(params)
 
 # %% ############### Create directories ###############
 recording_dir = os.path.join('recordings', RECORDING_NAME)
@@ -118,9 +120,7 @@ gt_ax.set_ylim([extent[2], extent[3]])
 legend = gt_ax.legend(framealpha=1.0, edgecolor='none', fontsize=LEGEND_FONT_SIZE)    
 
 if FIG_NAME:
-    lon_err_fig.savefig(FIG_NAME+'_lon_err.svg', dpi=600, bbox_inches='tight')
-    lat_err_fig.savefig(FIG_NAME+'_lat_err.svg', dpi=600, bbox_inches='tight')
-    yaw_err_fig.savefig(FIG_NAME+'_yaw_err.svg', dpi=600, bbox_inches='tight')
+    gt_fig.savefig(FIG_NAME+'.svg', dpi=600, bbox_inches='tight')
 
 plt.show()
 
