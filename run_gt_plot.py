@@ -17,11 +17,11 @@ RECORDING_NAME = 'highway'
 FIG_SIZE = 5
 LEGEND_FONT_SIZE = FIG_SIZE+5
 
-FIG_NAME = None
+FIG_NAME = RECORDING_NAME
 
 # %% ############### Set matplotlib's format ###############
 plt.rc('text', usetex=True)
-plt.rc('font', family='serif', size=FIG_SIZE+5)
+plt.rc('font', family='serif', size=FIG_SIZE+7)
 
 # %% ############### Create directories ###############
 recording_dir = os.path.join('recordings', RECORDING_NAME)
