@@ -13,10 +13,10 @@ import localization.eval.utils as evtools
 
 
 # %%  ############### Set parameters ###############
-RECORDING_NAME = 'urban'
-TEST_NAME = 'test_configs_of_factors'
+RECORDING_NAME = 'highway'
+TEST_NAME = 'test_win_sizes'
 NOISE_LEVEL = 'n_w_gnss_bias'
-SW_CONFIG = 'sw_gnss_lane'
+SW_CONFIG = 'sw_win_2'
 FIG_SIZE = 5
 
 FIG_NAME = None
