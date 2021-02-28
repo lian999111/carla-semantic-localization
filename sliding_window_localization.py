@@ -291,9 +291,9 @@ def main():
 
         delta_t = timestamp - timestamp_seq[idx-1]
 
-        # Retrieve odom
-        vx = vx_seq[idx]
-        yaw_rate = gyro_z_seq[idx]
+        # Retrieve odom from last time step
+        vx = vx_seq[idx-1]
+        yaw_rate = gyro_z_seq[idx-1]
         # Retrieve GNSS
         gnss_x = gnss_x_seq[idx]
         gnss_y = gnss_y_seq[idx]
