@@ -19,7 +19,7 @@ test_semantic:
     sw_configs:
       - "sw_semantic_off.yaml"
       - "sw_semantic_on.yaml"
-  urban:
+  right_turn:
     noise_configs:
       - "n_pos_y_gnss_bias.yaml"
     sw_configs:
@@ -69,6 +69,13 @@ test_win_sizes:
   s3:
     noise_configs:
       - "n_neg_x_gnss_bias.yaml"
+    sw_configs:
+      - "sw_win_2.yaml"
+      - "sw_win_10.yaml"
+      - "sw_win_20.yaml"
+  right_turn:
+    noise_configs:
+      - "n_pos_y_gnss_bias.yaml"
     sw_configs:
       - "sw_win_2.yaml"
       - "sw_win_10.yaml"
