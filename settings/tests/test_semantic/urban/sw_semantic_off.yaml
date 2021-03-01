@@ -6,14 +6,14 @@
 #   pre_init_interval: 10 and init_idx: 20 means GNSS in the interval 
 #   [pre_init_interval, init_idx) will be averaged. Note init_idx is excluded.
 pre_init_interval: 10
-init_idx: 800
+init_idx: 780
 end_idx: 880
 
 # Toggles for factors
 use_gnss: On
 use_lane: On
 use_pole: On
-use_rs_stop: On
+use_rs_stop: Off
 
 # Ground truth extractors designed for Carla simulation are also used to
 # extract exptected landmarks like lane boundaries and rs stop signs here.
@@ -72,10 +72,10 @@ sliding_window:
   # Parameters for lane boundary factors
   lane:
     # True to turn on semantic association
-    semantic: True
+    semantic: False
     # True to store the first query for expected lane detection and use it for all the rest of optimization steps.
     # False to query for expected lane detection at every optimization step.
-    static: False
+    static: True
     # True to ignore lane boundary detection when in or approaching junction area.
     ignore_junction: False
     

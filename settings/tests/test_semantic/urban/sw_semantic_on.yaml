@@ -6,7 +6,7 @@
 #   pre_init_interval: 10 and init_idx: 20 means GNSS in the interval 
 #   [pre_init_interval, init_idx) will be averaged. Note init_idx is excluded.
 pre_init_interval: 10
-init_idx: 800
+init_idx: 780
 end_idx: 880
 
 # Toggles for factors
