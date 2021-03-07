@@ -13,18 +13,18 @@ import localization.eval.utils as evtools
 
 
 # %%  ############### Set parameters ###############
-RECORDING_NAME = 'highway'
-TEST_NAME = 'test_configs_of_factors'
-NOISE_LEVEL = 'n_wo_gnss_bias'
-SW_CONFIG = 'sw_gnss_lane'
+RECORDING_NAME = 'urban'
+TEST_NAME = 'test_null_hypo'
+NOISE_LEVEL = 'n_high_fc'
+SW_CONFIG = 'sw_no_null'
 FIG_SIZE = 5
 
-FIG_NAME = None
+FIG_NAME = 'urban_no_null'
 
 # %% ############### Set matplotlib's format ###############
 plt.rc('text', usetex=True)
-plt.rc('font', family='serif', size=FIG_SIZE+7)
-params = {'text.latex.preamble' : [r'\usepackage{siunitx}', r'\usepackage{amsmath}']}
+plt.rc('font', family='serif', size=16)
+params = {'text.latex.preamble' : r'\usepackage{siunitx} \usepackage{amsmath}'}
 plt.rcParams.update(params)
 
 # %% ############### Create directories ###############
@@ -98,56 +98,56 @@ local_map_image, extent = evtools.get_local_map_image(
 
 if RECORDING_NAME == 'highway':
     ## Longitudinal error ##
-    lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot('longitudinal error [m]',
+    lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot('abs. longitudinal error [m]',
                                                              abs_lon_errs, 3.0,
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent, FIG_SIZE, zoom_in=True)
 
     ## Lateral error ##
-    lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot('lateral error [m]',
+    lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot('abs. lateral error [m]',
                                                              abs_lat_errs, 1.0,
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent, FIG_SIZE, zoom_in=True)
 
     ## Yaw error ##
-    yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('yaw error [m]',
+    yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('abs. yaw error [m]',
                                                              abs_yaw_errs, 0.5,
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent, FIG_SIZE, zoom_in=True)
 else:
     ## Longitudinal error ##
-    lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot('longitudinal error [m]',
+    lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot('abs. longitudinal error [m]',
                                                              abs_lon_errs, 3.0,
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent, FIG_SIZE)
 
     ## Lateral error ##
-    lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot('lateral error [m]',
+    lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot('abs. lateral error [m]',
                                                              abs_lat_errs, 1.0,
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent, FIG_SIZE)
 
     ## Yaw error ##
-    yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('yaw error [rad]',
+    yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('abs. yaw error [rad]',
                                                              abs_yaw_errs, 0.5,
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent, FIG_SIZE)
 
 if FIG_NAME:
-    lon_err_fig.savefig(FIG_NAME+'_lon_err.svg', dpi=600, bbox_inches='tight')
-    lat_err_fig.savefig(FIG_NAME+'_lat_err.svg', dpi=600, bbox_inches='tight')
-    yaw_err_fig.savefig(FIG_NAME+'_yaw_err.svg', dpi=600, bbox_inches='tight')
+    lon_err_fig.savefig(FIG_NAME+'_lon_err.svg', dpi=500, bbox_inches='tight')
+    lat_err_fig.savefig(FIG_NAME+'_lat_err.svg', dpi=500, bbox_inches='tight')
+    yaw_err_fig.savefig(FIG_NAME+'_yaw_err.svg', dpi=500, bbox_inches='tight')
 
 cpu_time_fig, cpu_time_ax = plt.subplots(1, 1)
 cpu_time_ax.boxplot(cpu_times)
 cpu_time_ax.set_ylabel('cpu time [sec]')
 
-plt.show()
+# plt.show()
 
 # %%

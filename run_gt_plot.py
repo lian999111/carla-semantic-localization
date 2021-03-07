@@ -13,16 +13,16 @@ import localization.eval.utils as evtools
 
 
 # %%  ############### Set parameters ###############
-RECORDING_NAME = 'urban'
+RECORDING_NAME = 'highway'
 FIG_SIZE = 5
-LEGEND_FONT_SIZE = FIG_SIZE+5
+LEGEND_FONT_SIZE = 14
 
 FIG_NAME = RECORDING_NAME
 
 # %% ############### Set matplotlib's format ###############
 plt.rc('text', usetex=True)
-plt.rc('font', family='serif', size=FIG_SIZE+7)
-params = {'text.latex.preamble' : [r'\usepackage{siunitx}', r'\usepackage{amsmath}']}
+plt.rc('font', family='serif', size=16)
+params = {'text.latex.preamble' : r'\usepackage{siunitx} \usepackage{amsmath}'}
 plt.rcParams.update(params)
 
 # %% ############### Create directories ###############
@@ -93,7 +93,7 @@ else:
 gt_plot_ax.legend(framealpha=1.0, edgecolor='none', fontsize=LEGEND_FONT_SIZE)
 
 if FIG_NAME:
-    gt_plot_fig.savefig(FIG_NAME+'_gt_path.svg', dpi=600)
+    gt_plot_fig.savefig(FIG_NAME+'_gt_path.svg', dpi=500)
 plt.show()
 
 # %%

@@ -20,14 +20,14 @@ SW_SEMANTIC_ON = 'sw_semantic_on'
 SW_SEMANTIC_OFF = 'sw_semantic_off'
 
 FIG_SIZE = 5
-LEGEND_FONT_SIZE = FIG_SIZE+5
+LEGEND_FONT_SIZE = 14
 
-FIG_NAME = 'urban'
+FIG_NAME = 'highway'
 
 # %% ############### Set matplotlib's format ###############
 plt.rc('text', usetex=True)
-plt.rc('font', family='serif', size=FIG_SIZE+7)
-params = {'text.latex.preamble' : [r'\usepackage{siunitx}', r'\usepackage{amsmath}']}
+plt.rc('font', family='serif', size=16)
+params = {'text.latex.preamble': r'\usepackage{siunitx} \usepackage{amsmath}'}
 plt.rcParams.update(params)
 
 # %% ############### Create directories ###############
@@ -46,7 +46,7 @@ with open(path_to_config, 'r') as f:
 # %% ############### Load results ###############
 # For semantic on
 path_to_sem_on = os.path.join(result_sem_on_dir,
-                                   'results.pkl')
+                              'results.pkl')
 
 with open(path_to_sem_on, 'rb') as f:
     localization_results_sem_on = pickle.load(f)
@@ -57,7 +57,7 @@ pose_estimations_sem_on = localization_results_sem_on['pose_estimations']
 
 # For semantic off
 path_to_sem_off = os.path.join(result_sem_off_dir,
-                                   'results.pkl')
+                               'results.pkl')
 
 with open(path_to_sem_off, 'rb') as f:
     localization_results_sem_off = pickle.load(f)
@@ -116,8 +116,8 @@ gt_ax.plot(x_estimations, y_estimations, '-', label='sem. on')
 gt_ax.set_xlim([extent[0], extent[1]])
 gt_ax.set_ylim([extent[2], extent[3]])
 
-
-legend = gt_ax.legend(framealpha=1.0, edgecolor='none', fontsize=LEGEND_FONT_SIZE)    
+legend = gt_ax.legend(framealpha=1.0, fontsize=LEGEND_FONT_SIZE,
+                      bbox_to_anchor=(0, 1), loc='lower left')
 
 if FIG_NAME:
     gt_fig.savefig(FIG_NAME+'.svg', dpi=600, bbox_inches='tight')
