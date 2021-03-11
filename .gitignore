@@ -12,7 +12,6 @@
 *.idx
 *.dat
 
-/thesis/images/**/*.pdf
-/thesis/images/**/*.pdf_tex
+/thesis/images/svg-inkscape/
 
 /helper_scripts/images/
