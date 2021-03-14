@@ -15,6 +15,8 @@ import localization.eval.utils as evtools
 # %% ############### Set matplotlib's format ###############
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif', size=12)
+params = {'text.latex.preamble' : [r'\usepackage{siunitx}', r'\usepackage{amsmath}']}
+plt.rcParams.update(params)
 
 # matplotlib.use("pgf")
 # matplotlib.rcParams.update({
@@ -48,10 +50,12 @@ def set_box_color(bp, color):
 
 
 # %%  ############### Set directories manually ###############
-RECORDING_NAME = 's2'
-TEST_NAME = 'test_win_sizes'
-NOISE_CONFIG_LABELS = ['Positive GNSS x bias']
-SW_CONFIG_LABELS = ['gnss+lane', 'gnss+lane+pole', 'gnss+lane+pole+stop']
+RECORDING_NAME = 'urban'
+TEST_NAME = 'test_configs_of_factors'
+NOISE_CONFIG_LABELS = ['w/o GNSS bias', 'w/ GNSS bias']
+SW_CONFIG_LABELS = ['GNSS+Lane', 'GNSS+Lane+Pole', 'GNSS+Lane+Pole+Stop']
+
+FIG_NAME = 'urban'
 
 recording_dir = os.path.join('recordings', RECORDING_NAME)
 test_dir = os.path.join(recording_dir, 'results', TEST_NAME)
@@ -131,14 +135,18 @@ for noise_config_file_name in noise_config_file_names:
         abs_yaw_err_dict[sw_config][noise_config] = yaw_abs_errs
 
         print('{}, {}:'.format(noise_config, sw_config))
-        print(' CPU time mean: {}'.format(np.mean(results['cpu_times'])))
-        print(' CPU time median: {}'.format(np.median(results['cpu_times'])))
-        print('  Lon mean abs error: {}'.format(lon_abs_errs.mean()))
-        print('  Lon median abs error: {}'.format(np.median(lon_abs_errs)))
-        print('  Lat mean abs error: {}'.format(lat_abs_errs.mean()))
-        print('  Lat median abs error: {}'.format(np.median(lat_abs_errs)))
-        print('  Yaw mean abs error: {}'.format(yaw_abs_errs.mean()))
-        print('  Yaw median abs error: {}'.format(np.median(yaw_abs_errs)))
+        print('Number of data points: {}'.format(len(lon_abs_errs)))
+        print(' CPU time mean: {:.6f}'.format(np.mean(results['cpu_times'])))
+        print(' CPU time median: {:.6f}'.format(np.median(results['cpu_times'])))
+        print('  Lon mean abs error: {:.2f}'.format(lon_abs_errs.mean()))
+        print('  Lon median abs error: {:.2f}'.format(np.median(lon_abs_errs)))
+        # print('  Lon RMSE: {}'.format(np.sqrt(np.mean(lon_abs_errs**2))))
+        print('  Lat mean abs error: {:.2f}'.format(lat_abs_errs.mean()))
+        print('  Lat median abs error: {:.2f}'.format(np.median(lat_abs_errs)))
+        # print('  Lat RMSE: {}'.format(np.sqrt(np.mean(lat_abs_errs**2))))
+        print('  Yaw mean abs error: {:.3f}'.format(yaw_abs_errs.mean()))
+        print('  Yaw median abs error: {:.3f}'.format(np.median(yaw_abs_errs)))
+        # print('  Yaw RMSE: {}'.format(np.sqrt(np.mean(yaw_abs_errs**2))))
 
 # Number of configs
 # Used for boxplot spacing
@@ -183,9 +191,13 @@ for idx, (lon_errs, lat_errs, yaw_errs) in enumerate(zip(abs_lon_err_dict.values
     axs[2].plot([], c=colors[idx], label=SW_CONFIG_LABELS[idx])
 
 
-axs[0].set_ylabel('abs lon err [m]')
-axs[1].set_ylabel('abs lat err [m]')
-axs[2].set_ylabel('abs yaw err [rad]')
+axs[0].set_ylabel('abs. longitudinal error [m]')
+axs[1].set_ylabel('abs. lateral error [m]')
+axs[2].set_ylabel('abs. yaw error [rad]')
+
+axs[0].set_ylim((-0.1, 4))
+axs[1].set_ylim((-0.1, 4))
+axs[2].set_ylim((-0.05, 0.5))
 
 first_mid = (num_sw_configs-1)/2
 tick_positions = first_mid + np.arange(num_noise_configs)*(num_sw_configs+1)
@@ -194,10 +206,14 @@ for ax in axs:
     ax.set_xticklabels(NOISE_CONFIG_LABELS)
     ax.yaxis.grid()
 
-fig.set_size_inches(10, 3)
-axs[0].legend(framealpha=1.0, prop={'size': 6})
+fig.set_size_inches(10, 4)
+axs[0].legend(framealpha=1.0, fontsize=10,
+              bbox_to_anchor=(0, 1), loc='lower left')
 fig.tight_layout()
 plt.show()
+
+if FIG_NAME:
+    fig.savefig(FIG_NAME+'_box_plot.svg', bbox_inches='tight')
 
 
 # %%
