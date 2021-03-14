@@ -14,7 +14,6 @@ import random
 import yaml
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib
 import imageio
 import pygame
 
@@ -34,17 +33,6 @@ try:
 except IndexError:
     pass
 import carla
-
-# plt.rc('text', usetex=True)
-# plt.rc('font', family='serif', size=12)
-
-# matplotlib.use("pgf")
-# matplotlib.rcParams.update({
-#     "pgf.texsystem": "pdflatex",
-#     'font.family': 'serif',
-#     'text.usetex': True,
-#     'pgf.rcfonts': False,
-# })
 
 
 def dir_path(path):
@@ -624,36 +612,35 @@ def main():
 
     plt.close('all')
     #### Visualize errors ####
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif', size=12)
+    params = {'text.latex.preamble' : [r'\usepackage{siunitx}', r'\usepackage{amsmath}']}
+    plt.rcParams.update(params)
+    
     # Prepare local map as background
     local_map_image, extent = evtools.get_local_map_image(
         loc_gt_seq, map_image, map_info, pose_estimations=pose_estimations)
 
-    ## Longitudinal error ##
-    lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot_highway('Longitudinal Error (m)',
-                                                                     abs_lon_errs, 3.0,
-                                                                     loc_gt_seq, pose_estimations,
-                                                                     sign_pole_coords, general_pole_coords,
-                                                                     local_map_image, extent)
-    # lon_err_fig.savefig('lon_err.pgf', dpi=1000, bbox_inches='tight')
+    # Longitudinal error #
+    lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot('Longitudinal Error (m)',
+                                                             abs_lon_errs, 3.0,
+                                                             loc_gt_seq, pose_estimations,
+                                                             sign_pole_coords, general_pole_coords,
+                                                             local_map_image, extent)
 
-    # import tikzplotlib
-    # tikzplotlib.clean_figure()
-    # tikzplotlib.save("mytikz.tex")
+    # Longitudinal error #
+    lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot('Lateral Error (m)',
+                                                             abs_lat_errs, 1.0,
+                                                             loc_gt_seq, pose_estimations,
+                                                             sign_pole_coords, general_pole_coords,
+                                                             local_map_image, extent)
 
-    lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot_highway('Lateral Error (m)',
-                                                                     abs_lat_errs, 1.0,
-                                                                     loc_gt_seq, pose_estimations,
-                                                                     sign_pole_coords, general_pole_coords,
-                                                                     local_map_image, extent)
-    # lat_err_fig.savefig('lat_err.pgf', dpi=1000, bbox_inches='tight')
-
-    ## Yaw error ##
-    yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot_highway('Yaw Error (rad)',
-                                                                     abs_yaw_errs, 0.5,
-                                                                     loc_gt_seq, pose_estimations,
-                                                                     sign_pole_coords, general_pole_coords,
-                                                                     local_map_image, extent)
-    # yaw_err_fig.savefig('yaw_err.pgf', dpi=1000, bbox_inches='tight')
+    # Yaw error ##
+    yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('Yaw Error (rad)',
+                                                             abs_yaw_errs, 0.5,
+                                                             loc_gt_seq, pose_estimations,
+                                                             sign_pole_coords, general_pole_coords,
+                                                             local_map_image, extent)
 
     plt.show()
 
