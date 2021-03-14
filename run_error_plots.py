@@ -16,10 +16,10 @@ import localization.eval.utils as evtools
 RECORDING_NAME = 'urban'
 TEST_NAME = 'test_null_hypo'
 NOISE_LEVEL = 'n_high_fc'
-SW_CONFIG = 'sw_no_null'
+SW_CONFIG = 'sw_no_null_prob'
 FIG_SIZE = 5
 
-FIG_NAME = 'urban_no_null'
+FIG_NAME = 'urban_no_null_prob'
 
 # %% ############### Set matplotlib's format ###############
 plt.rc('text', usetex=True)
@@ -144,10 +144,6 @@ if FIG_NAME:
     lat_err_fig.savefig(FIG_NAME+'_lat_err.svg', dpi=500, bbox_inches='tight')
     yaw_err_fig.savefig(FIG_NAME+'_yaw_err.svg', dpi=500, bbox_inches='tight')
 
-cpu_time_fig, cpu_time_ax = plt.subplots(1, 1)
-cpu_time_ax.boxplot(cpu_times)
-cpu_time_ax.set_ylabel('cpu time [sec]')
-
-# plt.show()
+plt.show()
 
 # %%
