@@ -82,7 +82,6 @@ test_win_sizes:
       - "sw_win_20.yaml"
   highway:
     noise_configs:
-      - "n_wo_gnss_bias.yaml"
       - "n_w_gnss_bias.yaml"
     sw_configs:
       - "sw_win_2.yaml"
@@ -90,7 +89,6 @@ test_win_sizes:
       - "sw_win_20.yaml"
   urban:
     noise_configs:
-      - "n_wo_gnss_bias.yaml"
       - "n_w_gnss_bias.yaml"
     sw_configs:
       - "sw_win_2.yaml"
