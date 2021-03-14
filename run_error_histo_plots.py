@@ -15,8 +15,7 @@ import localization.eval.utils as evtools
 # %% ############### Set matplotlib's format ###############
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif', size=12)
-params = {'text.latex.preamble': [
-    r'\usepackage{siunitx}', r'\usepackage{amsmath}']}
+params = {'text.latex.preamble': r'\usepackage{siunitx} \usepackage{amsmath}'}
 plt.rcParams.update(params)
 
 # matplotlib.use("pgf")
