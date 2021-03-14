@@ -1,0 +1,2 @@
+*.asc filter=lfs diff=lfs merge=lfs -text
+*.aof filter=lfs diff=lfs merge=lfs -text
