@@ -1,7 +1,6 @@
-"""This script runs specified evaluations automatically."""
+"""This script generates visualization of semantic tests."""
 # %% Imports
 import os
-import argparse
 import pickle
 
 import yaml
