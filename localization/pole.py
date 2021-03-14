@@ -173,7 +173,7 @@ class PoleFactor(Factor):
 
                 # Scale noise standard deviation based on range
                 # This is chosen empirically
-                std_scale = 0.0005*r**2 + 1
+                std_scale = 1
 
                 H = compute_H(self.px-self.pcf, exp_x, exp_y)
                 scaled_noise_cov = self.noise_cov * std_scale**2
