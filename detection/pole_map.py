@@ -7,16 +7,7 @@ from scipy.spatial import KDTree
 from detection.utils import Pole
 from carlasim.utils import TrafficSignType
 
-# import matplotlib
-# matplotlib.use("pgf")
-# matplotlib.rcParams.update({
-#     "pgf.texsystem": "pdflatex",
-#     'font.family': 'serif',
-#     'text.usetex': True,
-#     'pgf.rcfonts': False,
-# })
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif', size=12)
+
 
 
 def gen_pole_map(poles_xy, traffic_signs, pole_map_config):
@@ -126,11 +117,16 @@ def plot_pole_map(pole_map, traffic_signs):
             labeled_x.append(pole.x)
             labeled_y.append(pole.y)
 
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif', size=12)
+    params = {'text.latex.preamble' : r'\usepackage{siunitx} \usepackage{amsmath}'}
+    plt.rcParams.update(params)
+
     fig, ax = plt.subplots(1, 1)
     unknown_poles_plot = ax.plot(unknown_type_x, unknown_type_y,
-                                 'g.', ms=6, label='pole landmark')[0]
+                                 'g.', ms=6, label='unknown pole')[0]
     landmark_objs_plot = ax.plot(traffic_sign_x, traffic_sign_y,
-                                 'bx', ms=6, label='landmark obj')[0]
+                                 'bx', ms=6, label='CARLA landmark')[0]
     labeled_poles_plot = ax.plot(labeled_x, labeled_y,
                                  'r.', ms=6, label='labeled pole')[0]
     max_x = max(unknown_type_x)
@@ -139,8 +135,8 @@ def plot_pole_map(pole_map, traffic_signs):
     min_y = min(traffic_sign_y)
     ax.set_xlim(min_x-10, max_x+10)
     ax.set_ylim(min_y-10, max_y+10)
-    ax.set_xlabel('x [m]')
-    ax.set_ylabel('y [m]')
+    ax.set_xlabel(r'$x_\text{w}$ [m]')
+    ax.set_ylabel(r'$y_\text{w}$ [m]')
     ax.legend(framealpha=1.0)
-    # fig.savefig('pole_map_example.svg')
+    fig.savefig('pole_map_example.svg')
     plt.show()
