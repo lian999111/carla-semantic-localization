@@ -1,4 +1,4 @@
-"""This script runs specified evaluations automatically."""
+"""This script runs error box plots for specified tests."""
 # %% Imports
 import os
 import argparse
@@ -15,16 +15,8 @@ import localization.eval.utils as evtools
 # %% ############### Set matplotlib's format ###############
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif', size=12)
-params = {'text.latex.preamble' : [r'\usepackage{siunitx}', r'\usepackage{amsmath}']}
+params = {'text.latex.preamble' : [r'\usepackage{siunitx} \usepackage{amsmath}']}
 plt.rcParams.update(params)
-
-# matplotlib.use("pgf")
-# matplotlib.rcParams.update({
-#     "pgf.texsystem": "pdflatex",
-#     'font.family': 'serif',
-#     'text.usetex': True,
-#     'pgf.rcfonts': False,
-# })
 
 # %%
 
