@@ -6,8 +6,8 @@
 #   pre_init_interval: 10 and init_idx: 20 means GNSS in the interval 
 #   [pre_init_interval, init_idx) will be averaged. Note init_idx is excluded.
 pre_init_interval: 10
-init_idx: 20
-end_idx: 880
+init_idx: 40
+end_idx: 1000
 
 # Toggles for factors
 use_gnss: On
@@ -44,7 +44,7 @@ sliding_window:
     # True to use max-mixture version of prior factor (Solves the caterpillar effect)
     max_mixture: True
     # Scale to scale up standard deviation for wide mode.
-    wide_std_scale: 10
+    wide_std_scale: 3
     # True to clear history in the graph when a switching happens in the max-mixture prior factor
     clear_history: True
 
@@ -75,7 +75,7 @@ sliding_window:
     semantic: True
     # True to store the first query for expected lane detection and use it for all the rest of optimization steps.
     # False to query for expected lane detection at every optimization step.
-    static: True
+    static: False
     # True to ignore lane boundary detection when in or approaching junction area.
     ignore_junction: False
     
