@@ -1,14 +1,10 @@
-"""This script runs localization tests"""
+"""This script runs predefined localization tests automatically."""
 
 import os
 import subprocess
 from multiprocessing.pool import ThreadPool
 
 import yaml
-
-
-def work(args):
-    subprocess.call(args)
 
 
 with open('settings/tests/scenarios.yaml', 'r') as f:
@@ -57,12 +53,11 @@ for test_name, test_configs in scenarios.items():
                                          os.path.splitext(noise_config)[0],
                                          os.path.splitext(sw_config)[0])
 
-                args_to_localization = ['python', 'sliding_window_localization.py',
+                args_to_localization = ['python', '-O', 'sliding_window_localization.py',
                                         recording_dir, sw_config_path,
-                                        '-n', noise_config_path,
-                                        '-s', os.path.splitext(save_path)[0]]
+                                        '-n', noise_config_path]
 
-                tp.apply_async(work, (args_to_localization,))
+                tp.apply_async(subprocess.call, (args_to_localization,))
 
 tp.close()
 tp.join()
