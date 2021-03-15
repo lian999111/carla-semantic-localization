@@ -614,7 +614,7 @@ def main():
     #### Visualize errors ####
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif', size=12)
-    params = {'text.latex.preamble' : [r'\usepackage{siunitx}', r'\usepackage{amsmath}']}
+    params = {'text.latex.preamble' : r'\usepackage{siunitx} \usepackage{amsmath}'}
     plt.rcParams.update(params)
     
     # Prepare local map as background
@@ -622,21 +622,21 @@ def main():
         loc_gt_seq, map_image, map_info, pose_estimations=pose_estimations)
 
     # Longitudinal error #
-    lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot('Longitudinal Error (m)',
+    lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot('Abs. Longitudinal Error (m)',
                                                              abs_lon_errs, 3.0,
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent)
 
     # Longitudinal error #
-    lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot('Lateral Error (m)',
+    lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot('Abs. Lateral Error (m)',
                                                              abs_lat_errs, 1.0,
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
                                                              local_map_image, extent)
 
     # Yaw error ##
-    yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('Yaw Error (rad)',
+    yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('Abs. Yaw Error (rad)',
                                                              abs_yaw_errs, 0.5,
                                                              loc_gt_seq, pose_estimations,
                                                              sign_pole_coords, general_pole_coords,
