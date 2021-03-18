@@ -19,3 +19,12 @@ The version __0.9.10__ is used throughout this repo. The corresponding .egg file
 
 [miniSAM](https://minisam.readthedocs.io/index.html)  
 Follow the instructions in [C++ Compile and Installation](https://minisam.readthedocs.io/install.html) and [Python Installation](https://minisam.readthedocs.io/install_python.html) to install the miniSAM library. Some additional dependencies are required by miniSAM. Make sure to activate the correct conda environment when installing the miniSAM Python package, so it is installed in the correct conda environment.
+
+## Install SMMPDA package
+This repo comes with a [setup.py](setup.py) file that wraps this project into an installable Python package. Once the project is install, the library can be impored by any scripts within this project. This makes testing more convenient. ([ref](https://stackoverflow.com/questions/6323860/sibling-package-imports/50193944#50193944))
+
+To install the smmpda package in _develop_ mode:
+```
+cd [PATH_TO_REPO]
+pip install -e .
+```
