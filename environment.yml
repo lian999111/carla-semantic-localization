@@ -1,4 +1,4 @@
-name: test
+name: smmpda
 channels:
   - conda-forge
   - defaults
