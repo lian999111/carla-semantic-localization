@@ -292,7 +292,7 @@ class LaneBoundaryFactor(Factor):
                     # in some very rare cases.
                     # When it happens, simply ignore it.
                     if meas_likelihood > 0.0 and geo_likelihood > 0.0:
-                        meas_likelihoods.append(meas_likelihood)
+                        meas_likelihoods.append(sem_likelihood*meas_likelihood)
                         asso_prob = geo_likelihood * sem_likelihood
                         asso_probs.append(asso_prob)
 
