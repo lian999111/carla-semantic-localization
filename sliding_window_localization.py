@@ -58,7 +58,7 @@ def main():
                            type=argparse.FileType('r'),
                            help='yaml file for post-added noise')
     argparser.add_argument('-s', '--save', dest='save_dir',
-                           help='save results in SACE_DIR under the recording folder')
+                           help='save results in SAVE_DIR under the recording folder')
     args = argparser.parse_args()
 
     # Load data in the recording folder
