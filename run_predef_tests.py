@@ -55,7 +55,8 @@ for test_name, test_configs in scenarios.items():
 
                 args_to_localization = ['python', '-O', 'sliding_window_localization.py',
                                         recording_dir, sw_config_path,
-                                        '-n', noise_config_path]
+                                        '-n', noise_config_path,
+                                        '-s', save_path]
 
                 tp.apply_async(subprocess.call, (args_to_localization,))
 
