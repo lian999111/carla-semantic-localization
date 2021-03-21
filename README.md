@@ -71,7 +71,7 @@ Say you have generated simulated detection data in __recordings/test__ in the se
 ```
 python sliding_window_localization.py recordings/test settings/localizatin.yaml -s ANY_NAME_YOU_LIKE
 ```
-If you have run step 1. and 2. without simulated noise, there is still a way to add post-simulation noise:
+If you have run step 1. and 2. with simulated noise configured to 0, there is still a way to add post-simulation noise:
 ```
 python sliding_window_localization.py recordings/test settings/localizatin.yaml -n setting/post_noise.yaml -s ANY_NAME_YOU_LIKE
 ```
