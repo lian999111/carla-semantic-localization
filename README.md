@@ -49,7 +49,7 @@ The flag ```-r``` turns on the saving of the recorded data specified in the conf
 Besides recordings, a copy of the used CARLA simulation configuration file named __config.yaml__ is saved in the folder __settings__ under the same folder for future reference.
 
 ### 2. Generate simulated object-level detections
-Say you have saved the collected data in __recordings/test__ in the first step, generate simulated detections and the pole map for it by:
+This step doesn't require CARLA. Say you have saved the collected data in __recordings/test__ in the first step, generate simulated detections and the pole map for it by:
 ```
 python -O detection_generator.py recordings/test settings/vision.yaml settings/sim_detection.yaml setting/pole_map.yaml
 ```
@@ -67,3 +67,20 @@ python detection_viewer.py recordings/test
 ```
 
 ### 3. Run SMMPDA localization on simulated data
+Say you have generated simulated detection data in __recordings/test__ in the second step. Launch CARLA (preferably in no rendering mode), then run the following if you have added measurement noise in step 1. and 2..
+```
+python sliding_window_localization.py recordings/test settings/localizatin.yaml -s ANY_NAME_YOU_LIKE
+```
+If you have run step 1. and 2. without simulated noise, there is still a way to add post-simulation noise:
+```
+python sliding_window_localization.py recordings/test settings/localizatin.yaml -n setting/post_noise.yaml -s ANY_NAME_YOU_LIKE
+```
+The first argument is the recording folder. __localization.yaml__ defines all parameters regarding SMMPDA localization. The flag ```-n``` turns on post-simulation noise and uses parameter defined in __post_noise.yaml__ to simulate noise. This way you can reuse the same recording to simulate situaions with different noise configurations. Recordings can take up a lot of space. The flag ```-s``` saves the localization results in the folder with a specified name under the folder __results__, which is created the first time localization results are to be saved.
+
+In the save folder, 4 files are stored:
+1. localizatin.gif: Animation of localization process.
+2. results.pkl: Localization results.
+3. localizatin.yaml: A copy of SMMPDA localization configuration file for future reference.
+4. post_noise.yaml (optional): A copy of post-simulation noise configuraiton file if used.
+
+Note that the first time a CARLA map is used in a localization, a map image is created using pygame for visualization. It is then cached in the folder __cache/map_images__, so it doesn't have to be created again afterwards. 
