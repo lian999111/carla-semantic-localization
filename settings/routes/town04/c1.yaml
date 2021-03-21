@@ -1,0 +1,237 @@
+## Defines configurations of Carla simulation
+
+## General setup
+sim_duration: 600  # sec
+
+# Carla recorder for simulation replay
+carla_recorder: On
+
+## World
+world:
+  # Rendering must be on for semantic segmentation output
+  no_rendering: False
+  
+  # Synchronous mode and the simulation time step (must be <= 0.1 sec for simulation fidelity)
+  sync_mode: True
+  # Note: For behavior agent's controller to work, time step 0.05 is recommended.
+  #       If autopilot is used, then 0.1 is sufficient.
+  delta_seconds: &delta_seconds 0.1  # seconds per tick
+  
+  # Built-in map
+  map: Town04
+  
+  # Carla weathers (in alphabetic order)
+  # 0 - ClearNoon
+  # 1 - ClearSunset
+  # 2 - CloudyNoon
+  # 3 - CloudySunset
+  # 4 - Default
+  # 5 - HardRainNoon
+  # 6 - HardRainSunset
+  # 7 - MidRainSunset
+  # 8 - MidRainyNoon
+  # 9 - SoftRainNoon
+  # 10 - SoftRainSunset
+  # 11 - WetCloudyNoon
+  # 12 - WetCloudySunset
+  # 13 - WetNoon
+  # 14 - WetSunset
+  weather: 0
+
+# Currently, 2 methods to control the ego vehicle are provided:
+# 1. Autopilot: 
+#    Use the traffic manager built in Carla. It allows for some basic behavior settings,               
+#    but the car can only roam around randomly.              
+#    For more info: https://github.com/carla-simulator/carla/issues/2966
+# 2. Behavior Agent:
+#    Use the BehaviorAgent class defined in the "agent" package found in Carla's repository.
+#    This utility class is used in several example codes for demonstrations. However, it is not
+#    officially documented and its use here is solely based on the examination of the example codes 
+#    with some improvements and fundamental bug fixes. I also extend the behavior agent such that 
+#    the controller follows look ahead point placed a certain distance ahead instead of just the 
+#    next waypoint. 
+# The following are configurations for the 2 mentioned methods.
+
+## Autopilot (uncomment this section to use autopilot)
+# autopilot:
+#   auto_lane_change: True  # This lets the car to make lane changes if necessary, not really useful in our case
+#   ignore_lights_percentage: 100
+#   vehicle_percentage_speed_difference: 0    # When set to negative, vehicles move beyond the speed limit
+
+## Behavior Agent (uncomment this section to use behavior agent)
+behavior_agent:
+  ignore_traffic_light: True
+  behavior: 'normal'    # 'cautious', 'normal', 'aggressive'  Note: 'aggressive' often cause instability.
+  # x, y, z in Carla's coordinate system (left-handed z-up)
+  # These are just rough coordinates. 
+  # The nearest carla.Waypoints will be retrieved around these rough goals.
+  goals:    
+    - 
+      x: 23
+      y: -293
+      z: 0
+    - 
+      x: 48
+      y: -322
+      z: 0
+    - 
+      x: 121
+      y: -366
+      z: 0
+
+## Ego Vehicle
+ego_veh:
+  # If True, use a random spawn point and ignore the following spawn point settings
+  use_random_spawn_point: False
+  # x, y, z in Carla's coordinate system (left-handed z-up)
+  spawn_location:
+    - 4.5
+    - -210
+    - 0
+  # pitch, yaw, roll (deg) in Carla's coordinate system (right-handed z-down)
+  spawn_orientation:
+    - 0.0
+    - -90.0
+    - 0.0
+  # Carla uses center of gravity as the model's origin
+  # The following is roughly measured from Carla's Mustang model
+  # Carla's Mustang:
+  #   CG to rear axle: 1.4
+  #   CG to front bumper: 2.4   
+  raxle_to_cg: &raxle_to_cg 1.4         # (m) Distance from rear axle to center of gravity in x
+  raxle_to_fbumper: &raxle_to_fbumper 3.8    # (m) Distance from rear axle to front bumper in x
+
+
+## Sensors
+sensor:
+  # Ref: https://carla.readthedocs.io/en/0.9.9/ref_sensors/
+  # Parameters for carla APIs have to be strings
+  gnss:
+    pos_x: -1.4              # Installation position x with respect to center of gravity
+    noise_alt_bias: '0.0'    # Mean parameter in the noise model for altitude.
+    noise_alt_stddev: '0.0'  # Standard deviation parameter in the noise model for altitude.
+    noise_lat_bias: '0.0'    # Mean parameter in the noise model for latitude.
+    noise_lat_stddev: '0.0'  # Standard deviation parameter in the noise model for latitude.
+    noise_lon_bias: '0.0'    # Mean parameter in the noise model for longitude.
+    noise_lon_stddev: '0.0'  # Standard deviation parameter in the noise model for longitude.
+
+  imu:
+    pos_x: -1.4                  # Installation position x with respect to center of gravity
+    noise_accel_stddev_x: '0.0'  # Standard deviation parameter in the noise model for acceleration (X axis).
+    noise_accel_stddev_y: '0.0'  # Standard deviation parameter in the noise model for acceleration (Y axis).
+    noise_accel_stddev_z: '0.0'  # Standard deviation parameter in the noise model for acceleration (Z axis).
+    noise_gyro_bias_x: '0.0'     # Mean parameter in the noise model for the gyroscope (X axis).
+    noise_gyro_bias_y: '0.0'     # Mean parameter in the noise model for the gyroscope (Y axis).
+    noise_gyro_bias_z: '0.0'     # Mean parameter in the noise model for the gyroscope (Z axis).
+    noise_gyro_stddev_x: '0.0'   # Standard deviation parameter in the noise model for the gyroscope (X axis).
+    noise_gyro_stddev_y: '0.0'   # Standard deviation parameter in the noise model for the gyroscope (Y axis).
+    noise_gyro_stddev_z: '0.0'   # Standard deviation parameter in the noise model for the gyroscope (Z axis).
+    # For virtual odometry
+    # This is not a carla implementation so use float instead
+    noise_vx_bias: 0.0    # (m/s) Mean in the noise model for vx
+    noise_vy_bias: 0.0    # (m/s) Mean in the noise model for vx
+    noise_vx_stddev: 0.0    # (m/s) Standard deviation in the noise model for vx
+    noise_vy_stddev: 0.0    # (m/s) Standard deviation in the noise model for vy
+    # Virtual odometry uses velocities of ego vehicle's actor directly,
+    # which is found to lag behind Carla's IMU by 1 simulation step.
+    # To recover that, virtual odometry's velocities are added with acceleration times simulation step 
+    delta_seconds: *delta_seconds  # Simulation time step
+
+  front_camera:
+    # Semantic segmentation image
+    pos_x: 0.6    # Installation position x with respect to center of gravity
+    pos_z: 1.5    # Installation position z with respect to center of gravity (+: up)
+    res_h: '800'  # (px) horizontal resolution
+    res_v: '600'  # (px) vertical resolution
+    fov: '60'     # (deg)
+
+## Ground truth extraction
+gt:
+  pose:
+    raxle_to_cg: *raxle_to_cg              # (m) Distance from rear axle to center of gravity in x
+    raxle_to_fbumper: *raxle_to_fbumper    # (m) Distance from rear axle to front bumper in x
+  lane:
+    radius: 10      # (m) Search radius for lane markings
+
+## Recorder
+# Each toggle specifies whether its corresponding data are recoreded when the recorder is activated
+# Note the names must match the ones definded in its class
+# Using names that don't exist causes KeyError during runtime
+
+# Example format for sensor data:
+# sensor:
+#   sensor_name:                  <- The sensor name (sensor's attribute)
+#     data_name_1: On/Off         <- The data name (i.e. the key in the data buffer)
+
+# Example format for ground truth data:
+# gt:
+#   static:
+#     gt_name: On/Off               <- The static ground truth type name (e.g. pose, lane)
+#   seq:
+#     gt_name:                      <- The sequential ground truth type name (e.g. pose, lane)
+#       data_name_1: On/Off         <- The data name (i.e. the key in the data buffer)
+
+recorder:
+  # Sensor data
+  sensor:
+    imu:
+      timestamp: On
+      # Velocities
+      vx: On
+      vy: On
+      # Angular velocities
+      gyro_x: Off
+      gyro_y: Off
+      gyro_z: On
+      # Accelerations
+      accel_x: Off
+      accel_y: Off
+      accel_z: Off
+
+    gnss:
+      timestamp: On
+      lat: Off
+      lon: Off
+      alt: Off
+      x: On
+      y: On
+      z: On
+
+    semantic_camera:
+      timestamp: On
+      ss_image: On
+
+    depth_camera:
+      timestamp: On
+      depth_buffer: On
+
+  # Ground truth
+  gt:
+    # Static
+    static:
+      traffic_sign: on
+    
+    # Sequential
+    seq:
+      pose:
+        # Rear axle's pose
+        raxle_location: On
+        raxle_orientation: On
+        
+      lane:
+        # The properties of the closest Carla.Waypoint
+        in_junction: On
+        lane_id: On
+        into_junction: On
+
+        # Carla.LaneMarking objects
+        left_marking: On
+        next_left_marking: On
+        right_marking: On
+        next_right_marking: On
+        
+        # c0 and c1 coefficients
+        left_marking_coeffs: On
+        next_left_marking_coeffs: On
+        right_marking_coeffs: On
+        next_right_marking_coeffs: On
