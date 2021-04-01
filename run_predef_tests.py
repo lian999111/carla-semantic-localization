@@ -69,6 +69,6 @@ for test_name, test_configs in scenarios.items():
 
                 args.append(args_to_localization)
 
-pool.map(subprocess.call, args)
+pool.map(subprocess.call, args, chunksize=1)
 pool.close()
 pool.join()
