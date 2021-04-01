@@ -128,3 +128,10 @@ To visualize the results, check the folder [helper_scripts](helper_scripts).
 The two Jupyter notebooks [front_camera_calibration.ipynb](front_camera_calibration.ipynb) and [ipm_using_deal_vanish_point.ipynb](ipm_using_deal_vanish_point.ipynb) are provided to generate the calibration and IPM parameters of the front-facing camera in an interactive way. The front bumper frame is the reference frame when computing the calibration matrix, so the calbration matrix relates coordinates in the front bumper frame and the image pixels. Both notebooks use the images in the folder [calib_images](calib_images) either for computation or visualization. The results are stored in __calib_data.pkl__ and __ipm_data.pkl__ respectively, which are already part of the repo.
 
 These parameters are essential for detection simulation. If you somehow need to change the configuration of the camera, remember to update these parameters as well. It can be done by reusing the two Jupyter notebooks with a few adjustments.
+
+## Packages
+This repo currently contains 4 major packages:
+- __carlasim__: Contains modules related to CARLA simulation and data collection.
+- __detection__: Contains modules related to detection simulation.
+- __localization__: Contains modules implementing SMMPDA localization.
+- __model__: Contains CTRV motion model implementation.
