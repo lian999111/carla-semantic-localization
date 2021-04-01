@@ -1,8 +1,13 @@
-"""This script runs predefined localization tests automatically."""
+"""This script runs predefined localization tests automatically.
+
+Ref: 
+https://medium.com/@leportella/how-to-run-parallel-processes-8939dafae81e
+https://stackoverflow.com/questions/38271547/when-should-we-call-multiprocessing-pool-join
+"""
 
 import os
 import subprocess
-from multiprocessing.pool import ThreadPool
+from multiprocessing import Pool
 
 import yaml
 
@@ -15,7 +20,11 @@ BASE_CONFIG_PATH = 'settings/tests'
 
 BASE_COMMAND = 'python -O sliding_window_localization.py'
 
-tp = ThreadPool(2)
+# Create a process pool of 2
+# On my laptop, using more processes tends to make CARLA crash
+# But you can try if you have better luck
+pool = Pool(processes=2)
+args = []
 
 # Loop over test scenarios
 for test_name, test_configs in scenarios.items():
@@ -55,9 +64,11 @@ for test_name, test_configs in scenarios.items():
 
                 args_to_localization = ['python', '-O', 'sliding_window_localization.py',
                                         recording_dir, sw_config_path,
-                                        '-n', noise_config_path]
+                                        '-n', noise_config_path,
+                                        '-s', save_path]
 
-                tp.apply_async(subprocess.call, (args_to_localization,))
+                args.append(args_to_localization)
 
-tp.close()
-tp.join()
+pool.map(subprocess.call, args)
+pool.close()
+pool.join()
