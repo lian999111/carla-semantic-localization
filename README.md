@@ -37,8 +37,14 @@ Launch CARLA, then run:
 ```
 python -O raw_collector.py settings/carlasim.yaml -r
 ```
-This spawns a Mustang (yes, I'm old-school) in the CARLA world with sensors, which wanders around and collects data from the sensors. The ```-O``` flag turns on the optimization mode of python interpretor and turns off debug features. When runing without this flag, some shapes will be drawn in the CARLA world, e.g. lane boundaries points
-://carla.readthedocs.io/en/0.9.10/adv_recorder/).
+This spawns a Mustang (yes, I'm old-school) in the CARLA world with sensors, which wanders around and collects data from the sensors. The ```-O``` flag turns on the optimization mode of python interpretor and turns off debug features. When runing without this flag, some shapes will be drawn in the CARLA world, e.g. lane boundaries points, for debug's purpose. 
+
+The first argument is the configuration YAML file that defines all details regarding CARLA simulation, such as the used map, the weather, how the car is controlled, and sensor configurations. The folder [settings](settings) contains a [carlasim.yaml](settings/carlasim.yaml) that can be used for quick tests. See comments in the files for more information on how to set the parameters. If a sensor noise parameter is set as 0, CARLA simply gives you the ground truth value for the corresponding measurement. In the folder [settings/routes](settings/routes), several pre-defined config files can be found, which only differ in their used waypoints.
+
+The flag ```-r``` turns on the saving of the recorded data specified in the configuration file mentioned above. A __recordings__ folder will be created in the root of this project the first time, under which the recorded data of a simulation will be saved into a folder named by the time the simulation is run. It is recommended to change the folder name to something more meaningful right after saving. Data are stored into 3 files:
+1. sensor_data.pkl: Simulated raw sensor data.
+2. gt_data.pkl: Ground truth data.
+3. carla_recording.log: Data for CARLA replay. Refer to [here](https://carla.readthedocs.io/en/0.9.10/adv_recorder/).
 
 Besides recordings, a copy of the used CARLA simulation configuration file named __config.yaml__ is saved in the folder __settings__ under the same folder for future reference.
 
