@@ -37,14 +37,8 @@ Launch CARLA, then run:
 ```
 python -O raw_collector.py settings/carlasim.yaml -r
 ```
-This spawns a Mustang (yes, I'm old-school) in the CARLA world with sensors, which wanders around and collects data from the sensors. The ```-O``` flag turns on the optimization mode of python interpretor and turns off debug features. When runing without this flag, some shapes will be drawn in the CARLA world, e.g. lane boundaries points, for debug's purpose. 
-
-The first argument is the configuration YAML file that defines all details regarding CARLA simulation, such as the used map, the weather, how the car is controlled, and sensor configurations. The folder [settings](settings) contains a [carlasim.yaml](settings/carlasim.yaml) that can be used for quick tests. See comments in the files for more information on how to set the parameters. If a sensor noise parameter is set as 0, CARLA simply gives you the ground truth value for the corresponding measurement. In the folder [settings/routes](settings/routes), several pre-defined config files can be found, which only differ in their used waypoints.
-
-The flag ```-r``` turns on the saving of the recorded data specified in the configuration file mentioned above. A __recordings__ folder will be created in the root of this project the first time, under which the recorded data of a simulation will be saved into a folder named by the time the simulation is run. It is recommended to change the folder name to something more meaningful right after saving. Data are stored into 3 files:
-1. sensor_data.pkl: Simulated raw sensor data.
-2. gt_data.pkl: Ground truth data.
-3. carla_recording.log: Data for CARLA replay. Refer to [here](https://carla.readthedocs.io/en/0.9.10/adv_recorder/).
+This spawns a Mustang (yes, I'm old-school) in the CARLA world with sensors, which wanders around and collects data from the sensors. The ```-O``` flag turns on the optimization mode of python interpretor and turns off debug features. When runing without this flag, some shapes will be drawn in the CARLA world, e.g. lane boundaries points
+://carla.readthedocs.io/en/0.9.10/adv_recorder/).
 
 Besides recordings, a copy of the used CARLA simulation configuration file named __config.yaml__ is saved in the folder __settings__ under the same folder for future reference.
 
@@ -69,13 +63,13 @@ python detection_viewer.py recordings/test
 ### 3. Run SMMPDA localization on simulated data
 Say you have generated simulated detection data in __recordings/test__ in the second step. Launch CARLA (preferably in no rendering mode), then run the following if you have added measurement noise in step 1. and 2..
 ```
-python sliding_window_localization.py recordings/test settings/localizatin.yaml -s ANY_NAME_YOU_LIKE
+python sliding_window_localization.py recordings/test settings/localizatin.yaml -s ANY_NAME_YOU_LIKE -ve
 ```
 If you have run step 1. and 2. with simulated noise configured to 0, there is still a way to add post-simulation noise:
 ```
-python sliding_window_localization.py recordings/test settings/localizatin.yaml -n setting/post_noise.yaml -s ANY_NAME_YOU_LIKE
+python sliding_window_localization.py recordings/test settings/localizatin.yaml -n setting/post_noise.yaml -s ANY_NAME_YOU_LIKE -ve
 ```
-The first argument is the recording folder. __localization.yaml__ defines all parameters regarding SMMPDA localization. The flag ```-n``` turns on post-simulation noise and uses parameter defined in __post_noise.yaml__ to simulate noise. This way you can reuse the same recording to simulate situaions with different noise configurations. Recordings can take up a lot of space. The flag ```-s``` saves the localization results in the folder with a specified name under the folder __results__, which is created the first time localization results are to be saved.
+The first argument is the recording folder. __localization.yaml__ defines all parameters regarding SMMPDA localization. The flag ```-n``` turns on post-simulation noise and uses parameter defined in __post_noise.yaml__ to simulate noise. This way you can reuse the same recording to simulate situaions with different noise configurations. Recordings can take up a lot of space. The flag ```-s``` saves the localization results in the folder with a specified name under the folder __results__, which is created the first time localization results are to be saved. The flag ```-ve``` toggles on the visualization of the resulting colored error plots.
 
 In the save folder, 4 files are stored:
 1. localizatin.gif: Animation of localization process.
@@ -84,3 +78,40 @@ In the save folder, 4 files are stored:
 4. post_noise.yaml (optional): A copy of post-simulation noise configuraiton file if used.
 
 Note that the first time a CARLA map is used in a localization, a map image is created using pygame for visualization. It is then cached in the folder __cache/map_images__, so it doesn't have to be created again afterwards. 
+
+## Reproduce Tests
+To reproduce the tests performed in the thesis
+### 1. Prepare recordings:
+Prepare the 4 recordings with the following 4 scenario configuraitons:
+1. [urban](settings/routes/town03/urban.yaml)
+2. [highway](settings/routes/town04/highway.yaml)
+2. [s2](settings/routes/town04/s2.yaml)
+4. [s3](settings/routes/town04/s3.yaml)
+
+e.g. ```python -O raw_collector.py settings/routes/town03/urban.yaml -r```
+
+Note: s2 means the ego car on a __straight__ highway starts from the __2nd__ lane and makes a lane change to the right. Similar for s3.
+
+Rename the folders of recordings so you have the same structure in the __recordings__ folder:
+
+```
+recordings
+└─highway
+└─s2
+└─s3
+└─urban
+```
+
+### 2. Prepare detection data
+Use the command as in the section __"Generate simulated object-level detections"__ above to generate detections for each scenario. 
+
+e.g. ```python -O detection_generator.py recordings/highway settings/vision.yaml settings/sim_detection.yaml setting/pole_map.yaml```
+
+Use the default __sim_detection.yaml__ to not introduce simulated errors at this step since post-simulation errors will be added during localization later.
+
+### 3. Run localization tests
+First, launch CARLA server (preferably in no rendering mode). A Python script __run_predef_tests.py__ has been prepared that refers to [scenarios.yaml](settings/tests/scenarios.yaml) and automatically run through all configurations in parallel. Simply run:
+
+```python run_predef_tests.py```
+
+The configurations corresponding to the parameters used in the thesis are pre-defined and stored in the folder [settings/tests](settings/tests). The script uses a process pool of 2 by default since using more tends to crash CARLA on my laptop, but try it yourself maybe you have better luck ;). Running the entire test set takes roughly 2 hours on my laptop with i7-10750H. Afterwards, you should be able to find for each recording a folder __results__ containing subfolders named after the configs in __scenarios.yaml__, where the localization results are stored.
