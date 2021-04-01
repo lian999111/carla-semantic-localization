@@ -59,6 +59,8 @@ def main():
                            help='yaml file for post-added noise')
     argparser.add_argument('-s', '--save', dest='save_dir',
                            help='save results in SAVE_DIR under the recording folder')
+    argparser.add_argument('-ve', '--vis_error', default=False, action='store_true',
+                           help='Visualize resulting errors')
     args = argparser.parse_args()
 
     # Load data in the recording folder
@@ -611,38 +613,40 @@ def main():
     abs_yaw_errs = np.abs(np.asarray(yaw_errs))
 
     plt.close('all')
-    #### Visualize errors ####
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif', size=12)
-    params = {'text.latex.preamble' : r'\usepackage{siunitx} \usepackage{amsmath}'}
-    plt.rcParams.update(params)
     
-    # Prepare local map as background
-    local_map_image, extent = evtools.get_local_map_image(
-        loc_gt_seq, map_image, map_info, pose_estimations=pose_estimations)
+    #### Visualize errors ####
+    if args.vis_error:
+        plt.rc('text', usetex=True)
+        plt.rc('font', family='serif', size=12)
+        params = {'text.latex.preamble' : r'\usepackage{siunitx} \usepackage{amsmath}'}
+        plt.rcParams.update(params)
+        
+        # Prepare local map as background
+        local_map_image, extent = evtools.get_local_map_image(
+            loc_gt_seq, map_image, map_info, pose_estimations=pose_estimations)
 
-    # Longitudinal error #
-    lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot('Abs. Longitudinal Error (m)',
-                                                             abs_lon_errs, 3.0,
-                                                             loc_gt_seq, pose_estimations,
-                                                             sign_pole_coords, general_pole_coords,
-                                                             local_map_image, extent)
+        # Longitudinal error #
+        lon_err_fig, lon_err_ax = evtools.gen_colored_error_plot('Abs. Longitudinal Error (m)',
+                                                                abs_lon_errs, 3.0,
+                                                                loc_gt_seq, pose_estimations,
+                                                                sign_pole_coords, general_pole_coords,
+                                                                local_map_image, extent)
 
-    # Longitudinal error #
-    lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot('Abs. Lateral Error (m)',
-                                                             abs_lat_errs, 1.0,
-                                                             loc_gt_seq, pose_estimations,
-                                                             sign_pole_coords, general_pole_coords,
-                                                             local_map_image, extent)
+        # Longitudinal error #
+        lat_err_fig, lat_err_ax = evtools.gen_colored_error_plot('Abs. Lateral Error (m)',
+                                                                abs_lat_errs, 1.0,
+                                                                loc_gt_seq, pose_estimations,
+                                                                sign_pole_coords, general_pole_coords,
+                                                                local_map_image, extent)
 
-    # Yaw error ##
-    yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('Abs. Yaw Error (rad)',
-                                                             abs_yaw_errs, 0.5,
-                                                             loc_gt_seq, pose_estimations,
-                                                             sign_pole_coords, general_pole_coords,
-                                                             local_map_image, extent)
+        # Yaw error ##
+        yaw_err_fig, yaw_err_ax = evtools.gen_colored_error_plot('Abs. Yaw Error (rad)',
+                                                                abs_yaw_errs, 0.5,
+                                                                loc_gt_seq, pose_estimations,
+                                                                sign_pole_coords, general_pole_coords,
+                                                                local_map_image, extent)
 
-    plt.show()
+        plt.show()
 
 
 if __name__ == "__main__":
