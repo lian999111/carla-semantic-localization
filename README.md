@@ -79,7 +79,7 @@ In the save folder, 4 files are stored:
 
 Note that the first time a CARLA map is used in a localization, a map image is created using pygame for visualization. It is then cached in the folder __cache/map_images__, so it doesn't have to be created again afterwards. 
 
-## Reproduce Tests
+## Reproduce Localization Tests
 To reproduce the tests performed in the thesis
 ### 1. Prepare recordings:
 Prepare the 4 recordings with the following 4 scenario configuraitons:
@@ -115,3 +115,10 @@ First, launch CARLA server (preferably in no rendering mode). A Python script __
 ```python run_predef_tests.py```
 
 The configurations corresponding to the parameters used in the thesis are pre-defined and stored in the folder [settings/tests](settings/tests). The script uses a process pool of 2 by default since using more tends to crash CARLA on my laptop, but try it yourself maybe you have better luck ;). Running the entire test set takes roughly 2 hours on my laptop with i7-10750H. Afterwards, you should be able to find for each recording a folder __results__ containing subfolders named after the configs in __scenarios.yaml__, where the localization results are stored.
+
+To visualize the results, check the folder __helper_scripts__.
+
+## Camera calibration and IPM parameters
+The two Jupyter notebooks [front_camera_calibration.ipynb](front_camera_calibration.ipynb) and [ipm_using_deal_vanish_point.ipynb](ipm_using_deal_vanish_point.ipynb) are provided to generate the calibration and IPM parameters of the front-facing camera in an interactive way. They use the images in the folder [calib_images](calib_images) either for computation or visualization. The results are stored in __calib_data.pkl__ and __ipm_data.pkl__ respectively, which are already part of the repo.
+
+These parameters are essential for detection simulation. If you somehow need to change the configuration of the camera, remember to update these parameters as well. It can be done by reusing the two Jupyter notebooks with a few adjustments.
