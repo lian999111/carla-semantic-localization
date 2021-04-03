@@ -90,7 +90,7 @@ To reproduce the tests performed in the thesis, follow these 3 steps:
 ### 1. Prepare recordings:
 Prepare the 5 recordings with the following 5 scenario configuraitons:
 1. [urban](settings/routes/town03/urban.yaml)
-2. [urban](settings/routes/town03/right_turn.yaml)
+2. [right_turn](settings/routes/town03/right_turn.yaml)
 3. [highway](settings/routes/town04/highway.yaml)
 4. [s2](settings/routes/town04/s2.yaml)
 5. [s3](settings/routes/town04/s3.yaml)
