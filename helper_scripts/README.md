@@ -1,7 +1,7 @@
 This folder contains helper scripts and Jupyter notebooks. They can be divided into 2 categories: CARLA-related and Thesis-related. Their usages are briefly described here.
 
 __CARLA-related__:
-- __explor_map.py__: Use this script to manually wander around a map with a randomly spawned car. It is modified from a CARLA's example which is under the MIT license. The modification extends the visualization to also show the 4 lane boundaries in the neightborhood. This is intend to be a tool to find inconsistencies between the lane boundaries in the underlying map and the rendering.
+- __explor_map.py__: Use this script to manually wander around a map with a randomly spawned car. It is modified from a CARLA's example which is under the [MIT license](../agents/LICENSE). The modification extends the visualization to also show the 4 lane boundaries in the neightborhood. This is intend to be a tool to find inconsistencies between the lane boundaries in the underlying map and the rendering. Run the script with the flag ```-h``` to see descriptions of available options.
 
 - __show_all_landmarks.py__: As its names suggests, it visualizes all landmark objects in CARLA's rendering. A landmark object corresponds to a traffic sign defined in the underlying map.
 
