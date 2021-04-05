@@ -1,6 +1,27 @@
 # SMMPDA
 
-This repo implements Semantic Max-mixture Probabilistic Data Association localization using the miniSAM library. Simulations are conducted with CARLA. Ubuntu 18.04 LTS has been used to develop this project.
+This repo implements Semantic Max-mixture Probabilistic Data Association (SMMPDA) localization using the miniSAM library. Simulations are conducted with CARLA. Ubuntu 18.04 LTS has been used to develop this project. The publication to ITSC 2021 based on this work is in progress together with the RST Lab at TU Dortmund.
+
+SMMPDA is a localization algorithm based on sliding window factor graphs combined with a PDA-like data association scheme. The following animation gives a sense of the localization result in CARLA simulations. The meanings of the elements are:
+- Triangles with ellipses: The estimated poses in the sliding window. These two examples use the window size of 10.
+- Blue curve: The ground truth trajectory
+- Cross: The ground truth position at the current time step.
+- Blue and red dots: Pole objects in the map. (blue: general pole. red: a pole of a traffic sign)
+- Jumping dot: The GNSS reading. Biases are added to degrade its reliablity in both cases.
+- Orange & green curves: The detected lane boundaries.
+- Lines connecting to hollow dots: The detected pole objects. The hollow dot ahead of the pose triangle is the camera. (blue: detected as general pole. red: detected as a pole of a traffic sign)
+
+Note: The implementation also uses stop line detections (enmulated by road surface stop signs in CARLA), which are not visualized.
+
+In the first highway case, with semantic lane boundary measurements, SMMPDA is able to recover from a wrong initial belief in the wrong lane resulting from laterally-biased GNSS measurements and achieve a lane-level accuracy. SMMPDA is capable of reinitialization when it detects previous beliefs were potentially wrong, which takes effect after the lane change in this case. (Poles not used in this case)
+<p align="center">
+  <img src="for_readme/localization_hw.gif" />
+</p>
+
+In the second urban case, SMMPDA results in fairly accurate localization even with biases in the longitudinal and lateral directions.
+<p align="center">
+  <img src="for_readme/localization_urban.gif" />
+</p>
 
 ## Environment Setup
 Using miniconda is recommended beause this repo is developed this way. The repo comes with an [environment.yml](environment.yml) file that facilitates setting up the environment.
