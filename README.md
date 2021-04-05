@@ -1,6 +1,6 @@
 # SMMPDA
 
-This repo implements Semantic Max-mixture Probabilistic Data Association localization using the miniSAM library. Simulations are conducted with CARLA. Ubuntu 18.04 LTS has been used to develop this project.
+This repo implements Semantic Max-mixture Probabilistic Data Association localization using the miniSAM library. Simulations are conducted with CARLA. Ubuntu 18.04 LTS has been used to develop this project. Publication to ITSC 2021 based on this work is in progress.
 
 ## Environment Setup
 Using miniconda is recommended beause this repo is developed this way. The repo comes with an [environment.yml](environment.yml) file that facilitates setting up the environment.
