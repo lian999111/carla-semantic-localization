@@ -72,7 +72,7 @@ Besides recordings, a copy of the used CARLA simulation configuration file named
 ### 2. Generate simulated object-level detections
 This step doesn't require CARLA. Say you have saved the collected data in __recordings/test__ in the first step, generate simulated detections and the pole map for it by:
 ```
-python -O detection_generator.py recordings/test settings/vision.yaml settings/sim_detection.yaml setting/pole_map.yaml
+python -O detection_generator.py recordings/test settings/vision.yaml settings/sim_detection.yaml settings/pole_map.yaml
 ```
 Running it without the ```-O``` flag will show the visualization of the generated pole map in the end. The first argument is the folder of the recording. The file __vision.yaml__ defines parameters regarding vision-based detection algorithms. __sim_detection.yaml__ defines parameters regarding data generated based on GT data, which are more artificial compared to the vision-based part. __pole_map.yaml__ defines parameters that are used for pole map generation. See the comments in them for more information. It took me some time to tune the parameters, but feel free to fine-tune them.
 
@@ -90,11 +90,11 @@ python detection_viewer.py recordings/test
 ### 3. Run SMMPDA localization on simulated data
 Say you have generated simulated detection data in __recordings/test__ in the second step. Launch CARLA (preferably in no rendering mode), then run the following if you have added measurement noise in step 1. and 2..
 ```
-python sliding_window_localization.py recordings/test settings/localizatin.yaml -s ANY_NAME_YOU_LIKE -ve
+python sliding_window_localization.py recordings/test settings/localization.yaml -s ANY_NAME_YOU_LIKE -ve
 ```
 If you have run step 1. and 2. with simulated noise configured to 0, there is still a way to add post-simulation noise:
 ```
-python sliding_window_localization.py recordings/test settings/localizatin.yaml -n setting/post_noise.yaml -s ANY_NAME_YOU_LIKE -ve
+python sliding_window_localization.py recordings/test settings/localization.yaml -n settings/post_noise.yaml -s ANY_NAME_YOU_LIKE -ve
 ```
 The first argument is the recording folder. __localization.yaml__ defines all parameters regarding SMMPDA localization. The flag ```-n``` turns on post-simulation noise and uses parameter defined in __post_noise.yaml__ to simulate noise. This way you can reuse the same recording to simulate situaions with different noise configurations. Recordings can take up a lot of space. The flag ```-s``` saves the localization results in the folder with a specified name under the folder __results__, which is created the first time localization results are to be saved. The flag ```-ve``` toggles on the visualization of the resulting colored error plots.
 
