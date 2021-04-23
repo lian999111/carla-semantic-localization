@@ -164,24 +164,21 @@ class PoleFactor(Factor):
         else:
             errors = [null_error]
             gated_xy_list = [null_expected_xy_cam]
-            std_scales = [1]
             asso_probs = []
             meas_likelihoods = []
+            sem_likelihoods = []
             for (exp_x, exp_y), exp_type in zip(pole_homo_coords_cam[0:2, :].T, exp_pole_types):
                 r = math.sqrt(exp_x**2 + exp_y**2)
                 phi = math.atan2(exp_y, exp_x)
 
-                # Scale noise standard deviation based on range
-                # This is chosen empirically
-                std_scale = 1
-
                 H = compute_H(self.px-self.pcf, exp_x, exp_y)
-                scaled_noise_cov = self.noise_cov * std_scale**2
+                scaled_noise_cov = self.noise_cov
                 innov = H @ self.pose_uncert @ H.T + scaled_noise_cov
 
                 error = (np.array([r, phi]) -
                         np.array([meas_r, meas_phi])).reshape(2, -1)
-                squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
+                # Mahalanobis distance is only needed for geometric gating
+                # squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
 
                 # Semantic likelihood
                 if self.semantic:
@@ -196,7 +193,6 @@ class PoleFactor(Factor):
                 # if squared_mahala_dist < self.geo_gate and sem_likelihood > self.sem_gate:
                 if sem_likelihood > self.sem_gate:
                     errors.append(error)
-                    std_scales.append(std_scale)
                     gated_xy_list.append([exp_x, exp_y])
 
                     # Measurement likelihood
@@ -211,6 +207,7 @@ class PoleFactor(Factor):
                     # When it happens, simply ignore it.
                     if meas_likelihood > 0.0 and geo_likelihood > 0.0:
                         meas_likelihoods.append(sem_likelihood*meas_likelihood)
+                        sem_likelihoods.append(sem_likelihood)
                         asso_prob = geo_likelihood * sem_likelihood
                         asso_probs.append(asso_prob)
 
@@ -235,14 +232,10 @@ class PoleFactor(Factor):
                 else:
                     self._null_hypo = False
                     self.chosen_expected_xy = gated_xy_list[asso_idx]
-                    self._std_scale = std_scales[asso_idx]
                     # To scale down the hypothesis to account for target uncertainty
                     # This form is empirically chosen
-                    self._scale = weights[asso_idx]**1
+                    self._scale = weights[asso_idx] * sem_likelihoods[asso_idx-1]
                     chosen_error = errors[asso_idx]
-
-                    # Scale down the error based on range
-                    chosen_error /= self._std_scale
 
                     # Scale down the error based on weight
                     chosen_error *= self._scale

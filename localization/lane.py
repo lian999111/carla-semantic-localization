@@ -243,6 +243,7 @@ class LaneBoundaryFactor(Factor):
             gated_coeffs_list = [null_expected_c0c1]
             asso_probs = []
             meas_likelihoods = []
+            sem_likelihoods = []
             for exp_coeffs, exp_type in zip(expected_coeffs_list, expected_type_list):
                 # Compute innovation matrix
                 expected_c0, expected_c1 = exp_coeffs
@@ -252,7 +253,8 @@ class LaneBoundaryFactor(Factor):
                 # Compute squared mahalanobis distance
                 error = np.asarray(exp_coeffs).reshape(
                     2, -1) - measured_coeffs
-                squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
+                # Mahalanobis distance is only needed for geometric gating
+                # squared_mahala_dist = error.T @ np.linalg.inv(innov) @ error
 
                 # Semantic likelihood
                 if self.semantic:
@@ -293,6 +295,7 @@ class LaneBoundaryFactor(Factor):
                     # When it happens, simply ignore it.
                     if meas_likelihood > 0.0 and geo_likelihood > 0.0:
                         meas_likelihoods.append(sem_likelihood*meas_likelihood)
+                        sem_likelihoods.append(sem_likelihood)
                         asso_prob = geo_likelihood * sem_likelihood
                         asso_probs.append(asso_prob)
 
@@ -321,7 +324,7 @@ class LaneBoundaryFactor(Factor):
                     self.chosen_expected_coeffs = gated_coeffs_list[asso_idx]
                     # Scale down the hypothesis to account for target uncertainty
                     # This form is empirically chosen
-                    self._scale = weights[asso_idx]**1
+                    self._scale = weights[asso_idx] * sem_likelihoods[asso_idx-1]
                     # Scale down the error based on weight
                     # This is to achieve the same effect of scaling infomation matrix during optimzation
                     chosen_error = errors[asso_idx] * self._scale
